@@ -94,8 +94,9 @@ function genAlphabet() {
   out.push(mk('alphabet', 'choice', { items: [`letter:${b}`], q: `Como se pronuncia a letra <b>${b}</b> em francês?`, options: shuffle(names), answer: LETTERS[b], audio: LETTERS[b], explain: `${b} = ${LETTERS[b]}.` }));
   const ac = pick(ACCENTS);
   out.push(mk('alphabet', 'choice', { items: [`accent:${ac.c}`], q: `Como se chama o acento de <b>${ac.c}</b>?`, options: shuffle([ac.name, ...sample(ACCENTS.map((x) => x.name), 3, [ac.name])]), answer: ac.name, explain: `${ac.c} = ${ac.name}.` }));
-  const nm2 = pick(NAMES); const spelled = nm2.toUpperCase().split('').join('-');
-  out.push(mk('alphabet', 'speak', { items: lettersOf(nm2), q: 'Leia em voz alta:', answer: `Ça s'écrit ${spelled.replace(/-/g, ', ')}`, shown: `Ça s'écrit ${spelled}.`, audio: nm2, explain: 'Tente soletrar letra por letra.' }));
+  // o reconhecimento de voz não avalia bem letras soletradas; treinamos as frases de soletrar e o próprio nome
+  const nm2 = pick(NAMES); const say = pick(["Comment ça s'écrit ?", "Épelez, s'il vous plaît.", `Je m'appelle ${nm2}.`, `Mon prénom, c'est ${nm2}.`]);
+  out.push(mk('alphabet', 'speak', { items: /appelle|prénom/.test(say) ? lettersOf(nm2) : [], q: 'Diga em voz alta:', answer: say.replace(/[.?]$/, ''), shown: say, audio: say, explain: 'Depois tente soletrar o nome em voz alta, letra por letra.' }));
   out.push(mk('alphabet', 'tiles', { q: 'Monte a frase: "Como se escreve?"', tiles: shuffle(['Comment', 'ça', "s'écrit", 'bonjour']), answer: "Comment ça s'écrit", audio: "Comment ça s'écrit ?" }));
   return pick(out);
 }
@@ -178,6 +179,7 @@ function genVerbes() {
   const blank = `${sen.subj}${sen.subjSpace ? ' ' : ''}<span class="blank">____</span> (${verb}) ${sen.rest}.`;
   const hint = `${verb} = ${VERBS[verb].pt}`;
   const vit = [`verb:${verb}:${idx}`];
+  if (t === 4 && rnd(2)) return mk('verbes', 'speak', { items: vit, q: 'Diga em voz alta:', answer: sen.full.replace('.', ''), shown: sen.full, audio: sen.full, explain: `${PRONOUNS[idx]} → ${sen.form}` });
   if (t === 0 || t === 1) return mk('verbes', 'type', { items: vit, q: `Conjugue: ${blank}`, sub: hint, answer: sen.form, audio: sen.full, explain: `${sen.full} (${PRONOUNS[idx]} → ${sen.form})` });
   if (t === 2) {
     const opts = shuffle([...new Set([sen.form, ...sample(forms.filter((f) => f !== sen.form), 3)])]);
@@ -192,8 +194,9 @@ function genVerbes() {
 }
 
 function genMetiers() {
-  const t = rnd(7);
+  const t = rnd(8);
   const diff = JOBS.filter((j) => j.m !== j.f);
+  if (t === 7) { const j = pick(JOBS); const g = pick(['m', 'f']); const sp = `${g === 'f' ? 'Elle' : 'Il'} est ${j[g]}`; return mk('metiers', 'speak', { items: [`job:${j.m}`], q: `Diga em voz alta: <i>${j.pt}</i>`, answer: sp, shown: sp + '.', audio: sp, explain: `${j.m} / ${j.f}` }); }
   if (t === 0) { const j = pick(diff); return mk('metiers', 'type', { items: [`job:${j.m}`], q: `Passe para o <b>feminino</b>: <i>Il est ${j.m}</i> → Elle est ____`, answer: j.f, audio: `Elle est ${j.f}`, explain: `${j.m} → ${j.f}` }); }
   if (t === 1) { const j = pick(diff); return mk('metiers', 'type', { items: [`job:${j.m}`], q: `Passe para o <b>masculino</b>: <i>Elle est ${j.f}</i> → Il est ____`, answer: j.m, audio: `Il est ${j.m}`, explain: `${j.f} → ${j.m}` }); }
   if (t === 2) { const j = pick(JOBS); return mk('metiers', 'choice', { items: [`job:${j.m}`], q: `Ela é ${j.pt}. → Elle est ____`, options: shuffle([j.f, ...sample(JOBS.map((x) => x.f), 3, [j.f])]), answer: j.f, audio: `Elle est ${j.f}`, explain: `Elle est ${j.f}.` }); }
@@ -339,9 +342,11 @@ function candidates(unitIds, perUnit) {
 }
 
 // unitId: uma unidade, ou 'mix' (todas, escolhendo o que está mais fraco)
-export function buildSession(unitId, n = 10, strengthOf = () => 0.3) {
-  if (unitId === 'mix') return pickAdaptive(candidates(Object.keys(GEN), 12), n, strengthOf, Math.ceil(n * 0.3));
-  return pickAdaptive(candidates([unitId], 44), n, strengthOf);
+// opts.kinds: limita aos tipos de exercício (usado nos degraus Reconhecer / Escrever / Falar)
+export function buildSession(unitId, n = 10, strengthOf = () => 0.3, opts = {}) {
+  const keep = (list) => (opts.kinds ? list.filter((ex) => opts.kinds.includes(ex.kind)) : list);
+  if (unitId === 'mix') return pickAdaptive(keep(candidates(Object.keys(GEN), opts.kinds ? 40 : 12)), n, strengthOf, opts.kinds ? 99 : Math.ceil(n * 0.3));
+  return pickAdaptive(keep(candidates([unitId], opts.kinds ? 120 : 44)), n, strengthOf);
 }
 
 // ---------- competências (critérios da prova oral) ----------

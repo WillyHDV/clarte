@@ -191,6 +191,25 @@ body.incall .tabs { display: none; }
 .wchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .wchip { background: var(--warn-bg); color: var(--warn); border-radius: 99px; padding: 3px 10px; font-size: .82rem; font-weight: 600; }
 .end .dom { font-size: 1.05rem; }
+
+/* plano de hoje e trilha da unidade */
+.plan .ptitle { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.plan h3 { margin: 0; }
+.ptask { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 2px; }
+.ptask .tt { flex: 1; font-weight: 600; }
+.ptask.done .tt { text-decoration: line-through; color: var(--muted); font-weight: 400; }
+.unit.locked { opacity: .6; }
+.unit.cur { outline: 2px solid var(--brand); }
+.path h3 { margin-top: 0; }
+.step { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 2px; }
+.step .si { font-size: 1.5rem; width: 34px; text-align: center; }
+.step .st { flex: 1; display: grid; }
+.step.next { background: color-mix(in srgb, var(--brand) 10%, transparent); border-radius: 12px; }
+.step.done b { color: var(--good); }
+.step .go { color: var(--brand); font-weight: 800; }
+.passbox { border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.passbox.ok { background: var(--good-bg); color: var(--good); }
+.passbox.no { background: var(--warn-bg); color: var(--warn); }
 .call [hidden] { display: none !important; }
 .call-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; max-width: 560px; }
 .call-chips .chip { font-size: .85rem; border: 1.5px solid var(--blue); background: color-mix(in srgb, var(--blue) 15%, var(--card)); color: var(--navy); border-radius: 99px; padding: 6px 12px; font-weight: 600; }

@@ -15,6 +15,10 @@ Ou dê dois cliques em `iniciar.bat`. Use o **Chrome** ou o Edge (reconhecimento
 
 Cada item do conteúdo (letra, frase, forma verbal, profissão, pergunta, negação) tem uma **força** que sobe quando você acerta, cai quando erra e **decai com o tempo** (modelo simples de meia-vida). O **treino inteligente** escolhe os exercícios dos itens mais fracos ou ainda não vistos. A tela inicial mostra a **prontidão** de cada unidade e uma estimativa dos 6 critérios da prova oral.
 
+## Trilha e plano diário
+
+Cada unidade tem 5 degraus: **Aprender**, **Reconhecer**, **Escrever**, **Falar** e **Teste da unidade** (passa com 80%; Falar com 70%). Ao concluir o teste, a próxima unidade vira a atual (as seguintes ficam com 🔒, mas dá para abrir mesmo assim). A tela inicial traz o **Plano de hoje**, de 10 a 15 minutos, montado a partir dos itens fracos e da unidade atual.
+
 ## Professora Clara (IA gratuita)
 
 Em **Ajustes** (ou na aba Clara), escolha um provedor com plano gratuito e cole a chave. Ela fica só no navegador do aparelho.

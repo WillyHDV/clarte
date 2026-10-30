@@ -30,13 +30,14 @@ async function route() {
   }
   if (cleanup) { try { cleanup(); } catch (e) { /* ignore */ } cleanup = null; }
   stopSpeaking();
-  const [, page, arg] = (location.hash || '#/').slice(1).split('/');
-  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.p === (page || 'home') || (a.dataset.p === 'home' && ['unit', 'practice'].includes(page))));
+  const [, page, arg, arg2] = (location.hash || '#/').slice(1).split('/');
+  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.p === (page || 'home') || (a.dataset.p === 'home' && ['unit', 'practice', 'step'].includes(page))));
   $app.scrollTo?.(0, 0); window.scrollTo(0, 0);
-  document.body.classList.toggle('focus', page === 'practice');
+  document.body.classList.toggle('focus', page === 'practice' || page === 'step');
   if (page === 'unit') return unitPage(arg);
   if (page === 'practice') return practice(arg);
-  if (page === 'tutor') return tutorPage();
+  if (page === 'step') return practice(arg, arg2);
+  if (page === 'tutor') { if (arg === 'exam' || arg === 'free') tutorMode = arg; return tutorPage(); }
   if (page === 'settings') return settingsPage();
   return home();
 }
@@ -73,6 +74,44 @@ function criteriaHtml() {
     return `<div class="crit"><div class="ct"><b>${esc(fr)}</b><small>${esc(pt)}</small></div><div class="cb"><div class="bar ${ok ? '' : 'off'}"><i style="width:${v}%"></i></div><small>${ok ? v + '%' : 'sem dados — ' + esc(how)}</small></div></div>`;
   }).join('');
 }
+// ---------- trilha por degraus ----------
+const STEPS = [
+  { id: 'learn', title: 'Aprender', icon: '📖', desc: 'Leia o resumo da unidade' },
+  { id: 'recognize', title: 'Reconhecer', icon: '👀', desc: 'Escolher e entender, com escuta', kinds: ['choice', 'listen-choice'], n: 8, pass: 80 },
+  { id: 'write', title: 'Escrever', icon: '✍️', desc: 'Escrever e montar frases', kinds: ['type', 'tiles', 'listen-type'], n: 8, pass: 80 },
+  { id: 'speak', title: 'Falar', icon: '🎤', desc: 'Repetir em voz alta', kinds: ['speak'], n: 5, pass: 70 },
+  { id: 'test', title: 'Teste da unidade', icon: '🏁', desc: 'Misto, para concluir a unidade', n: 12, pass: 80 },
+];
+const activeSteps = () => STEPS.filter((s) => s.id !== 'speak' || canListen);
+const stepDone = (uid, sid) => { const p = S.pathOf(uid); return sid === 'learn' ? !!p.learned : !!(p[sid] && p[sid].done); };
+const unitPassed = (uid) => stepDone(uid, 'test');
+const nextStep = (uid) => activeSteps().find((s) => !stepDone(uid, s.id)) || null;
+const currentUnit = () => UNITS.find((u) => !unitPassed(u.id)) || null;
+const stepHref = (uid, s) => (s.id === 'learn' ? `#/unit/${uid}` : `#/step/${uid}/${s.id}`);
+
+// ---------- plano de hoje ----------
+function planDone(id) { if (S.markPlan(id)) toast('✅ Plano de hoje: tarefa concluída'); }
+function markFocus(uid, sid) { const t = (S.plan().tasks || []).find((x) => x.id === 'focus'); if (t && t.go === stepHref(uid, STEPS.find((s) => s.id === sid))) planDone('focus'); }
+function ensurePlan() {
+  const p = S.plan(); if (p.tasks) return p;
+  const R = readiness(); const d = daysToExam(); const cur = currentUnit(); const tasks = [];
+  const weakN = R.weakCount + S.dueMistakes().length;
+  if (weakN >= 3) tasks.push({ id: 'review', icon: '🔁', title: `Reforçar ${Math.min(weakN, 10)} itens fracos`, min: 3, go: '#/practice/review' });
+  const ns = cur ? nextStep(cur.id) : null;
+  tasks.push(ns ? { id: 'focus', icon: cur.icon, title: `${cur.title}: ${ns.title}`, min: 5, go: stepHref(cur.id, ns) } : { id: 'focus', icon: '⚡', title: 'Treino inteligente', min: 5, go: '#/practice/mix' });
+  if (canListen) tasks.push({ id: 'speak', icon: '🎤', title: 'Treino de fala: repetir 5 frases', min: 3, go: '#/practice/speakdrill' });
+  tasks.push({ id: 'clara', icon: '📞', title: 'Conversar com a Clara (4 respostas)', min: 4, go: '#/tutor/free' });
+  if (d >= 0 && d <= 2) tasks.push({ id: 'exam', icon: '🎓', title: 'Simular a prova oral com a Clara', min: 6, go: '#/tutor/exam' });
+  p.tasks = tasks; S.save(); return p;
+}
+function planHtml() {
+  const p = ensurePlan(); const done = p.tasks.filter((t) => p.done[t.id]).length;
+  const left = p.tasks.filter((t) => !p.done[t.id]).reduce((a, t) => a + t.min, 0);
+  if (done === p.tasks.length && !p.bonus) { p.bonus = true; S.addXp(30); }
+  return `<section class="card plan"><div class="ptitle"><h3>Plano de hoje</h3><small>${done}/${p.tasks.length} · ${left ? `faltam ~${left} min` : '🎉 concluído! +30 ⭐'}</small></div>
+    ${p.tasks.map((t) => `<button class="ptask ${p.done[t.id] ? 'done' : ''}" data-go="${t.go}"><span class="chk">${p.done[t.id] ? '✅' : '⬜'}</span><span class="tt">${t.icon} ${esc(t.title)}</span><small>${t.min} min</small></button>`).join('')}</section>`;
+}
+
 function home() {
   S.touchDay(); S.save();
   const R = readiness();
@@ -90,6 +129,7 @@ function home() {
       </div>
       ${due ? `<button class="btn warn wide" data-go="#/practice/review">🔁 Reforçar ${due} ${due > 1 ? 'itens que estão fracos' : 'item que está fraco'}</button>` : ''}
     </section>
+    ${planHtml()}
     <section class="card ready">
       <div class="rtop"><div class="ring" style="--p:${R.overall}"><b>${R.overall}%</b></div>
         <div><h3>Prontidão para a prova</h3><small>Média do domínio das 8 unidades. O treino inteligente escolhe o que está mais fraco.${R.weakest ? `<br>Mais fraca agora: <b>${esc(R.weakest.u.title)}</b> (${R.weakest.m.pct}%).` : ''}</small></div></div>
@@ -98,9 +138,18 @@ function home() {
       <small class="fine">Estimativa do app a partir dos seus exercícios e das conversas por voz, não é a nota da professora.</small>
     </section>
     <h2>Trilha da avaliação</h2>
-    <div class="units">${R.per.map(({ u, m }) => `<button class="unit" data-go="#/unit/${u.id}"><span class="ic">${u.icon}</span><span class="tx"><b>${u.n}. ${esc(u.title)}</b><small>${esc(u.sub)}</small><span class="bar"><i style="width:${m.pct}%"></i></span><small>${m.seen}/${m.total} itens vistos</small></span><span class="sc">${m.pct}%</span></button>`).join('')}</div>`;
+    <div class="units">${R.per.map(({ u, m }, idx) => {
+      const cu = currentUnit(); const cidx = cu ? UNITS.indexOf(cu) : -1;
+      const passed = unitPassed(u.id); const locked = !passed && cidx >= 0 && idx > cidx;
+      const tag = passed ? '✅ concluída' : idx === cidx ? '▶ você está aqui' : locked ? '🔒 depois' : '';
+      return `<button class="unit ${locked ? 'locked' : ''} ${idx === cidx ? 'cur' : ''}" data-go="#/unit/${u.id}" ${locked ? `data-lock="${esc(cu.title)}"` : ''}><span class="ic">${u.icon}</span><span class="tx"><b>${u.n}. ${esc(u.title)}</b><small>${esc(u.sub)}</small><span class="bar"><i style="width:${m.pct}%"></i></span><small>${m.seen}/${m.total} itens vistos${tag ? ' · ' + tag : ''}</small></span><span class="sc">${m.pct}%</span></button>`;
+    }).join('')}</div>`;
 }
-document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); });
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-go]'); if (!g) return;
+  if (g.dataset.lock && !confirm(`Esta unidade vem depois de "${g.dataset.lock}". Abrir mesmo assim?`)) return;
+  go(g.dataset.go);
+});
 
 // ---------- lição ----------
 const vowel = (w) => /^[aeiouyhàâäéèêëîïôöùûüœ]/i.test(w);
@@ -126,22 +175,41 @@ function renderLesson(html) {
 }
 function unitPage(id) {
   const u = UNITS.find((x) => x.id === id); if (!u) return go('#/');
-  const m = unitMastery(id);
+  const m = unitMastery(id); const nx = nextStep(id); const testReady = stepDone(id, 'recognize') && stepDone(id, 'write');
   const weak = m.weak.slice(0, 8).map(([iid]) => `<span class="wchip">${esc(itemLabel(iid))}</span>`).join('');
   $app.innerHTML = `
     <header class="top"><button class="back" data-go="#/">‹</button><h1>${u.icon} ${esc(u.title)}</h1></header>
     <section class="card mast"><div class="mrow"><b>Seu domínio: ${m.pct}%</b><small>${m.seen} de ${m.total} itens vistos</small></div><div class="bar"><i style="width:${m.pct}%"></i></div>
       ${weak ? `<small>Para reforçar agora:</small><div class="wchips">${weak}</div>` : `<small>${m.seen ? 'Nenhum item fraco no momento. Continue praticando para manter.' : 'Você ainda não praticou esta unidade.'}</small>`}</section>
-    <article class="lesson card">${renderLesson(LESSONS[id])}</article>
-    <div class="dock"><button class="btn primary wide" data-go="#/practice/${id}">Praticar · 10 exercícios</button></div>`;
+    <section class="card path"><h3>Trilha da unidade</h3>
+      ${activeSteps().map((s, i) => {
+        const done = stepDone(id, s.id); const rec = S.pathOf(id)[s.id]; const best = rec && rec.best ? ` · melhor ${rec.best}%` : '';
+        const isNext = nx && nx.id === s.id; const weakTest = s.id === 'test' && !testReady;
+        return `<button class="step ${done ? 'done' : ''} ${isNext ? 'next' : ''}" data-step="${s.id}" ${weakTest ? 'data-weak="1"' : ''}><span class="si">${done ? '✅' : weakTest ? '🔒' : s.icon}</span><span class="st"><b>${i + 1}. ${s.title}</b><small>${s.desc}${s.pass ? ` · passa com ${s.pass}%` : ''}${best}</small></span><span class="go">${isNext ? '▶' : ''}</span></button>`;
+      }).join('')}
+    </section>
+    <article class="lesson card" id="lesson">${renderLesson(LESSONS[id])}
+      <button class="btn wide" id="learned">${stepDone(id, 'learn') ? '✅ Lição lida (reler quando quiser)' : '✅ Li a lição'}</button></article>
+    <div class="dock"><div class="row">
+      ${nx ? `<button class="btn primary" id="cont">▶ ${nx.id === 'learn' ? 'Começar: Aprender' : 'Continuar: ' + nx.title}</button>` : '<button class="btn primary" data-go="#/practice/mix">🏁 Concluída · treino inteligente</button>'}
+      <button class="btn" data-go="#/practice/${id}">Treino livre</button></div></div>`;
+  const toLesson = () => document.getElementById('lesson').scrollIntoView({ behavior: 'smooth' });
+  const openStep = (s, weak) => {
+    if (s.id === 'learn') return toLesson();
+    if (weak && !confirm('Recomendo concluir Reconhecer e Escrever antes do teste. Fazer o teste mesmo assim?')) return;
+    go(stepHref(id, s));
+  };
+  document.querySelectorAll('[data-step]').forEach((b) => { b.onclick = () => openStep(STEPS.find((x) => x.id === b.dataset.step), !!b.dataset.weak); });
+  const cont = document.getElementById('cont'); if (cont) cont.onclick = () => openStep(nx, nx.id === 'test' && !testReady);
+  document.getElementById('learned').onclick = () => { S.setLearned(id); markFocus(id, 'learn'); toast('Lição marcada como lida ✅'); unitPage(id); window.scrollTo(0, 0); };
 }
 
 // ---------- prática ----------
 const ACC = ['é', 'è', 'ê', 'ë', 'à', 'â', 'î', 'ï', 'ô', 'û', 'ù', 'ç', 'œ', '’'];
-function practice(id) {
-  const review = id === 'review';
+function practice(id, stepId) {
+  const review = id === 'review'; const speakDrill = id === 'speakdrill'; const cfg = stepId ? STEPS.find((s) => s.id === stepId) : null;
   // treino adaptativo: escolhe os exercícios cujos itens estão mais fracos (ou ainda não vistos)
-  const scope = (review || id === 'mix') ? UNITS.map((u) => u.id) : [id];
+  const scope = (review || id === 'mix' || speakDrill) ? UNITS.map((u) => u.id) : [id];
   const avgPct = () => Math.round(scope.reduce((a, u) => a + unitMastery(u).pct, 0) / scope.length);
   const before = avgPct();
   let list;
@@ -151,7 +219,9 @@ function practice(id) {
     const weakSeen = (iid) => { const s = S.strength(iid); return s === null ? 1 : s; };
     const adapt = buildSession('mix', 24, weakSeen).filter((ex) => ex.items.some((iid) => { const s = S.strength(iid); return s !== null && s < 0.7; })).slice(0, 10 - mis.length);
     list = [...mis, ...adapt];
-  } else list = buildSession(id, 10, strengthOf);
+  } else if (speakDrill) list = buildSession('mix', 5, strengthOf, { kinds: ['speak'] });
+  else if (cfg) list = buildSession(id, cfg.n, strengthOf, cfg.kinds ? { kinds: cfg.kinds } : {});
+  else list = buildSession(id, 10, strengthOf);
   if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/">‹</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; let wrongList = [];
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false; let skipped = false;
@@ -159,14 +229,35 @@ function practice(id) {
   function showEnd() {
     S.recordSession(review ? 'review' : id, correct, Math.max(attempted, 1));
     const pct = Math.round((100 * correct) / Math.max(attempted, 1));
+    // degrau da trilha: guarda o resultado e libera o próximo se passou
+    let stepMsg = ''; let nextBtn = '';
+    if (attempted > 0) {
+      if (review) planDone('review'); else if (speakDrill) planDone('speak');
+    }
+    if (cfg && attempted > 0) {
+      const passed = pct >= cfg.pass; S.recordStep(id, cfg.id, pct, passed); markFocus(id, cfg.id);
+      const u = UNITS.find((x) => x.id === id); const nx = nextStep(id);
+      if (passed && cfg.id === 'test') {
+        const nu = UNITS[UNITS.indexOf(u) + 1];
+        stepMsg = `<div class="passbox ok">🏁 <b>Unidade concluída!</b> ${esc(u.title)} está completa.</div>`;
+        nextBtn = nu ? `<button class="btn primary" data-go="#/unit/${nu.id}">Próxima unidade: ${esc(nu.title)} ▶</button>` : '<button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button>';
+      } else if (passed) {
+        stepMsg = `<div class="passbox ok">✅ <b>${esc(cfg.title)}</b> concluído (${pct}% — precisa de ${cfg.pass}%).</div>`;
+        nextBtn = nx ? `<button class="btn primary" data-go="${nx.id === 'learn' ? '#/unit/' + id : '#/step/' + id + '/' + nx.id}">Próximo: ${esc(nx.title)} ▶</button>` : '';
+      } else {
+        stepMsg = `<div class="passbox no">Quase! Para concluir <b>${esc(cfg.title)}</b> são ${cfg.pass}% e você fez ${pct}%. Os itens que errou voltam a aparecer.</div>`;
+      }
+    }
+    const again = cfg ? `#/step/${id}/${cfg.id}` : `#/practice/${id}`;
     $app.innerHTML = `
       <div class="end card center"><div class="big">${pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '💪'}</div>
       <h2>${correct}/${attempted} corretas · ${pct}%</h2>
+      ${stepMsg}
       <p>+${correct * 10 + (correct === attempted ? 20 : 0)} ⭐ ${wrongList.length ? `· ${wrongList.length} erro(s) vão voltar no reforço` : ''}</p>
-      <p class="dom">Domínio ${review || id === 'mix' ? 'geral' : 'da unidade'}: <b>${before}% → ${avgPct()}%</b> ${avgPct() > before ? '▲' : avgPct() < before ? '▼' : ''}</p>
-      <div class="row"><button class="btn primary" data-go="#/practice/${id}" id="again">Novamente</button>
-      ${S.dueMistakes().length ? '<button class="btn warn" data-go="#/practice/review">🔁 Revisar erros</button>' : ''}</div>
-      <button class="btn" data-go="#/">Voltar ao início</button></div>`;
+      <p class="dom">Domínio ${scope.length > 1 ? 'geral' : 'da unidade'}: <b>${before}% → ${avgPct()}%</b> ${avgPct() > before ? '▲' : avgPct() < before ? '▼' : ''}</p>
+      <div class="row">${nextBtn}<button class="btn ${nextBtn ? '' : 'primary'}" data-go="${again}" id="again">${cfg ? 'Tentar de novo' : 'Novamente'}</button>
+      ${S.dueMistakes().length && !cfg ? '<button class="btn warn" data-go="#/practice/review">🔁 Revisar erros</button>' : ''}</div>
+      <button class="btn" data-go="${cfg ? '#/unit/' + id : '#/'}">${cfg ? 'Voltar à unidade' : 'Voltar ao início'}</button></div>`;
   }
 
   function render() {
@@ -347,6 +438,7 @@ async function tutorPage() {
   }
   function submit(text, hideUser) {
     text = text.trim(); if (!text || busy) return;
+    if (text !== '[FIN]' && S.voiceTurn() >= 4) planDone('clara');
     getMsgs().push({ role: 'user', content: text, hidden: false });
     if (hideUser) getMsgs()[getMsgs().length - 1].content = '[FIN]';
     saveChats(chats); draw(); run();
@@ -362,6 +454,7 @@ async function tutorPage() {
       const c = cur();
       const { text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode: tutorMode, messages: apiMsgs(), signal: ctrl.signal, onText: (d) => { acc += d; const live = document.getElementById('live'); if (live) { live.querySelector('.bub').innerHTML = md(split(acc)[0]); chat.scrollTop = chat.scrollHeight; } } });
       getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
+      if (/Nota geral/i.test(text)) planDone('exam');
       busy = false; draw();
       if (st().settings.voice !== false && speakable(text)) speak(split(text)[0], { rate: rate() });
     } catch (e) {
@@ -475,6 +568,7 @@ async function tutorPage() {
       }
       target = '';
       // critérios da prova: responder de fato (não só pedir ajuda) e falar frases mais longas
+      if (!plain && S.voiceTurn() >= 4) planDone('clara');
       S.recordSkill('resposta', plain ? 0 : 1);
       if (!plain) S.recordSkill('fluidez', Math.min(1, t.trim().split(/\s+/).length / 7));
       getMsgs().push(m); saveChats(chats);
@@ -509,7 +603,7 @@ async function tutorPage() {
         if (!alive || sp !== speaker) return;
         getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
         const p = parts(text); const isEval = evalMode || /Nota geral/i.test(text);
-        if (isEval) { sp.stop(); finish(true); return; }
+        if (isEval) { sp.stop(); planDone('exam'); finish(true); return; }
         show(p.spoken, p.note, p.target); target = p.target; flush(p.spoken, true);
         if (!began) setPhase('speak', 'Clara está falando…');
         await sp.done();

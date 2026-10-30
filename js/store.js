@@ -4,7 +4,7 @@ const DAY = 86400000;
 const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
-  xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {},
+  xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, patience: 'longo', goal: 20 },
 });
 let state = blank();
@@ -76,6 +76,26 @@ export function recordSkill(name, v) {
   k.v = k.n ? k.v * 0.88 + v * 0.12 : v; k.n++; state.skills[name] = k; save();
 }
 export const skill = (name) => state.skills[name] || null;
+// ---------- trilha por degraus (por unidade) ----------
+export const pathOf = (u) => state.path[u] || {};
+export function setLearned(u) { (state.path[u] ||= {}).learned = true; save(); }
+export function recordStep(u, step, pct, passed) {
+  const p = (state.path[u] ||= {}); const s = (p[step] ||= { best: 0, done: false });
+  s.best = Math.max(s.best, pct); if (passed) s.done = true; save();
+}
+export const addXp = (n) => { state.xp += n; save(); };
+
+// ---------- plano de hoje ----------
+export function plan() {
+  const t = dayStr();
+  if (state.plan.date !== t) state.plan = { date: t, done: {}, bonus: false, tasks: null };
+  return state.plan;
+}
+export function markPlan(id) { const p = plan(); if (p.done[id]) return false; p.done[id] = true; save(); return true; }
+export function voiceTurn() {
+  const t = dayStr(); if (state.voiceToday.date !== t) state.voiceToday = { date: t, n: 0 };
+  state.voiceToday.n++; save(); return state.voiceToday.n;
+}
 export const dueMistakes = () => state.mistakes.filter((m) => m.due <= Date.now()).map((m) => m.ex);
 export function setSetting(k, v) { state.settings[k] = v; save(); }
 export function setKey(provider, key) { state.settings.keys = { ...state.settings.keys, [provider]: key }; save(); }
