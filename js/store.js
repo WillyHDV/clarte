@@ -5,7 +5,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
   xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [],
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, goal: 20 },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, patience: 'longo', goal: 20 },
 });
 let state = blank();
 try {

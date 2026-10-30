@@ -344,8 +344,14 @@ async function tutorPage() {
       <div class="ctarget" id="ctarget" hidden></div>
       <div class="cnote" id="cnote" hidden></div>
       <div class="you" id="cyou"></div>
+      <div class="call-chips">
+        <button class="chip" data-q="rep">Répétez, s'il vous plaît</button>
+        <button class="chip" data-q="Je ne comprends pas.">Je ne comprends pas</button>
+        <button class="chip" data-q="Je ne sais pas.">Je ne sais pas</button>
+      </div>
       <div class="call-ctl">
         <button class="btn" id="cmic">🎤 Falar</button>
+        <button class="btn" id="cpat"></button>
         <button class="btn" id="cslow"></button>
         <button class="btn" id="cpause">⏸ Pausar</button>
         ${isExam ? '<button class="btn warn" id="cfin">Terminar e avaliar</button>' : ''}
@@ -353,9 +359,14 @@ async function tutorPage() {
       <div class="call-err" id="cerr" hidden></div>`;
     document.body.appendChild(el); document.body.classList.add('incall');
     const $ = (id) => el.querySelector('#' + id);
-    const setPhase = (p, txt) => { phase = p; $('cav').className = 'avatar ' + p; $('cstatus').textContent = txt; };
+    const setPhase = (p, txt) => { phase = p; $('cav').className = 'avatar ' + p; $('cstatus').textContent = txt; $('cmic').textContent = p === 'listen' ? '✅ Terminei' : '🎤 Falar'; };
     const slowLabel = () => { $('cslow').textContent = st().settings.slow ? '🐢 Devagar: ligado' : '🐢 Devagar'; };
     slowLabel();
+    // tempo de espera após você parar de falar (quem fala devagar precisa de mais)
+    const PAT = { normal: [3000, 'normal'], longo: [4500, 'longo'], muito: [7000, 'muito longo'] };
+    const patKey = () => (st().settings.patience in PAT ? st().settings.patience : 'longo');
+    const patLabel = () => `⏱ Espera: ${PAT[patKey()][1]}`;
+    $('cpat').textContent = patLabel();
     const getRate = () => (st().settings.slow ? 0.7 : 0.85);
     const lastMsg = () => { const m = getMsgs(); return m[m.length - 1]; };
 
@@ -382,13 +393,14 @@ async function tutorPage() {
       const b = er.querySelector('#cretry'); if (b) b.onclick = () => { er.hidden = true; clara(); };
     };
 
-    function stopRec() { listenId++; if (cr) { const r = cr; cr = null; try { r.stop(); } catch (e) { /* ignore */ } } }
+    function stopRec() { listenId++; if (cr) { const r = cr; cr = null; try { r.abort(); } catch (e) { /* ignore */ } } }
 
     function listenTurn() {
       if (!alive || paused) return;
       stopRec(); const id = ++listenId; $('cerr').hidden = true;
-      setPhase('listen', 'Sua vez — fale'); $('cyou').textContent = '';
-      cr = listen({
+      setPhase('listen', 'Sua vez — fale com calma'); $('cyou').textContent = '';
+      cr = V.listenPatient({
+        patienceMs: PAT[patKey()][0],
         onInterim: (t) => { if (id === listenId) $('cyou').textContent = t; },
         onFinal: (t) => {
           if (id !== listenId) return; cr = null;
@@ -405,13 +417,16 @@ async function tutorPage() {
       });
     }
 
-    function userSaid(t) {
+    function userSaid(t, plain) {
       const m = { role: 'user', content: t };
-      if (target) {
+      if (target && !plain) {
         const r = speakScore(target, t); const miss = r.words.filter((w, i) => !r.marks[i]);
         m.api = `${t}\n\n[Note de l'application : l'élève devait répéter « ${target} ». Reconnu : « ${t} ». Mots reconnus : ${r.marks.filter(Boolean).length}/${r.words.length}. Correspondance : ${Math.round(r.score * 100)} %.${miss.length ? ' Mots non reconnus : ' + miss.join(', ') + '.' : ''}]`;
-        target = '';
+        // frase que não saiu bem vai para a aba Revisão (repetição espaçada); se saiu bem, avança na revisão
+        const ex = { unit: 'voice', kind: 'speak', q: 'Diga em voz alta (da conversa com a Clara):', answer: target.replace(/[.!?]+$/, ''), shown: target, audio: target, key: `speak|voice|${target}` };
+        S.noteResult(ex, r.score >= 0.75, true);
       }
+      target = '';
       getMsgs().push(m); saveChats(chats);
       $('cyou').textContent = `“${t}”`; clara();
     }
@@ -427,9 +442,20 @@ async function tutorPage() {
         if (final && rest.trim()) { sp.push(rest.replace(/[*_`#]/g, '')); consumed += rest.length; }
       };
       try {
-        const c = cur();
-        const { text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, messages: apiMsgs(), signal: abortCtl.signal,
-          onText: (d) => { if (!alive || sp !== speaker) return; acc += d; const p = parts(acc); if (!began && p.spoken) { began = true; if (!evalMode) setPhase('speak', 'Clara está falando…'); } show(p.spoken, evalMode ? p.spoken : '', ''); flush(p.spoken, false); } });
+        const c = cur(); let text = ''; let attempt = 0;
+        for (;;) {
+          try {
+            ({ text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, messages: apiMsgs(), signal: abortCtl.signal,
+              onText: (d) => { if (!alive || sp !== speaker) return; acc += d; const p = parts(acc); if (!began && p.spoken) { began = true; if (!evalMode) setPhase('speak', 'Clara está falando…'); } show(p.spoken, evalMode ? p.spoken : '', ''); flush(p.spoken, false); } }));
+            break;
+          } catch (e) {
+            // falhas passageiras (limite, rede, servidor): tenta de novo sozinho, sem você precisar tocar
+            const s = e && e.status; const transient = e instanceof TypeError || s === 408 || s === 429 || s >= 500;
+            if (!transient || began || attempt >= 2 || !alive || sp !== speaker || e.name === 'AbortError') throw e;
+            attempt++; setPhase('think', 'Reconectando…'); await sleep(1500 * attempt); acc = ''; consumed = 0;
+            if (!alive || sp !== speaker) return;
+          }
+        }
         if (!alive || sp !== speaker) return;
         getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
         const p = parts(text); const isEval = evalMode || /Nota geral/i.test(text);
@@ -470,9 +496,24 @@ async function tutorPage() {
     $('cend').onclick = () => end(false);
     $('chide').onclick = () => { hideText = !hideText; el.classList.toggle('hidetext', hideText); };
     $('cslow').onclick = () => { S.setSetting('slow', !st().settings.slow); slowLabel(); };
+    $('cpat').onclick = () => { const k = Object.keys(PAT); S.setSetting('patience', k[(k.indexOf(patKey()) + 1) % k.length]); $('cpat').textContent = patLabel(); toast(`Espera de ${PAT[patKey()][0] / 1000} s depois que você para de falar.`); if (phase === 'listen') listenTurn(); };
+    // frases do curso para pedir ajuda (item "régler des problèmes de communication" da prova)
+    el.querySelectorAll('.call-chips [data-q]').forEach((b) => {
+      b.onclick = async () => {
+        if (paused || !alive || phase === 'think') return;
+        const q = b.dataset.q; stopRec(); if (speaker) speaker.stop();
+        if (q === 'rep') {
+          const last = [...getMsgs()].reverse().find((x) => x.role === 'assistant'); if (!last) return;
+          const p = parts(last.content); setPhase('speak', 'Clara repete devagar…');
+          speaker = V.createSpeaker(() => 0.65); const sp = speaker; p.spoken.split(/(?<=[.!?…])\s+/).forEach((s) => sp.push(s.replace(/[*_`#]/g, '')));
+          await sp.done(); if (alive && !paused && sp === speaker) { await sleep(250); listenTurn(); } return;
+        }
+        userSaid(q, true);
+      };
+    });
     $('cmic').onclick = () => {
       blocked = false; silent = 0;
-      if (phase === 'listen' && cr) { cr.stop(); return; }           // terminar a fala agora
+      if (phase === 'listen' && cr) { cr.finish(); return; }          // "Terminei": envia agora
       if (phase === 'speak') { if (speaker) speaker.stop(); listenTurn(); return; } // pular a fala da Clara
       if (phase === 'think') return;
       if (paused) return;

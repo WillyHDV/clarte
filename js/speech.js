@@ -181,3 +181,46 @@ export function listen({ onInterim, onFinal, onError, lang = 'fr-FR' }) {
   try { r.start(); } catch (e) { onError && onError('start-failed'); }
   return { stop() { try { r.stop(); } catch (e) { /* ignore */ } } };
 }
+
+// Reconhecimento paciente, para quem fala devagar ou com pausas: em vez de cortar no primeiro silêncio do
+// Chrome, acumula tudo e só termina depois de `patienceMs` sem fala (mais tempo se a frase parece incompleta),
+// ou quando você toca em "Terminei" (finish). Reinicia sozinho se o Chrome encerrar antes da hora.
+export function listenPatient({ onInterim, onFinal, onError, patienceMs = 4500, initialMs = 12000, lang = 'fr-FR' }) {
+  if (!Rec) { onError && onError('unsupported'); return { finish() {}, abort() {} }; }
+  let carry = ''; let current = ''; let r = null; let timer = null; let done = false; let restarts = 0;
+  const norm = (s) => s.toLowerCase().replace(/[’']/g, "'").replace(/[.,!?;:]/g, '').replace(/\s+/g, ' ').trim();
+  // junta os resultados sem duplicar (o Chrome do Android às vezes repete a frase inteira a cada resultado)
+  const merge = (parts) => {
+    let acc = '';
+    for (const p of parts) {
+      const t = p.trim(); if (!t) continue;
+      if (acc && norm(t).startsWith(norm(acc))) acc = t;
+      else if (acc && norm(acc).endsWith(norm(t))) continue;
+      else acc = acc ? `${acc} ${t}` : t;
+    }
+    return acc;
+  };
+  const total = () => [carry, current].filter(Boolean).join(' ').trim();
+  const incomplete = (t) => /(,|\b(et|ou|mais|donc|parce que|que|qui|je|tu|il|elle|nous|vous|le|la|les|un|une|des|de|du|à|au|aux|en|dans|avec|pour|ne|n'|j'|l'|d'|c'|s'|m'|t'|est-ce que|comment|où|pourquoi))\s*$/i.test(t.trim());
+  const finalize = () => { if (done) return; done = true; clearTimeout(timer); try { r && r.stop(); } catch (e) { /* ignore */ } onFinal && onFinal(total()); };
+  const arm = () => { clearTimeout(timer); const t = total(); timer = setTimeout(finalize, t ? patienceMs + (incomplete(t) ? 1800 : 0) : initialMs); };
+  const start = () => {
+    r = new Rec(); r.lang = lang; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1; current = '';
+    r.onresult = (e) => {
+      const parts = []; for (let i = 0; i < e.results.length; i++) parts.push(e.results[i][0].transcript);
+      current = merge(parts); onInterim && onInterim(total()); arm();
+    };
+    r.onerror = (e) => {
+      if (done || e.error === 'no-speech' || e.error === 'aborted') return;
+      if (/not-allowed|service-not-allowed|network|audio-capture|language-not-supported/.test(e.error)) { done = true; clearTimeout(timer); onError && onError(e.error); }
+    };
+    r.onend = () => {
+      if (done) return;
+      carry = total(); current = '';
+      if (restarts++ < 10) setTimeout(() => { if (!done) { try { start(); } catch (err) { finalize(); } } }, 150); else finalize();
+    };
+    try { r.start(); } catch (err) { done = true; clearTimeout(timer); onError && onError('start-failed'); }
+  };
+  start(); arm();
+  return { finish: finalize, abort() { done = true; clearTimeout(timer); try { r && r.abort ? r.abort() : r.stop(); } catch (e) { /* ignore */ } } };
+}
