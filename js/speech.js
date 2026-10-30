@@ -162,6 +162,38 @@ export function stopSpeaking() {
   if (player) { const p = player; player = null; p.pause(); }
 }
 
+// ---------- gravação do microfone (você fala quanto quiser e toca em Enviar) ----------
+export const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
+// Abre o microfone e grava até stop(). onLevel(0..1) recebe o volume para animar a tela.
+export async function createRecorder({ onLevel } = {}) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  const chunks = []; let peak = -1; let raf = 0; let ctx = null; // peak -1 = sem medidor de volume (não bloqueia o envio)
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const an = ctx.createAnalyser(); an.fftSize = 512; ctx.createMediaStreamSource(stream).connect(an);
+    const buf = new Uint8Array(an.fftSize); peak = 0;
+    const tick = () => { an.getByteTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; s += d * d; } const rms = Math.sqrt(s / buf.length); if (rms > peak) peak = rms; if (onLevel) onLevel(rms); raf = requestAnimationFrame(tick); };
+    tick();
+  } catch (e) { /* sem medidor de volume */ }
+  const started = Date.now();
+  const cleanup = () => { cancelAnimationFrame(raf); try { ctx && ctx.close(); } catch (e) { /* ignore */ } stream.getTracks().forEach((t) => t.stop()); };
+  rec.start(250);
+  return {
+    stop() {
+      return new Promise((resolve) => {
+        const done = () => { cleanup(); resolve({ blob: new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' }), ms: Date.now() - started, peak }); };
+        if (rec.state === 'inactive') return done();
+        rec.onstop = done; try { rec.stop(); } catch (e) { done(); }
+      });
+    },
+    cancel() { try { rec.onstop = null; if (rec.state !== 'inactive') rec.stop(); } catch (e) { /* ignore */ } cleanup(); },
+  };
+}
+
 // ---------- reconhecimento de fala ----------
 export function listen({ onInterim, onFinal, onError, lang = 'fr-FR' }) {
   if (!Rec) { onError && onError('unsupported'); return { stop() {} }; }

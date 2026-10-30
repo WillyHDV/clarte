@@ -155,6 +155,59 @@ async function run({ provider, apiKey, model, mode, messages, gotText, signal })
   return { text };
 }
 
+// ---------- transcrição da fala gravada ----------
+// Gemini e Groq (Whisper) entendem áudio; o Mistral não, então a Clara usa o provedor que tiver chave.
+export function transcribeProvider(settings) {
+  const keys = settings.keys || {};
+  return [settings.provider, 'gemini', 'groq'].find((p, i, a) => (p === 'gemini' || p === 'groq') && keys[p] && a.indexOf(p) === i) || null;
+}
+
+const toBase64 = async (blob) => {
+  const buf = new Uint8Array(await blob.arrayBuffer()); let s = '';
+  for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return btoa(s);
+};
+// converte a gravação (webm/opus) para WAV 16 kHz mono, formato aceito pelo Gemini
+async function toWav16k(blob) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const dec = await ctx.decodeAudioData(await blob.arrayBuffer()); try { ctx.close(); } catch (e) { /* ignore */ }
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(dec.duration * 16000)), 16000);
+  const src = off.createBufferSource(); src.buffer = dec; src.connect(off.destination); src.start();
+  const f = (await off.startRendering()).getChannelData(0);
+  const pcm = new Int16Array(f.length); for (let i = 0; i < f.length; i++) { const s = Math.max(-1, Math.min(1, f[i])); pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff; }
+  const h = new DataView(new ArrayBuffer(44)); const w = (o, t) => [...t].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true);
+  h.setUint32(24, 16000, true); h.setUint32(28, 32000, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length * 2, true);
+  return new Blob([h, pcm], { type: 'audio/wav' });
+}
+
+const TRANSCRIBE_PROMPT = 'Transcreva exatamente o que a pessoa disse em francês. Ela é uma aprendiz brasileira iniciante e pode fazer pausas, hesitar e cometer erros de gramática: NÃO corrija nada, escreva as palavras como foram ditas. Se houver palavras em português, mantenha-as. Responda SOMENTE com a transcrição, sem aspas e sem comentários. Se não houver fala compreensível, responda exatamente: <vazio>';
+
+export async function transcribe({ provider, apiKey, model, blob, signal: outer }) {
+  const ctl = new AbortController(); let timedOut = false;
+  if (outer) outer.addEventListener('abort', () => ctl.abort());
+  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, 30000);
+  try {
+    const p = PROVIDERS[provider]; let text = '';
+    if (provider === 'gemini') {
+      let audio = blob;
+      try { audio = await toWav16k(blob); } catch (e) { /* manda o original */ }
+      const res = await fetch(`${p.base}/models/${encodeURIComponent(model || p.model)}:generateContent`, {
+        method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: TRANSCRIBE_PROMPT }, { inlineData: { mimeType: audio.type.split(';')[0], data: await toBase64(audio) } }] }], generationConfig: { temperature: 0, maxOutputTokens: 800 } }),
+      });
+      await ensureOk(res); const j = await res.json();
+      text = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('');
+    } else if (provider === 'groq') {
+      const fd = new FormData(); fd.append('file', blob, 'fala.webm'); fd.append('model', 'whisper-large-v3-turbo'); fd.append('language', 'fr'); fd.append('temperature', '0'); fd.append('response_format', 'json');
+      const res = await fetch(`${p.base}/audio/transcriptions`, { method: 'POST', signal: ctl.signal, headers: { authorization: `Bearer ${apiKey}` }, body: fd });
+      await ensureOk(res); text = (await res.json()).text || '';
+    } else throw new Error('Este provedor não transcreve áudio.');
+    text = text.replace(/^["“«\s]+|["”»\s]+$/g, '').trim();
+    return /^<?\s*vazio\s*>?\.?$/i.test(text) ? '' : text;
+  } catch (e) { if (timedOut) throw new HttpError(408, 'timeout'); throw e; } finally { clearTimeout(timer); }
+}
+
 // lista os modelos disponíveis para a chave (para o seletor em Ajustes)
 export async function listModels(provider, apiKey) {
   const p = PROVIDERS[provider];

@@ -8,6 +8,34 @@ import * as T from './tutor.js';
 const $app = document.getElementById('app');
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const st = () => S.get();
+// ícones de linha (estilo Feather), usados no lugar de emojis para um visual consistente
+const ICONS = {
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  back: '<polyline points="15 18 9 12 15 6"/>',
+  next: '<polyline points="9 18 15 12 9 6"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>',
+  send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  pause: '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
+  volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  redo: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  repeat: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+  settings: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+};
+const I = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 const rate = () => (st().settings.slow ? 0.7 : 0.9);
 let lastToast = '';
 function toast(msg) {
@@ -109,7 +137,7 @@ function planHtml() {
   const left = p.tasks.filter((t) => !p.done[t.id]).reduce((a, t) => a + t.min, 0);
   if (done === p.tasks.length && !p.bonus) { p.bonus = true; S.addXp(30); }
   return `<section class="card plan"><div class="ptitle"><h3>Plano de hoje</h3><small>${done}/${p.tasks.length} · ${left ? `faltam ~${left} min` : '🎉 concluído! +30 ⭐'}</small></div>
-    ${p.tasks.map((t) => `<button class="ptask ${p.done[t.id] ? 'done' : ''}" data-go="${t.go}"><span class="chk">${p.done[t.id] ? '✅' : '⬜'}</span><span class="tt">${t.icon} ${esc(t.title)}</span><small>${t.min} min</small></button>`).join('')}</section>`;
+    ${p.tasks.map((t) => `<button class="ptask ${p.done[t.id] ? 'done' : ''}" data-go="${t.go}"><span class="chk ${p.done[t.id] ? 'on' : ''}">${p.done[t.id] ? I('check') : ''}</span><span class="tt">${t.icon} ${esc(t.title)}</span><small>${t.min} min</small></button>`).join('')}</section>`;
 }
 
 function home() {
@@ -119,15 +147,15 @@ function home() {
   const goal = s.settings.goal; const pct = Math.min(100, Math.round((100 * s.today.n) / goal));
   const examTxt = d > 1 ? `Évaluation 1 em <b>${d} dias</b> (04/11)` : d === 1 ? 'Évaluation 1 é <b>amanhã</b>!' : d === 0 ? '<b>Hoje</b> é a Évaluation 1. Bonne chance !' : 'Évaluation 1 já passou. Próxima: 02/12 (Évaluation 2)';
   $app.innerHTML = `
-    <header class="top"><div><div class="brand">Clarté</div><h1>Salut, Willy ! 👋</h1></div><div class="stats"><span title="Dias seguidos">🔥 ${s.streak}</span><span title="Pontos">⭐ ${s.xp}</span></div></header>
+    <header class="top"><div><div class="brand">Clarté</div><h1>Salut, Willy ! 👋</h1></div><div class="stats"><span class="stat flame" title="Dias seguidos">${I('flame')} ${s.streak}</span><span class="stat star" title="Pontos">${I('star')} ${s.xp}</span></div></header>
     <section class="card hero">
-      <div>${examTxt}</div>
+      <div class="exam">${examTxt}</div>
       <div class="goal"><div class="bar"><i style="width:${pct}%"></i></div><small>Meta de hoje: ${Math.min(s.today.n, goal)}/${goal} exercícios</small></div>
       <div class="row">
-        <button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button>
-        <button class="btn" data-go="#/tutor">📞 Falar com a Clara</button>
+        <button class="btn primary" data-go="#/practice/mix">${I('zap')} Treino inteligente</button>
+        <button class="btn" data-go="#/tutor">${I('phone')} Falar com a Clara</button>
       </div>
-      ${due ? `<button class="btn warn wide" data-go="#/practice/review">🔁 Reforçar ${due} ${due > 1 ? 'itens que estão fracos' : 'item que está fraco'}</button>` : ''}
+      ${due ? `<button class="btn warn wide" data-go="#/practice/review">${I('repeat')} Reforçar ${due} ${due > 1 ? 'itens que estão fracos' : 'item que está fraco'}</button>` : ''}
     </section>
     ${planHtml()}
     <section class="card ready">
@@ -181,7 +209,7 @@ function unitPage(id) {
   const m = unitMastery(id); const nx = nextStep(id); const testReady = stepDone(id, 'recognize') && stepDone(id, 'write');
   const weak = m.weak.slice(0, 8).map(([iid]) => `<span class="wchip">${esc(itemLabel(iid))}</span>`).join('');
   $app.innerHTML = `
-    <header class="top"><button class="back" data-go="#/">‹</button><h1>${u.icon} ${esc(u.title)}</h1></header>
+    <header class="top"><button class="back" data-go="#/" aria-label="Voltar">${I('back')}</button><h1>${esc(u.title)}</h1></header>
     <section class="card mast"><div class="mrow"><b>Seu domínio: ${m.pct}%</b><small>${m.seen} de ${m.total} itens vistos</small></div><div class="bar"><i style="width:${m.pct}%"></i></div>
       ${weak ? `<small>Para reforçar agora:</small><div class="wchips">${weak}</div>` : `<small>${m.seen ? 'Nenhum item fraco no momento. Continue praticando para manter.' : 'Você ainda não praticou esta unidade.'}</small>`}</section>
     <section class="card path"><h3>Trilha da unidade</h3>
@@ -225,7 +253,7 @@ function practice(id, stepId) {
   } else if (speakDrill) list = buildSession('mix', 5, strengthOf, { kinds: ['speak'] });
   else if (cfg) list = buildSession(id, cfg.n, strengthOf, cfg.kinds ? { kinds: cfg.kinds } : {});
   else list = buildSession(id, 10, strengthOf);
-  if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/">‹</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
+  if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/" aria-label="Voltar">${I('back')}</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; let wrongList = [];
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false; let skipped = false;
 
@@ -281,7 +309,7 @@ function practice(id, stepId) {
         ${canListen ? `<button class="mic" id="mic">🎤</button><div class="heard" id="heard">Toque no microfone e fale.</div>` : `<div class="heard">Seu navegador não reconhece voz (use o Chrome). Leia em voz alta e toque em "Pular".</div>`}</div>`;
     }
     $app.innerHTML = `
-      <div class="ptop"><button class="x" data-go="#/">✕</button><div class="bar"><i style="width:${(100 * Math.min(i, total)) / list.length}%"></i></div></div>
+      <div class="ptop"><button class="x" data-go="#/" aria-label="Sair">${I('x')}</button><div class="bar"><i style="width:${(100 * Math.min(i, total)) / list.length}%"></i></div></div>
       <div class="qcard">
         <div class="q">${ex.q}${ex.sub ? `<small class="sub">${esc(ex.sub)}</small>` : ''}</div>
         ${audioBtn}${body}
@@ -404,9 +432,9 @@ async function tutorPage() {
   function draw() {
     const msgs = getMsgs();
     $app.innerHTML = `
-      <header class="top"><h1>👩‍🏫 Professora Clara</h1><button class="icon" id="newc" title="Nova conversa">🗑️</button></header>
+      <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1><button class="icon" id="newc" title="Nova conversa" aria-label="Nova conversa">${I('trash')}</button></header>
       <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${tutorMode !== 'duvidas' ? (canListen ? '<button class="btn primary wide callbtn" id="callbtn">📞 Conversar por voz com a Clara</button>' : '<div class="pt">A conversa por voz precisa do Chrome (ou Edge).</div>') : ''}
+      ${tutorMode !== 'duvidas' ? (canListen ? `<button class="btn primary wide callbtn" id="callbtn">${I('phone')} Conversar por voz com a Clara</button>` : '<div class="pt">A conversa por voz precisa do Chrome (ou Edge).</div>') : ''}
       <div class="chat" id="chat">${msgs.filter((m) => !m.hidden).map(drawMsg).join('')}${tutorMode === 'exam' && !msgs.length ? `<div class="card center"><p>Simulação da <b>avaliação oral</b>: a professora Clara faz perguntas por voz ou texto, sem corrigir durante a prova. No fim, você recebe a nota nos 6 critérios.</p><button class="btn primary" id="startexam">Começar a prova</button></div>` : ''}</div>
       <div class="composer ${tutorMode === 'exam' && !msgs.length ? 'hide' : ''}">
         ${tutorMode === 'exam' && msgs.length ? '<button class="btn warn sm" id="endexam">Terminar e avaliar</button>' : ''}
@@ -470,45 +498,56 @@ async function tutorPage() {
       const c = document.getElementById('chat'); c.insertAdjacentHTML('beforeend', `<div class="err">⚠️ ${esc(T.friendlyError(e))}</div>`); c.scrollTop = c.scrollHeight;
     }
   }
-  // ---------- conversa por voz: a Clara fala, você responde, sem apertar botões ----------
+  // ---------- conversa por voz: a Clara fala, você grava a resposta e toca em Enviar ----------
   function startCall() {
     if (busy || callEnd) return;
     const isExam = tutorMode === 'exam'; const mode = isExam ? 'examVoice' : 'voice';
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     let alive = true; let paused = false; let phase = 'think'; let target = ''; let cr = null; let listenId = 0; let blocked = false;
-    let silent = 0; let speaker = null; let abortCtl = null; let wake = null; let evalMode = false; let hideText = false;
+    let speaker = null; let abortCtl = null; let wake = null; let evalMode = false; let hideText = false;
+    let recorder = null; let lastClip = null; let autoStop = null; let tries = 0;
     const el = document.createElement('div'); el.className = 'call';
     el.innerHTML = `
-      <div class="call-top"><button class="x" id="cend" aria-label="Encerrar">✕</button><div class="call-title">👩‍🏫 Clara</div><button class="icon" id="chide" title="Esconder o texto">👁</button></div>
-      <div class="avatar think" id="cav"><span>👩‍🏫</span></div>
-      <div class="status" id="cstatus">Conectando…</div>
-      <div class="clara" id="cclara"></div>
-      <div class="ctarget" id="ctarget" hidden></div>
-      <div class="cnote" id="cnote" hidden></div>
-      <div class="you" id="cyou"></div>
-      <div class="call-chips">
-        <button class="chip" data-q="rep">Répétez, s'il vous plaît</button>
-        <button class="chip" data-q="Je ne comprends pas.">Je ne comprends pas</button>
-        <button class="chip" data-q="Je ne sais pas.">Je ne sais pas</button>
-      </div>
-      <div class="call-ctl">
-        <button class="btn" id="cmic">🎤 Falar</button>
-        <button class="btn" id="cpat"></button>
-        <button class="btn" id="cslow"></button>
-        <button class="btn" id="cpause">⏸ Pausar</button>
-        ${isExam ? '<button class="btn warn" id="cfin">Terminar e avaliar</button>' : ''}
-      </div>
-      <div class="call-err" id="cerr" hidden></div>`;
+      <div class="call-glow"></div>
+      <header class="call-top">
+        <button class="cbtn ghost" id="cend" aria-label="Encerrar">${I('x')}</button>
+        <div class="call-who"><b>Clara</b><small id="cstatus">Conectando…</small></div>
+        <button class="cbtn ghost" id="chide" aria-label="Esconder o texto">${I('eye')}</button>
+      </header>
+      <section class="stage">
+        <div class="orb" id="cav" data-state="think"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
+        <p class="clara" id="cclara"></p>
+        <div class="ctarget" id="ctarget" hidden></div>
+        <div class="cnote" id="cnote" hidden></div>
+        <p class="you" id="cyou"></p>
+        <div class="call-err" id="cerr" hidden></div>
+      </section>
+      <footer class="call-bar">
+        <div class="call-chips">
+          <button class="chip" data-q="rep">Répétez, s'il vous plaît</button>
+          <button class="chip" data-q="Je ne comprends pas.">Je ne comprends pas</button>
+          <button class="chip" data-q="Je ne sais pas.">Je ne sais pas</button>
+        </div>
+        <div class="ctl">
+          <button class="cbtn" id="cslow" aria-label="Falar mais devagar"></button>
+          <button class="cbig" id="cmic" aria-label="Falar"></button>
+          <button class="cbtn" id="cpause" aria-label="Pausar"></button>
+        </div>
+        <div class="ctl2"><button class="pill" id="credo" hidden>${I('redo')} Refazer</button>${isExam ? `<button class="pill warn" id="cfin">${I('check')} Terminar e avaliar</button>` : ''}</div>
+      </footer>`;
     document.body.appendChild(el); document.body.classList.add('incall');
     const $ = (id) => el.querySelector('#' + id);
-    const setPhase = (p, txt) => { phase = p; $('cav').className = 'avatar ' + p; $('cstatus').textContent = txt; $('cmic').textContent = p === 'listen' ? '✅ Terminei' : '🎤 Falar'; };
-    const slowLabel = () => { $('cslow').textContent = st().settings.slow ? '🐢 Devagar: ligado' : '🐢 Devagar'; };
+    const recOk = () => V.canRecord && st().settings.micMode !== 'web' && !!T.transcribeProvider(st().settings);
+    const micFace = (p) => (p === 'listen' ? `${I('send')}<span>Enviar</span>` : p === 'think' ? '<span class="dots3"><i></i><i></i><i></i></span>' : `${I('mic')}<span>Falar</span>`);
+    const setPhase = (p, txt) => {
+      phase = p; $('cav').dataset.state = p; $('cstatus').textContent = txt;
+      const mb = $('cmic'); mb.innerHTML = micFace(p); mb.classList.toggle('send', p === 'listen'); $('credo').hidden = !(p === 'listen' && recOk());
+    };
+    const setLevel = (l) => el.style.setProperty('--lvl', Math.min(1, l * 7).toFixed(2));
+    const slowLabel = () => { $('cslow').innerHTML = `${I('clock')}<span>${st().settings.slow ? 'Devagar: sim' : 'Devagar'}</span>`; $('cslow').classList.toggle('on', !!st().settings.slow); };
     slowLabel();
-    // tempo de espera após você parar de falar (quem fala devagar precisa de mais)
-    const PAT = { normal: [3000, 'normal'], longo: [4500, 'longo'], muito: [7000, 'muito longo'] };
-    const patKey = () => (st().settings.patience in PAT ? st().settings.patience : 'longo');
-    const patLabel = () => `⏱ Espera: ${PAT[patKey()][1]}`;
-    $('cpat').textContent = patLabel();
+    const pauseFace = (p) => { $('cpause').innerHTML = `${I(p ? 'play' : 'pause')}<span>${p ? 'Continuar' : 'Pausar'}</span>`; };
+    pauseFace(false);
     const getRate = () => (st().settings.slow ? 0.7 : 0.85);
     const lastMsg = () => { const m = getMsgs(); return m[m.length - 1]; };
 
@@ -526,38 +565,81 @@ async function tutorPage() {
       $('cclara').textContent = spoken || '';
       const n = $('cnote'); n.hidden = !note; n.innerHTML = note ? md(note) : '';
       const tg = $('ctarget'); tg.hidden = !tgt;
-      tg.innerHTML = tgt ? `<small>Repita:</small><b>${esc(tgt)}</b><span><button class="say sm" data-say="${esc(tgt)}">🔊</button><button class="say sm" id="ctslow">🐢</button></span>` : '';
+      tg.innerHTML = tgt ? `<small>Repita em voz alta</small><b>${esc(tgt)}</b><span><button class="pill" data-say="${esc(tgt)}">${I('volume')} Ouvir</button><button class="pill" id="ctslow">${I('clock')} Devagar</button></span>` : '';
       const ts = tg.querySelector('#ctslow'); if (ts) ts.onclick = () => { stopRec(); speaker && speaker.stop(); speak(tgt, { rate: 0.6 }).then(() => { if (alive && !paused && phase === 'listen') listenTurn(); }); };
     };
-    const fail = (msg, retry) => {
+    const fail = (msg, retry, alt) => {
       setPhase('error', msg); const er = $('cerr'); er.hidden = false;
-      er.innerHTML = retry ? '<button class="btn primary" id="cretry">Tentar de novo</button>' : '';
-      const b = er.querySelector('#cretry'); if (b) b.onclick = () => { er.hidden = true; clara(); };
+      er.innerHTML = `${retry ? `<button class="pill primary" id="cretry">Tentar de novo</button>` : ''}${alt ? `<button class="pill" id="calt">${esc(alt.label)}</button>` : ''}`;
+      const b = er.querySelector('#cretry'); if (b) b.onclick = () => { er.hidden = true; if (typeof retry === 'function') retry(); else clara(); };
+      const a = er.querySelector('#calt'); if (a) a.onclick = () => { er.hidden = true; alt.fn(); };
     };
 
-    function stopRec() { listenId++; if (cr) { const r = cr; cr = null; try { r.abort(); } catch (e) { /* ignore */ } } }
+    function stopRec() {
+      listenId++; clearTimeout(autoStop);
+      if (cr) { const r = cr; cr = null; try { r.abort(); } catch (e) { /* ignore */ } }
+      if (recorder) { const r = recorder; recorder = null; try { r.cancel(); } catch (e) { /* ignore */ } }
+      setLevel(0);
+    }
 
-    function listenTurn() {
+    // ----- gravar a resposta: sem cortes; você toca em Enviar quando terminar -----
+    async function recordTurn() {
+      if (!alive || paused) return;
+      stopRec(); const id = ++listenId; $('cerr').hidden = true; $('cyou').textContent = '';
+      setPhase('listen', 'Sua vez: fale e toque em Enviar');
+      try {
+        const r = await V.createRecorder({ onLevel: setLevel });
+        if (id !== listenId || !alive) { r.cancel(); return; }
+        recorder = r;
+      } catch (e) {
+        if (id !== listenId) return; blocked = true;
+        setPhase('idle', e && e.name === 'NotAllowedError' ? 'Permita o microfone no navegador e toque em Falar.' : 'Não consegui abrir o microfone. Toque em Falar para tentar.'); return;
+      }
+      autoStop = setTimeout(() => sendRecording(), 90000);
+    }
+    async function sendRecording() {
+      if (!recorder) return; clearTimeout(autoStop); const r = recorder; recorder = null; listenId++;
+      const { blob, ms, peak } = await r.stop(); setLevel(0);
+      if (!alive || paused) return;
+      if (ms < 800 || (peak >= 0 && peak < 0.012)) { tries++; setPhase('idle', tries >= 2 ? 'Não ouvi nada. Veja se o microfone está liberado e toque em Falar.' : 'Não ouvi nada. Toque em Falar e tente de novo.'); return; }
+      tries = 0; await transcribeClip(blob);
+    }
+    async function transcribeClip(blob) {
+      lastClip = blob; setPhase('think', 'Entendendo você…'); $('cerr').hidden = true; abortCtl = new AbortController();
+      try {
+        const s = st().settings; const tp = T.transcribeProvider(s);
+        const text = await T.transcribe({ provider: tp, apiKey: (s.keys || {})[tp], model: (s.models || {})[tp] || T.PROVIDERS[tp].model, blob, signal: abortCtl.signal });
+        if (!alive || paused) return;
+        if (!text) { setPhase('idle', 'Não consegui entender. Toque em Falar e tente de novo.'); return; }
+        userSaid(text);
+      } catch (e) {
+        if (!alive || e.name === 'AbortError') return;
+        fail(T.friendlyError(e), () => transcribeClip(lastClip), { label: 'Usar o reconhecimento do navegador', fn: () => { S.setSetting('micMode', 'web'); toast('Usando o reconhecimento de voz do navegador.'); listenTurn(); } });
+      }
+    }
+
+    // ----- reserva: reconhecimento do navegador, também com envio manual -----
+    function webListen() {
       if (!alive || paused) return;
       stopRec(); const id = ++listenId; $('cerr').hidden = true;
-      setPhase('listen', 'Sua vez — fale com calma'); $('cyou').textContent = '';
+      setPhase('listen', 'Sua vez: fale e toque em Enviar'); $('cyou').textContent = '';
       cr = V.listenPatient({
-        patienceMs: PAT[patKey()][0],
+        patienceMs: 600000, initialMs: 600000,
         onInterim: (t) => { if (id === listenId) $('cyou').textContent = t; },
         onFinal: (t) => {
           if (id !== listenId) return; cr = null;
           if (!alive || paused || blocked) return;
-          if (t) { silent = 0; userSaid(t); return; }
-          if (++silent >= 3) setPhase('idle', 'Não ouvi nada. Toque em 🎤 para falar.'); else listenTurn();
+          if (t) userSaid(t); else setPhase('idle', 'Não ouvi nada. Toque em Falar e tente de novo.');
         },
         onError: (er) => {
           if (id !== listenId) return;
-          if (er === 'not-allowed' || er === 'service-not-allowed') { blocked = true; setPhase('idle', 'Permita o microfone no navegador e toque em 🎤.'); }
-          else if (er === 'network') { blocked = true; setPhase('idle', 'O reconhecimento de voz precisa de internet. Toque em 🎤 para tentar.'); }
-          else if (er !== 'no-speech' && er !== 'aborted') { blocked = true; setPhase('idle', `Erro no microfone (${er}). Toque em 🎤.`); }
+          if (er === 'not-allowed' || er === 'service-not-allowed') { blocked = true; setPhase('idle', 'Permita o microfone no navegador e toque em Falar.'); }
+          else if (er === 'network') { blocked = true; setPhase('idle', 'O reconhecimento de voz precisa de internet. Toque em Falar para tentar.'); }
+          else if (er !== 'no-speech' && er !== 'aborted') { blocked = true; setPhase('idle', `Erro no microfone (${er}). Toque em Falar.`); }
         },
       });
     }
+    function listenTurn() { return recOk() ? recordTurn() : webListen(); }
 
     function userSaid(t, plain) {
       const m = { role: 'user', content: t };
@@ -641,9 +723,9 @@ async function tutorPage() {
     document.addEventListener('keydown', onKey);
 
     $('cend').onclick = () => end(false);
-    $('chide').onclick = () => { hideText = !hideText; el.classList.toggle('hidetext', hideText); };
+    $('chide').onclick = () => { hideText = !hideText; el.classList.toggle('hidetext', hideText); $('chide').innerHTML = I(hideText ? 'eyeoff' : 'eye'); };
     $('cslow').onclick = () => { S.setSetting('slow', !st().settings.slow); slowLabel(); };
-    $('cpat').onclick = () => { const k = Object.keys(PAT); S.setSetting('patience', k[(k.indexOf(patKey()) + 1) % k.length]); $('cpat').textContent = patLabel(); toast(`Espera de ${PAT[patKey()][0] / 1000} s depois que você para de falar.`); if (phase === 'listen') listenTurn(); };
+    $('credo').onclick = () => { stopRec(); listenTurn(); };
     // frases do curso para pedir ajuda (item "régler des problèmes de communication" da prova)
     el.querySelectorAll('.call-chips [data-q]').forEach((b) => {
       b.onclick = async () => {
@@ -659,16 +741,15 @@ async function tutorPage() {
       };
     });
     $('cmic').onclick = () => {
-      blocked = false; silent = 0;
-      if (phase === 'listen' && cr) { cr.finish(); return; }          // "Terminei": envia agora
+      blocked = false;
+      if (phase === 'listen') { if (recorder) { sendRecording(); return; } if (cr) { cr.finish(); return; } }
       if (phase === 'speak') { if (speaker) speaker.stop(); listenTurn(); return; } // pular a fala da Clara
-      if (phase === 'think') return;
-      if (paused) return;
+      if (phase === 'think' || paused) return;
       if (lastMsg() && lastMsg().role === 'user') clara(); else listenTurn();
     };
     $('cpause').onclick = () => {
-      if (!paused) { paused = true; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); setPhase('paused', 'Conversa pausada'); $('cpause').textContent = '▶ Continuar'; }
-      else { paused = false; $('cpause').textContent = '⏸ Pausar'; if (lastMsg() && lastMsg().role === 'user') clara(); else listenTurn(); }
+      if (!paused) { paused = true; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); setPhase('paused', 'Conversa pausada'); pauseFace(true); }
+      else { paused = false; pauseFace(false); if (lastMsg() && lastMsg().role === 'user') clara(); else listenTurn(); }
     };
     const fin = $('cfin');
     if (fin) fin.onclick = () => {
@@ -678,6 +759,7 @@ async function tutorPage() {
 
     (async () => {
       try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { /* sem wake lock */ }
+      setPhase('think', 'Conectando…');
       const m = lastMsg();
       if (!m || m.role === 'user') clara();
       else if (/Nota geral/i.test(m.content)) { setPhase('idle', 'Esta prova já foi avaliada. Apague a conversa para recomeçar.'); }
@@ -712,6 +794,9 @@ function settingsPage() {
     <section class="card"><h3>Voz</h3>
       <label class="chk"><input type="checkbox" id="svoice" ${s.voice !== false ? 'checked' : ''}> Ler as respostas do professor em voz alta</label>
       <label class="chk"><input type="checkbox" id="sslow" ${s.slow ? 'checked' : ''}> Voz mais devagar</label>
+      <label>Microfone na conversa por voz<select id="smic" class="inp">
+        <option value="rec" ${s.micMode !== 'web' ? 'selected' : ''}>Gravar e transcrever (recomendado)</option>
+        <option value="web" ${s.micMode === 'web' ? 'selected' : ''}>Reconhecimento de voz do navegador</option></select></label>
       <label>Voz do professor<select id="sengine" class="inp">
         <option value="auto" ${(s.voiceEngine || 'auto') === 'auto' ? 'selected' : ''}>Automática (recomendado)</option>
         <option value="browser" ${s.voiceEngine === 'browser' ? 'selected' : ''}>Voz do aparelho</option>
@@ -761,6 +846,7 @@ function settingsPage() {
       : `<small style="color:var(--bad)">⚠️ Este aparelho <b>não tem voz francesa</b>: o áudio sai com sotaque brasileiro. ${hasKey ? 'Escolha “Voz natural online (Gemini)”.' : 'Opções: abrir o app no <b>Microsoft Edge</b> (PC), instalar a voz francesa no Android, ou salvar uma chave do Gemini (aba Clara) para usar a voz natural.'}</small>`;
   };
   paintVoice(); setTimeout(paintVoice, 700);
+  on('smic', 'change', (e) => S.setSetting('micMode', e.target.value));
   on('sengine', 'change', (e) => { S.setSetting('voiceEngine', e.target.value); paintVoice(); });
   on('stest', 'click', () => speak('Bonjour ! Je m’appelle Clara. Comment allez-vous ?', { rate: rate() }));
   on('sinstall', 'click', async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; settingsPage(); });

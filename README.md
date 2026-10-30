@@ -32,7 +32,7 @@ Em **Ajustes** (ou na aba Clara), escolha um provedor com plano gratuito e cole 
 Se der erro 429, é o limite gratuito: espere 1 minuto ou troque de modelo/provedor. Use "Carregar modelos" em Ajustes para ver os nomes de modelo válidos.
 Modos: conversa, prova oral (simulação com nota nos 6 critérios) e dúvidas em português.
 
-**Conversa por voz:** o botão 📞 abre uma ligação com a Clara. Ela fala, o microfone abre sozinho, você responde e o ciclo continua sem apertar nada. Quando você erra, ela diz a frase certa e pede para repetir; o app compara o que você disse com a frase-alvo e a Clara comenta a pronúncia. O microfone é paciente: só envia depois de alguns segundos de silêncio (botão ⏱ ajusta; ✅ Terminei envia na hora), e as frases que você não repetiu bem vão para a aba Revisão.
+**Conversa por voz:** o botão 📞 abre uma ligação com a Clara. Ela fala, o microfone abre sozinho, você responde e o ciclo continua sem apertar nada. Quando você erra, ela diz a frase certa e pede para repetir; o app compara o que você disse com a frase-alvo e a Clara comenta a pronúncia. Você grava a resposta sem pressa e toca em **Enviar** quando terminar; o app transcreve o áudio inteiro (Gemini ou Groq) e a Clara responde. **Refazer** descarta a gravação. Se a transcrição falhar, dá para trocar para o reconhecimento de voz do navegador em Ajustes. As frases que você não repetiu bem vão para a aba Reforço.
 
 Para levar a chave a outro aparelho sem digitar: Ajustes → "Usar em outro aparelho" gera um link de configuração (não compartilhe esse link).
 
