@@ -1,4 +1,4 @@
-import { EXAM_DATE, UNITS, LESSONS, LETTERS, ACCENTS, PHRASES, VERBS, PRONOUNS, JOBS } from './data.js';
+import { EXAM_DATE, UNITS, LESSONS, LETTERS, ACCENTS, PHRASES, VERBS, PRONOUNS, JOBS, TUVOUS } from './data.js';
 import { buildSession, check, shuffle, speakScore, unitItems, itemLabel, skillsFor } from './exercises.js';
 import { speak as rawSpeak, stopSpeaking, listen, canListen, canSpeak, prefetch, engineInfo, frenchVoiceName } from './speech.js';
 import * as V from './speech.js';
@@ -167,6 +167,7 @@ function renderLesson(html) {
     if (t === 'letters') return Object.entries(LETTERS).map(([l, n]) => `<button class="letter" data-say="${esc(n)}">${l}<small>${esc(n)}</small></button>`).join('');
     if (t === 'accents') return ACCENTS.map((a) => `<button class="chip say" data-say="${esc(a.name)}">${a.c} <small>${a.name}</small></button>`).join('');
     if (t === 'verbtables') return verbTables();
+    if (t === 'tuvous') return TUVOUS.map((p) => `<tr><td><button class="say sm" data-say="${esc(p.tu)}">🔊</button> ${esc(p.tu)}</td><td><button class="say sm" data-say="${esc(p.vous)}">🔊</button> ${esc(p.vous)}</td></tr>`).join('');
     if (t === 'jobrows') return JOBS.map((j) => `<tr><td>${j.m}</td><td>${j.f}</td><td>${j.pt}</td></tr>`).join('');
     if (t.startsWith('phrases:')) return PHRASES[t.slice(8)].map((p) => `<li><button class="say" data-say="${esc(p.fr)}">🔊 ${esc(p.fr)}</button><span class="pt">${esc(p.pt)}</span></li>`).join('');
     if (t.startsWith('say:')) { const [txt, label] = t.slice(4).split('|'); return `<button class="say" data-say="${esc(txt)}">🔊 ${esc(label || txt)}</button>`; }

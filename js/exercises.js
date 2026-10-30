@@ -1,5 +1,5 @@
 import {
-  LETTERS, ACCENTS, NAMES, PHRASES, SITUATIONS, PRONOUNS, VERBS, NATS, LANGS, CITIES, JOBS, STATEMENTS, QWORDS,
+  LETTERS, ACCENTS, NAMES, PHRASES, SITUATIONS, PRONOUNS, VERBS, NATS, LANGS, CITIES, JOBS, STATEMENTS, QWORDS, TUVOUS,
 } from './data.js';
 
 // ---------- utilitários ----------
@@ -98,6 +98,16 @@ function genAlphabet() {
   const nm2 = pick(NAMES); const say = pick(["Comment ça s'écrit ?", "Épelez, s'il vous plaît.", `Je m'appelle ${nm2}.`, `Mon prénom, c'est ${nm2}.`]);
   out.push(mk('alphabet', 'speak', { items: /appelle|prénom/.test(say) ? lettersOf(nm2) : [], q: 'Diga em voz alta:', answer: say.replace(/[.?]$/, ''), shown: say, audio: say, explain: 'Depois tente soletrar o nome em voz alta, letra por letra.' }));
   out.push(mk('alphabet', 'tiles', { q: 'Monte a frase: "Como se escreve?"', tiles: shuffle(['Comment', 'ça', "s'écrit", 'bonjour']), answer: "Comment ça s'écrit", audio: "Comment ça s'écrit ?" }));
+  // regras de pronúncia (Pierini, p. 5–8): letras finais, vogais nasais e o som do E com acento
+  const finals = [['bonjour', 'r'], ['avec', 'c'], ['chef', 'f'], ['animal', 'l']]; const silentW = ['vous', 'salut', 'français', 'étudiant', 'parlent', 'petit'];
+  const fw = pick(finals);
+  out.push(mk('alphabet', 'choice', { items: ['pron:final'], q: 'Em qual palavra a <b>última letra é pronunciada</b>?', audio: fw[0], options: shuffle([fw[0], ...sample(silentW, 3)]), answer: fw[0], explain: `${fw[0]}: o "${fw[1]}" final soa. Em vous, salut, français… a última letra é muda (só R, L, C e F costumam soar).` }));
+  const nasalW = ['étudiant', 'bonjour', 'comment', 'enseignant', 'brésilien']; const plainW = ['salut', 'vous', 'merci', 'je'];
+  const nw = pick(nasalW);
+  out.push(mk('alphabet', 'choice', { items: ['pron:nasal'], q: 'Qual palavra tem uma <b>vogal nasal</b> (an / en / on / in)?', audio: nw, options: shuffle([nw, ...sample(plainW, 3)]), answer: nw, explain: `${nw} tem vogal nasal: o "n" não é pronunciado como em português.` }));
+  const eW = [['étudiant', 'é', 'ê (fechado)'], ['très', 'è', 'é (aberto)'], ['fête', 'ê', 'é (aberto)'], ['je', 'e', 'e fraco (como em "je")']];
+  const ew = pick(eW);
+  out.push(mk('alphabet', 'choice', { items: ['pron:e'], q: `Como soa o <b>${ew[1]}</b> de <i>${ew[0]}</i>?`, audio: ew[0], options: shuffle(['ê (fechado)', 'é (aberto)', 'e fraco (como em "je")']), answer: ew[2], explain: 'Só a letra E muda de som com o acento: e fraco, é = "ê", è e ê = "é".' }));
   return pick(out);
 }
 
@@ -160,7 +170,12 @@ function genPresenter() {
 }
 
 function genSaluer() {
-  const t = rnd(5);
+  const t = rnd(7);
+  if (t >= 5) { // as mesmas perguntas em tu e em vous
+    const i = rnd(TUVOUS.length); const p = TUVOUS[i]; const toVous = Math.random() < 0.5;
+    if (t === 5) return mk('saluer', 'type', { items: [`tv:${i}`], q: `Passe para o <b>${toVous ? 'formal (vous)' : 'informal (tu)'}</b>:<br><i>${toVous ? p.tu : p.vous}</i>`, sub: p.pt, answer: toVous ? p.vous : p.tu, audio: toVous ? p.vous : p.tu, explain: `${p.tu}  ↔  ${p.vous}` });
+    return mk('saluer', 'choice', { items: [`tv:${i}`], q: `Qual pergunta é a <b>${toVous ? 'formal (vous)' : 'informal (tu)'}</b>? <small>(${p.pt})</small>`, options: shuffle([p.tu, p.vous]), answer: toVous ? p.vous : p.tu, audio: toVous ? p.vous : p.tu, explain: `${p.tu}  ↔  ${p.vous}` });
+  }
   if (t === 0) {
     const isS = Math.random() < 0.5; const p = pick(PHRASES[isS ? 'saluer' : 'congé'].filter((x) => !/^(Tu|Vous|Ça)/.test(x.fr)));
     return mk('saluer', 'choice', { items: [`phrase:${p.fr}`], q: `<b>${p.fr}</b> — cumprimentar ou despedir-se?`, audio: p.fr, options: ['Saluer (cumprimentar)', 'Prendre congé (despedir-se)'], answer: isS ? 'Saluer (cumprimentar)' : 'Prendre congé (despedir-se)', explain: p.pt });
@@ -249,8 +264,13 @@ function genQuestions() {
 const neg = (s) => `${s.s} ${startsVowel(s.v) ? "n'" + s.v : 'ne ' + s.v} pas ${s.r}`;
 const negItems = (s) => ['neg:ne', ...(startsVowel(s.v) ? ['neg:elision'] : []), ...(s.v.startsWith("s'") ? ['neg:pronominal'] : [])];
 function genNegation() {
-  const t = rnd(5);
+  const t = rnd(6);
   const s = pick(STATEMENTS.filter((x) => !(x.s === 'Je' && false)));
+  if (t === 5) { // moi aussi / moi non plus (Ferreira, p. 83)
+    const sm = pick(STATEMENTS.filter((x) => ['Elle', 'Il', 'Ils', 'Elles'].includes(x.s) && !x.v.startsWith("s'")));
+    const aff = Math.random() < 0.5; const base = aff ? flat(sm) : neg(sm);
+    return mk('negation', 'choice', { items: ['neg:moi'], q: `Concorde com a frase:<br><i>${base}, ____</i>`, options: shuffle(['Moi aussi', 'Moi non plus']), answer: aff ? 'Moi aussi' : 'Moi non plus', audio: `${base}, ${aff ? 'moi aussi' : 'moi non plus'}`, explain: aff ? 'Moi aussi = eu também (depois de frase afirmativa).' : 'Moi non plus = nem eu (depois de frase negativa).' });
+  }
   if (t === 0 || t === 1) return mk('negation', 'type', { items: negItems(s), q: `Coloque na <b>negativa</b>:<br><i>${flat(s)}</i>`, answer: neg(s), audio: neg(s), explain: `${neg(s)}.${startsVowel(s.v) ? ' (ne → n\' antes de vogal)' : ''}` });
   if (t === 2) {
     const opts = shuffle([neg(s), `${s.s} ${s.v} pas ${s.r}`, `${s.s} ne pas ${s.v} ${s.r}`, startsVowel(s.v) ? `${s.s} ne ${s.v} pas ${s.r}` : `${s.s} ne ${s.v} ${s.r} pas`]);
@@ -270,14 +290,14 @@ const GEN = { alphabet: genAlphabet, comm: genComm, presenter: genPresenter, sal
 // Cada unidade tem uma lista fixa de itens (o "universo"); cada exercício diz quais itens treina.
 const QTILES_ALL = QTILES.concat([{ pt: 'Você fala francês?', fr: 'Vous parlez français' }]);
 const UNIVERSE = {
-  alphabet: () => [...Object.keys(LETTERS).map((l) => `letter:${l}`), ...ACCENTS.map((a) => `accent:${a.c}`)],
+  alphabet: () => [...Object.keys(LETTERS).map((l) => `letter:${l}`), ...ACCENTS.map((a) => `accent:${a.c}`), 'pron:final', 'pron:nasal', 'pron:e'],
   comm: () => PHRASES.comm.map((p) => `phrase:${p.fr}`),
   presenter: () => [...PHRASES.presenter.map((p) => `phrase:${p.fr}`), ...['nom', 'nat', 'ville', 'langue', 'metier', 'etude'].map((k) => `pres:${k}`)],
-  saluer: () => [...PHRASES.saluer, ...PHRASES.congé].map((p) => `phrase:${p.fr}`).concat(SITUATIONS.map((_, i) => `sit:${i}`)),
+  saluer: () => [...PHRASES.saluer, ...PHRASES.congé].map((p) => `phrase:${p.fr}`).concat(SITUATIONS.map((_, i) => `sit:${i}`), TUVOUS.map((_, i) => `tv:${i}`)),
   verbes: () => Object.keys(VERBS).flatMap((v) => PRONOUNS.map((_, i) => `verb:${v}:${i}`)),
   metiers: () => [...JOBS.map((j) => `job:${j.m}`), ...NATS.map((n) => `nat:${n.m}`)],
   questions: () => ['q:estce', 'q:elision', 'q:inv:tu', 'q:inv:vous', 'q:mot:Où', 'q:mot:Qui', 'q:mot:Comment', 'q:mot:Pourquoi', 'q:type:int', 'q:type:estce', 'q:type:inv', ...QTILES_ALL.map((q) => `q:tile:${q.fr}`)],
-  negation: () => ['neg:ne', 'neg:elision', 'neg:pronominal', 'neg:reponse'],
+  negation: () => ['neg:ne', 'neg:elision', 'neg:pronominal', 'neg:reponse', 'neg:moi'],
 };
 export const unitItems = (unit) => UNIVERSE[unit]();
 
@@ -289,6 +309,8 @@ export function itemLabel(id) {
   if (k === 'phrase') return a + (b ? ':' + b : '');
   if (k === 'pres') return { nom: 'Dizer o nome', nat: 'Dizer a nacionalidade', ville: 'Dizer onde mora', langue: 'Dizer os idiomas', metier: 'Dizer a profissão', etude: 'Dizer o que estuda' }[a];
   if (k === 'sit') return `Tu ou vous: ${SITUATIONS[+a].pt}`;
+  if (k === 'tv') return `Tu ↔ vous: ${TUVOUS[+a].tu}`;
+  if (k === 'pron') return { final: 'Letras finais pronunciadas', nasal: 'Vogais nasais', e: 'Som do E com acento' }[a];
   if (k === 'verb') return `${a} — ${PRONOUNS[+b]}`;
   if (k === 'job') { const j = JOBS.find((x) => x.m === a); return j ? `${j.m} / ${j.f}` : a; }
   if (k === 'nat') { const n = NATS.find((x) => x.m === a); return n ? `${n.m} / ${n.f}` : a; }
@@ -300,7 +322,7 @@ export function itemLabel(id) {
     if (a === 'type') return `Reconhecer ${{ int: 'entonação', estce: 'est-ce que', inv: 'inversão' }[b]}`;
     if (a === 'tile') return `Pergunta: ${id.slice(7)}`;
   }
-  if (k === 'neg') return { ne: 'Negação ne … pas', elision: "Negação com n'", pronominal: 'Negação com s\'appeler', reponse: 'Responder "Non, je ne…"' }[a];
+  if (k === 'neg') return { ne: 'Negação ne … pas', elision: "Negação com n'", pronominal: 'Negação com s\'appeler', reponse: 'Responder "Non, je ne…"', moi: 'Moi aussi / moi non plus' }[a];
   return id;
 }
 

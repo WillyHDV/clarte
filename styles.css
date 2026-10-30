@@ -192,6 +192,12 @@ body.incall .tabs { display: none; }
 .wchip { background: var(--warn-bg); color: var(--warn); border-radius: 99px; padding: 3px 10px; font-size: .82rem; font-weight: 600; }
 .end .dom { font-size: 1.05rem; }
 
+/* conteúdo extra vindo dos livros */
+.extra { margin-top: 18px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--blue) 14%, var(--card)); border: 1.5px solid var(--blue); }
+.extra h3 { margin-top: 0; }
+.extra ul { margin: 6px 0; }
+.src { display: block; margin-top: 8px; font-size: .75rem; color: var(--muted); }
+
 /* plano de hoje e trilha da unidade */
 .plan .ptitle { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .plan h3 { margin: 0; }
