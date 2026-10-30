@@ -46,6 +46,10 @@ export const PHRASES = {
     { fr: 'Ça va ?', pt: 'Tudo bem?' },
     { fr: 'Ça va bien, merci.', pt: 'Vou bem, obrigado(a).' },
     { fr: 'Bonjour madame, bonjour monsieur !', pt: 'Bom dia, senhora; bom dia, senhor!' },
+    { fr: 'Enchanté !', pt: 'Prazer! (a mulher diz "enchantée")' },
+    { fr: 'Ravi de faire votre connaissance.', pt: 'Prazer em conhecê-lo(a).' },
+    { fr: 'Pas mal.', pt: 'Nada mal.' },
+    { fr: 'Bienvenue !', pt: 'Bem-vindo(a)!' },
   ],
   congé: [
     { fr: 'Au revoir !', pt: 'Tchau! / Até logo!' },
@@ -72,6 +76,25 @@ export const PHRASES = {
     { fr: 'Je vous présente Pierre. Il est français.', pt: 'Eu lhe apresento o Pierre. Ele é francês.' },
   ],
 };
+// Os 6 apresentados no vídeo "Présentation" da professora (mesmos dados dos exercícios das aulas 2 e 3)
+export const PROFILES = [
+  { name: 'Émilie', g: 'f', nat: 'canadienne', langs: ['français'] },
+  { name: 'Alexis', g: 'm', nat: 'québécois', langs: ['français', 'anglais'] },
+  { name: 'Charlie', g: 'f', nat: 'libano-québécoise', langs: ['français', 'anglais', 'arabe'] },
+  { name: 'Simon', g: 'm', nat: 'montréalais', langs: ['français'] },
+  { name: 'Mehmet', g: 'm', nat: 'turc', langs: ['turc', 'anglais', 'un peu français'] },
+  { name: 'Jérémie', g: 'm', nat: 'québécois', langs: ['français'] },
+];
+// Falas do vídeo "On se tutoie ?": quem se trata por tu e quem por vous
+export const VIDEO_TV = [
+  { fr: 'Bonjour Christophe, comment allez-vous ?', reg: 'vous', pt: 'Bom dia, Christophe, como vai o senhor?' },
+  { fr: 'Et vous, ça va ?', reg: 'vous', pt: 'E o senhor, tudo bem?' },
+  { fr: 'Salut Maxime, ça va ?', reg: 'tu', pt: 'Oi, Maxime, tudo bem?' },
+  { fr: 'Ça va, et toi ?', reg: 'tu', pt: 'Tudo bem, e você?' },
+  { fr: 'Vous habitez dans le quartier ?', reg: 'vous', pt: 'O senhor/a senhora mora no bairro?' },
+  { fr: 'Je vous présente Sophie, notre nouvelle voisine.', reg: 'vous', pt: 'Apresento-lhe a Sophie, nossa nova vizinha.' },
+  { fr: 'Ravi de faire votre connaissance.', reg: 'vous', pt: 'Prazer em conhecê-lo(a).' },
+];
 // Perguntas em tu e em vous (curso + quadro "Tutoyer et vouvoyer", Rodrigues p. 27)
 export const TUVOUS = [
   { tu: "Tu t'appelles comment ?", vous: 'Vous vous appelez comment ?', pt: 'Como você se chama?' },
@@ -231,6 +254,10 @@ export const LESSONS = {
       <li><b>Je parle</b> + idioma: <i>Je parle portugais</i></li>
       <li><b>Je travaille comme</b> + profissão (ou <b>Je suis</b> + profissão): <i>Je suis vendeur</i></li>
     </ul>
+    <div class="extra"><h3>🎬 No vídeo "Présentation" da professora</h3>
+      <p>Seis pessoas se apresentam. Ouça cada uma e confira:</p>
+      <table class="tbl"><tr><th>Quem</th><th>Nacionalidade</th><th>Fala</th></tr>{{profiles}}</table>
+      <small class="src">Fonte: vídeo "Présentation" e exercícios das aulas 2 e 3 do curso (transcrição automática conferida).</small></div>
     <div class="extra"><h3>📚 Apresentar outra pessoa</h3>
       <p>Como na atividade de apresentar quem está ao seu lado, estas frases ajudam:</p>
       <ul class="phr">
@@ -247,6 +274,11 @@ export const LESSONS = {
     <h3>Tu × vous</h3>
     <p><b>Tu</b> = informal (amigos, família, colegas, crianças). <b>Vous</b> = formal (desconhecidos, professor, cliente/garçom, chefe) — e também plural.</p>
     <p>Se tutoyer = tratar por "tu". Se vouvoyer = tratar por "vous". Na dúvida, comece com <b>vous</b> e espere: {{say:On se tutoie ?}}</p>
+    <div class="extra"><h3>🎬 No vídeo "On se tutoie ?" da professora</h3>
+      <p>Na cena, quem se conhece bem usa <b>tu</b>; com o colega que se respeita à distância e com a vizinha nova usa-se <b>vous</b>. Ouça as falas e veja o registro:</p>
+      <ul class="phr">{{videotv}}</ul>
+      <p class="pt">Para se despedir: <i>À bientôt ! Au revoir ! Bonne journée !</i> Para dar boas-vindas: <i>Bienvenue !</i></p>
+      <small class="src">Fonte: vídeo "On se tutoie ?" e a aula 4 do curso (transcrição automática conferida).</small></div>
     <div class="extra"><h3>📚 As mesmas perguntas em tu e em vous</h3>
       <table class="tbl"><tr><th>Tu (informal)</th><th>Vous (formal)</th></tr>{{tuvous}}</table>
       <p class="pt"><b>ton / ta</b> (tu) → <b>votre</b> (vous). O <b>vous</b> de polidez vale para pessoas mais velhas, desconhecidas ou superiores; para mais de uma pessoa, <i>vous</i> também significa "vocês".</p>

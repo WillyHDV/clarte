@@ -1,5 +1,5 @@
 import {
-  LETTERS, ACCENTS, NAMES, PHRASES, SITUATIONS, PRONOUNS, VERBS, NATS, LANGS, CITIES, JOBS, STATEMENTS, QWORDS, TUVOUS,
+  LETTERS, ACCENTS, NAMES, PHRASES, SITUATIONS, PRONOUNS, VERBS, NATS, LANGS, CITIES, JOBS, STATEMENTS, QWORDS, TUVOUS, PROFILES, VIDEO_TV,
 } from './data.js';
 
 // ---------- utilitários ----------
@@ -132,7 +132,34 @@ function genPhraseUnit(unit, keys) {
 }
 const genComm = () => genPhraseUnit('comm', ['comm']);
 
+// ---------- exercícios do vídeo "Présentation" (os 6 apresentados na aula) ----------
+const fmtLangs = (a) => (a.length > 1 ? `${a.slice(0, -1).join(', ')} et ${a[a.length - 1]}` : a[0]);
+const NAT_POOL = [{ m: 'canadien', f: 'canadienne' }, { m: 'québécois', f: 'québécoise' }, { m: 'libano-québécois', f: 'libano-québécoise' }, { m: 'montréalais', f: 'montréalaise' }, { m: 'turc', f: 'turque' }, { m: 'français', f: 'française' }, { m: 'brésilien', f: 'brésilienne' }, { m: 'libanais', f: 'libanaise' }];
+function genVideoProfile() {
+  const p = PROFILES[rnd(PROFILES.length)]; const langs = fmtLangs(p.langs);
+  const say = `Bonjour, je m'appelle ${p.name}, je suis ${p.nat}, je parle ${langs}.`;
+  const t = rnd(3);
+  if (t === 0) {
+    const pool = NAT_POOL.map((n) => n[p.g]).filter((n) => n !== p.nat);
+    return mk('presenter', 'listen-choice', { items: [`vid:${p.name}`, 'pres:nat'], q: `Ouça ${p.name}. Qual é a nacionalidade ${p.g === 'f' ? 'dela' : 'dele'}?`, audio: say, options: shuffle([p.nat, ...sample(pool, 3)]), answer: p.nat, explain: say });
+  }
+  if (t === 1) {
+    const all = [...new Set(PROFILES.map((x) => fmtLangs(x.langs)).concat(['français et espagnol', 'arabe et français', 'anglais et portugais']))].filter((l) => l !== langs);
+    return mk('presenter', 'listen-choice', { items: [`vid:${p.name}`, 'pres:langue'], q: `Ouça ${p.name}. Quais idiomas ${p.g === 'f' ? 'ela' : 'ele'} fala?`, audio: say, options: shuffle([langs, ...sample(all, 3)]), answer: langs, explain: say });
+  }
+  // vrai ou faux (como nas aulas 2 e 3)
+  const natTrue = Math.random() < 0.5; const truth = Math.random() < 0.5;
+  if (natTrue) {
+    const other = pick(NAT_POOL.map((n) => n[p.g]).filter((n) => n !== p.nat)); const claim = truth ? p.nat : other;
+    return mk('presenter', 'choice', { items: [`vid:${p.name}`, 'pres:nat'], q: `Vrai ou faux ?<br><b>${p.name} est ${claim}.</b>`, audio: `${p.name} est ${claim}.`, options: ['Vrai', 'Faux'], answer: truth ? 'Vrai' : 'Faux', explain: `${p.name} est ${p.nat}.` });
+  }
+  const spoken = p.langs.map((l) => l.replace('un peu ', '')); const fluent = p.langs.filter((l) => !l.startsWith('un peu'));
+  const claim = truth ? pick(fluent) : pick(['arabe', 'turc', 'anglais', 'espagnol', 'allemand', 'français'].filter((l) => !spoken.includes(l)));
+  return mk('presenter', 'choice', { items: [`vid:${p.name}`, 'pres:langue'], q: `Vrai ou faux ?<br><b>${p.name} parle ${claim}.</b>`, audio: `${p.name} parle ${claim}.`, options: ['Vrai', 'Faux'], answer: truth ? 'Vrai' : 'Faux', explain: `${p.name} parle ${langs}.` });
+}
+
 function genPresenter() {
+  if (rnd(4) === 0) return genVideoProfile();
   if (rnd(3) === 0) return genPhraseUnit('presenter', ['presenter']); // frases-modelo da apresentação (inclui as perguntas)
   const g = pick(['m', 'f']); const name = pick(g === 'f' ? NF : NM); const n = pick(NATS); const city = pick(CITIES); const lang = pick(LANGS); const job = pick(JOBS);
   const nat = n[g]; const jb = job[g];
@@ -170,7 +197,11 @@ function genPresenter() {
 }
 
 function genSaluer() {
-  const t = rnd(7);
+  const t = rnd(8);
+  if (t === 7) { // falas do vídeo "On se tutoie ?": tu ou vous?
+    const i = rnd(VIDEO_TV.length); const l = VIDEO_TV[i];
+    return mk('saluer', 'listen-choice', { items: [`vtv:${i}`], q: 'Ouça a fala do vídeo. Eles se tratam por <b>tu</b> ou por <b>vous</b>?', audio: l.fr, options: ['tu', 'vous'], answer: l.reg, explain: `${l.fr} — ${l.pt}` });
+  }
   if (t >= 5) { // as mesmas perguntas em tu e em vous
     const i = rnd(TUVOUS.length); const p = TUVOUS[i]; const toVous = Math.random() < 0.5;
     if (t === 5) return mk('saluer', 'type', { items: [`tv:${i}`], q: `Passe para o <b>${toVous ? 'formal (vous)' : 'informal (tu)'}</b>:<br><i>${toVous ? p.tu : p.vous}</i>`, sub: p.pt, answer: toVous ? p.vous : p.tu, audio: toVous ? p.vous : p.tu, explain: `${p.tu}  ↔  ${p.vous}` });
@@ -292,8 +323,8 @@ const QTILES_ALL = QTILES.concat([{ pt: 'Você fala francês?', fr: 'Vous parlez
 const UNIVERSE = {
   alphabet: () => [...Object.keys(LETTERS).map((l) => `letter:${l}`), ...ACCENTS.map((a) => `accent:${a.c}`), 'pron:final', 'pron:nasal', 'pron:e'],
   comm: () => PHRASES.comm.map((p) => `phrase:${p.fr}`),
-  presenter: () => [...PHRASES.presenter.map((p) => `phrase:${p.fr}`), ...['nom', 'nat', 'ville', 'langue', 'metier', 'etude'].map((k) => `pres:${k}`)],
-  saluer: () => [...PHRASES.saluer, ...PHRASES.congé].map((p) => `phrase:${p.fr}`).concat(SITUATIONS.map((_, i) => `sit:${i}`), TUVOUS.map((_, i) => `tv:${i}`)),
+  presenter: () => [...PHRASES.presenter.map((p) => `phrase:${p.fr}`), ...['nom', 'nat', 'ville', 'langue', 'metier', 'etude'].map((k) => `pres:${k}`), ...PROFILES.map((p) => `vid:${p.name}`)],
+  saluer: () => [...PHRASES.saluer, ...PHRASES.congé].map((p) => `phrase:${p.fr}`).concat(SITUATIONS.map((_, i) => `sit:${i}`), TUVOUS.map((_, i) => `tv:${i}`), VIDEO_TV.map((_, i) => `vtv:${i}`)),
   verbes: () => Object.keys(VERBS).flatMap((v) => PRONOUNS.map((_, i) => `verb:${v}:${i}`)),
   metiers: () => [...JOBS.map((j) => `job:${j.m}`), ...NATS.map((n) => `nat:${n.m}`)],
   questions: () => ['q:estce', 'q:elision', 'q:inv:tu', 'q:inv:vous', 'q:mot:Où', 'q:mot:Qui', 'q:mot:Comment', 'q:mot:Pourquoi', 'q:type:int', 'q:type:estce', 'q:type:inv', ...QTILES_ALL.map((q) => `q:tile:${q.fr}`)],
@@ -310,6 +341,8 @@ export function itemLabel(id) {
   if (k === 'pres') return { nom: 'Dizer o nome', nat: 'Dizer a nacionalidade', ville: 'Dizer onde mora', langue: 'Dizer os idiomas', metier: 'Dizer a profissão', etude: 'Dizer o que estuda' }[a];
   if (k === 'sit') return `Tu ou vous: ${SITUATIONS[+a].pt}`;
   if (k === 'tv') return `Tu ↔ vous: ${TUVOUS[+a].tu}`;
+  if (k === 'vtv') return `Vídeo: ${VIDEO_TV[+a].fr}`;
+  if (k === 'vid') return `Vídeo: ${a}`;
   if (k === 'pron') return { final: 'Letras finais pronunciadas', nasal: 'Vogais nasais', e: 'Som do E com acento' }[a];
   if (k === 'verb') return `${a} — ${PRONOUNS[+b]}`;
   if (k === 'job') { const j = JOBS.find((x) => x.m === a); return j ? `${j.m} / ${j.f}` : a; }
