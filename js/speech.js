@@ -42,10 +42,10 @@ export function engineInfo() {
 }
 
 // ---------- voz do aparelho ----------
-function browserSpeak(text, rate) {
+function browserSpeak(text, rate, cancel = true) {
   return new Promise((resolve) => {
     if (!synth) return resolve();
-    synth.cancel();
+    if (cancel) synth.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR'; u.rate = rate;
     const v = frVoice(); if (v) u.voice = v;
@@ -95,9 +95,7 @@ async function geminiAudio(text, signal) {
   throw lastErr || new Error('falha');
 }
 
-async function geminiSpeak(text, rate) {
-  stopSpeaking(); ttsCtl = new AbortController();
-  const blob = await geminiAudio(text, ttsCtl.signal);
+function playBlob(blob, rate) {
   return new Promise((resolve) => {
     const a = new Audio(URL.createObjectURL(blob)); player = a;
     a.playbackRate = Math.min(1, rate / 0.9);
@@ -105,6 +103,37 @@ async function geminiSpeak(text, rate) {
     a.onended = done; a.onerror = done; a.onpause = () => { if (a.ended || player !== a) done(); };
     a.play().catch(done);
   });
+}
+
+async function geminiSpeak(text, rate) {
+  stopSpeaking(); ttsCtl = new AbortController();
+  const blob = await geminiAudio(text, ttsCtl.signal);
+  return playBlob(blob, rate);
+}
+
+// Fala em fila, frase por frase, para a conversa por voz: o áudio da próxima frase já é preparado
+// enquanto a anterior toca. push(texto) adiciona; done() espera tudo terminar; stop() corta.
+export function createSpeaker(getRate) {
+  let chain = Promise.resolve(); let stopped = false; const ctl = new AbortController(); let usedFallback = false;
+  const useG = engineInfo().engine === 'gemini';
+  if (useG) stopSpeaking();
+  return {
+    get fallback() { return usedFallback; },
+    push(text) {
+      const t = clean(text); if (!t || stopped) return;
+      if (useG) {
+        const pending = geminiAudio(t, ctl.signal).catch((e) => { if (e.name !== 'AbortError') usedFallback = true; return null; });
+        chain = chain.then(async () => {
+          if (stopped) return; const blob = await pending; if (stopped) return;
+          if (blob) await playBlob(blob, getRate()); else await browserSpeak(t, getRate(), false);
+        });
+      } else {
+        chain = chain.then(() => (stopped ? undefined : browserSpeak(t, getRate(), false)));
+      }
+    },
+    done() { return chain; },
+    stop() { stopped = true; ctl.abort(); stopSpeaking(); },
+  };
 }
 
 // pré-carrega o áudio natural (para o próximo exercício) sem tocar

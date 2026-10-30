@@ -1,5 +1,5 @@
 import { EXAM_DATE, UNITS, LESSONS, LETTERS, ACCENTS, PHRASES, VERBS, PRONOUNS, JOBS } from './data.js';
-import { buildSession, check, shuffle } from './exercises.js';
+import { buildSession, check, shuffle, speakScore } from './exercises.js';
 import { speak as rawSpeak, stopSpeaking, listen, canListen, canSpeak, prefetch, engineInfo, frenchVoiceName } from './speech.js';
 import * as V from './speech.js';
 import * as S from './store.js';
@@ -238,7 +238,7 @@ const saveChats = (c) => { try { localStorage.setItem(CHAT_KEY, JSON.stringify(c
 let tutorMode = 'free';
 
 async function tutorPage() {
-  const chats = loadChats(); let busy = false; let ctrl = null; let rec = null;
+  const chats = loadChats(); let busy = false; let ctrl = null; let rec = null; let callEnd = null;
   const labels = { free: '💬 Conversa', exam: '🎓 Prova oral', duvidas: '❓ Dúvidas' };
   if (!cur().key) {
     const c = cur();
@@ -252,7 +252,7 @@ async function tutorPage() {
     return;
   }
   const getMsgs = () => (chats[tutorMode] ||= []);
-  const apiMsgs = () => [{ role: 'user', content: tutorMode === 'exam' ? "[DÉBUT DE L'EXAMEN]" : '(début de la session)' }, ...getMsgs().filter((m) => !m.hidden).map((m) => ({ role: m.role, content: m.content }))];
+  const apiMsgs = () => [{ role: 'user', content: tutorMode === 'exam' ? "[DÉBUT DE L'EXAMEN]" : '(début de la session)' }, ...getMsgs().filter((m) => !m.hidden).map((m) => ({ role: m.role, content: m.api || m.content }))];
   const split = (t) => { const i = t.search(/\n\s*---\s*\n?/); return i < 0 ? [t.trim(), ''] : [t.slice(0, i).trim(), t.slice(i).replace(/^\s*---\s*/, '').trim()]; };
   const md = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
   const speakable = (t) => tutorMode !== 'duvidas' && !/Nota geral/i.test(t);
@@ -266,6 +266,7 @@ async function tutorPage() {
     $app.innerHTML = `
       <header class="top"><h1>👩‍🏫 Professora Clara</h1><button class="icon" id="newc" title="Nova conversa">🗑️</button></header>
       <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
+      ${tutorMode !== 'duvidas' ? (canListen ? '<button class="btn primary wide callbtn" id="callbtn">📞 Conversar por voz com a Clara</button>' : '<div class="pt">A conversa por voz precisa do Chrome (ou Edge).</div>') : ''}
       <div class="chat" id="chat">${msgs.filter((m) => !m.hidden).map(drawMsg).join('')}${tutorMode === 'exam' && !msgs.length ? `<div class="card center"><p>Simulação da <b>avaliação oral</b>: a professora Clara faz perguntas por voz ou texto, sem corrigir durante a prova. No fim, você recebe a nota nos 6 critérios.</p><button class="btn primary" id="startexam">Começar a prova</button></div>` : ''}</div>
       <div class="composer ${tutorMode === 'exam' && !msgs.length ? 'hide' : ''}">
         ${tutorMode === 'exam' && msgs.length ? '<button class="btn warn sm" id="endexam">Terminar e avaliar</button>' : ''}
@@ -285,6 +286,7 @@ async function tutorPage() {
       send.onclick = () => submit(tin.value);
       document.querySelectorAll('.composer [data-ins]').forEach((b) => { b.onmousedown = (e) => e.preventDefault(); b.onclick = () => { tin.value += b.dataset.ins; tin.focus(); }; });
     }
+    const cb = document.getElementById('callbtn'); if (cb) cb.onclick = () => startCall();
     const sx = document.getElementById('startexam'); if (sx) sx.onclick = () => run();
     const ee = document.getElementById('endexam'); if (ee) ee.onclick = () => { if (confirm('Terminar a prova e receber a avaliação?')) submit('[FIN]', true); };
     const tm = document.getElementById('tmic');
@@ -326,8 +328,177 @@ async function tutorPage() {
       const c = document.getElementById('chat'); c.insertAdjacentHTML('beforeend', `<div class="err">⚠️ ${esc(T.friendlyError(e))}</div>`); c.scrollTop = c.scrollHeight;
     }
   }
+  // ---------- conversa por voz: a Clara fala, você responde, sem apertar botões ----------
+  function startCall() {
+    if (busy || callEnd) return;
+    const isExam = tutorMode === 'exam'; const mode = isExam ? 'examVoice' : 'voice';
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    let alive = true; let paused = false; let phase = 'think'; let target = ''; let cr = null; let listenId = 0; let blocked = false;
+    let silent = 0; let speaker = null; let abortCtl = null; let wake = null; let evalMode = false; let hideText = false;
+    const el = document.createElement('div'); el.className = 'call';
+    el.innerHTML = `
+      <div class="call-top"><button class="x" id="cend" aria-label="Encerrar">✕</button><div class="call-title">👩‍🏫 Clara</div><button class="icon" id="chide" title="Esconder o texto">👁</button></div>
+      <div class="avatar think" id="cav"><span>👩‍🏫</span></div>
+      <div class="status" id="cstatus">Conectando…</div>
+      <div class="clara" id="cclara"></div>
+      <div class="ctarget" id="ctarget" hidden></div>
+      <div class="cnote" id="cnote" hidden></div>
+      <div class="you" id="cyou"></div>
+      <div class="call-ctl">
+        <button class="btn" id="cmic">🎤 Falar</button>
+        <button class="btn" id="cslow"></button>
+        <button class="btn" id="cpause">⏸ Pausar</button>
+        ${isExam ? '<button class="btn warn" id="cfin">Terminar e avaliar</button>' : ''}
+      </div>
+      <div class="call-err" id="cerr" hidden></div>`;
+    document.body.appendChild(el); document.body.classList.add('incall');
+    const $ = (id) => el.querySelector('#' + id);
+    const setPhase = (p, txt) => { phase = p; $('cav').className = 'avatar ' + p; $('cstatus').textContent = txt; };
+    const slowLabel = () => { $('cslow').textContent = st().settings.slow ? '🐢 Devagar: ligado' : '🐢 Devagar'; };
+    slowLabel();
+    const getRate = () => (st().settings.slow ? 0.7 : 0.85);
+    const lastMsg = () => { const m = getMsgs(); return m[m.length - 1]; };
+
+    // separa a parte falada, a nota em português (---) e a frase para repetir (>>)
+    const parts = (t) => {
+      const sp = []; const note = []; let tgt = ''; let inNote = false;
+      for (const ln of t.replace(/\r/g, '').split('\n')) {
+        if (/^\s*>>/.test(ln)) { tgt = ln.replace(/^\s*>>\s*/, '').trim(); continue; }
+        if (/^\s*---\s*$/.test(ln)) { inNote = true; continue; }
+        (inNote ? note : sp).push(ln);
+      }
+      return { spoken: sp.join('\n').trim(), note: note.join('\n').trim(), target: tgt };
+    };
+    const show = (spoken, note, tgt) => {
+      $('cclara').textContent = spoken || '';
+      const n = $('cnote'); n.hidden = !note; n.innerHTML = note ? md(note) : '';
+      const tg = $('ctarget'); tg.hidden = !tgt;
+      tg.innerHTML = tgt ? `<small>Repita:</small><b>${esc(tgt)}</b><span><button class="say sm" data-say="${esc(tgt)}">🔊</button><button class="say sm" id="ctslow">🐢</button></span>` : '';
+      const ts = tg.querySelector('#ctslow'); if (ts) ts.onclick = () => { stopRec(); speaker && speaker.stop(); speak(tgt, { rate: 0.6 }).then(() => { if (alive && !paused && phase === 'listen') listenTurn(); }); };
+    };
+    const fail = (msg, retry) => {
+      setPhase('error', msg); const er = $('cerr'); er.hidden = false;
+      er.innerHTML = retry ? '<button class="btn primary" id="cretry">Tentar de novo</button>' : '';
+      const b = er.querySelector('#cretry'); if (b) b.onclick = () => { er.hidden = true; clara(); };
+    };
+
+    function stopRec() { listenId++; if (cr) { const r = cr; cr = null; try { r.stop(); } catch (e) { /* ignore */ } } }
+
+    function listenTurn() {
+      if (!alive || paused) return;
+      stopRec(); const id = ++listenId; $('cerr').hidden = true;
+      setPhase('listen', 'Sua vez — fale'); $('cyou').textContent = '';
+      cr = listen({
+        onInterim: (t) => { if (id === listenId) $('cyou').textContent = t; },
+        onFinal: (t) => {
+          if (id !== listenId) return; cr = null;
+          if (!alive || paused || blocked) return;
+          if (t) { silent = 0; userSaid(t); return; }
+          if (++silent >= 3) setPhase('idle', 'Não ouvi nada. Toque em 🎤 para falar.'); else listenTurn();
+        },
+        onError: (er) => {
+          if (id !== listenId) return;
+          if (er === 'not-allowed' || er === 'service-not-allowed') { blocked = true; setPhase('idle', 'Permita o microfone no navegador e toque em 🎤.'); }
+          else if (er === 'network') { blocked = true; setPhase('idle', 'O reconhecimento de voz precisa de internet. Toque em 🎤 para tentar.'); }
+          else if (er !== 'no-speech' && er !== 'aborted') { blocked = true; setPhase('idle', `Erro no microfone (${er}). Toque em 🎤.`); }
+        },
+      });
+    }
+
+    function userSaid(t) {
+      const m = { role: 'user', content: t };
+      if (target) {
+        const r = speakScore(target, t); const miss = r.words.filter((w, i) => !r.marks[i]);
+        m.api = `${t}\n\n[Note de l'application : l'élève devait répéter « ${target} ». Reconnu : « ${t} ». Mots reconnus : ${r.marks.filter(Boolean).length}/${r.words.length}. Correspondance : ${Math.round(r.score * 100)} %.${miss.length ? ' Mots non reconnus : ' + miss.join(', ') + '.' : ''}]`;
+        target = '';
+      }
+      getMsgs().push(m); saveChats(chats);
+      $('cyou').textContent = `“${t}”`; clara();
+    }
+
+    async function clara() {
+      if (!alive || paused) return;
+      stopRec(); setPhase('think', 'Clara está pensando…'); $('cerr').hidden = true;
+      abortCtl = new AbortController(); speaker = V.createSpeaker(getRate);
+      const sp = speaker; let acc = ''; let consumed = 0; let began = false;
+      const flush = (spoken, final) => {
+        if (evalMode) return; let rest = spoken.slice(consumed);
+        for (;;) { const m = /[.!?…]+["»”)]*\s/.exec(rest); if (!m) break; const end = m.index + m[0].length; sp.push(rest.slice(0, end).replace(/[*_`#]/g, '')); consumed += end; rest = rest.slice(end); }
+        if (final && rest.trim()) { sp.push(rest.replace(/[*_`#]/g, '')); consumed += rest.length; }
+      };
+      try {
+        const c = cur();
+        const { text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, messages: apiMsgs(), signal: abortCtl.signal,
+          onText: (d) => { if (!alive || sp !== speaker) return; acc += d; const p = parts(acc); if (!began && p.spoken) { began = true; if (!evalMode) setPhase('speak', 'Clara está falando…'); } show(p.spoken, evalMode ? p.spoken : '', ''); flush(p.spoken, false); } });
+        if (!alive || sp !== speaker) return;
+        getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
+        const p = parts(text); const isEval = evalMode || /Nota geral/i.test(text);
+        if (isEval) { sp.stop(); finish(true); return; }
+        show(p.spoken, p.note, p.target); target = p.target; flush(p.spoken, true);
+        if (!began) setPhase('speak', 'Clara está falando…');
+        await sp.done();
+        if (!alive || paused || sp !== speaker) return;
+        if (sp.fallback) toast('Voz natural indisponível; usando a voz do aparelho.');
+        await sleep(250); listenTurn();
+      } catch (e) {
+        if (!alive || e.name === 'AbortError' || sp !== speaker) return;
+        sp.stop(); fail(T.friendlyError(e), true);
+      }
+    }
+
+    // retoma a conversa: a Clara repete a última fala e abre o microfone
+    async function sayLast() {
+      const m = lastMsg(); const p = parts(m.content); show(p.spoken, p.note, p.target); target = p.target;
+      speaker = V.createSpeaker(getRate); const sp = speaker; setPhase('speak', 'Clara está falando…');
+      p.spoken.split(/(?<=[.!?…])\s+/).forEach((s) => sp.push(s.replace(/[*_`#]/g, '')));
+      await sp.done(); if (!alive || paused || sp !== speaker) return; await sleep(250); listenTurn();
+    }
+
+    async function finish(showEval) {
+      if (callEnd !== end) return; end(showEval);
+    }
+    function end(showEval) {
+      if (!alive) return; alive = false; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); stopSpeaking();
+      if (wake) { try { wake.release(); } catch (e) { /* ignore */ } }
+      document.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('incall'); callEnd = null;
+      saveChats(chats); draw(); if (showEval) toast('Avaliação pronta, no chat.');
+    }
+    callEnd = end;
+    const onKey = (e) => { if (e.key === 'Escape') end(false); };
+    document.addEventListener('keydown', onKey);
+
+    $('cend').onclick = () => end(false);
+    $('chide').onclick = () => { hideText = !hideText; el.classList.toggle('hidetext', hideText); };
+    $('cslow').onclick = () => { S.setSetting('slow', !st().settings.slow); slowLabel(); };
+    $('cmic').onclick = () => {
+      blocked = false; silent = 0;
+      if (phase === 'listen' && cr) { cr.stop(); return; }           // terminar a fala agora
+      if (phase === 'speak') { if (speaker) speaker.stop(); listenTurn(); return; } // pular a fala da Clara
+      if (phase === 'think') return;
+      if (paused) return;
+      if (lastMsg() && lastMsg().role === 'user') clara(); else listenTurn();
+    };
+    $('cpause').onclick = () => {
+      if (!paused) { paused = true; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); setPhase('paused', 'Conversa pausada'); $('cpause').textContent = '▶ Continuar'; }
+      else { paused = false; $('cpause').textContent = '⏸ Pausar'; if (lastMsg() && lastMsg().role === 'user') clara(); else listenTurn(); }
+    };
+    const fin = $('cfin');
+    if (fin) fin.onclick = () => {
+      if (!confirm('Terminar a prova e receber a avaliação?')) return;
+      evalMode = true; stopRec(); if (speaker) speaker.stop(); getMsgs().push({ role: 'user', content: '[FIN]' }); saveChats(chats); clara();
+    };
+
+    (async () => {
+      try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { /* sem wake lock */ }
+      const m = lastMsg();
+      if (!m || m.role === 'user') clara();
+      else if (/Nota geral/i.test(m.content)) { setPhase('idle', 'Esta prova já foi avaliada. Apague a conversa para recomeçar.'); }
+      else sayLast();
+    })();
+  }
+
   ensureOpening(); draw();
-  cleanup = () => { if (ctrl) ctrl.abort(); if (rec) rec.stop(); saveChats(chats); };
+  cleanup = () => { if (callEnd) callEnd(false); if (ctrl) ctrl.abort(); if (rec) rec.stop(); saveChats(chats); };
 }
 
 // ---------- ajustes ----------

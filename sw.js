@@ -1,5 +1,5 @@
 // Cache simples: o app funciona offline (exceto o professor de IA). Troque CACHE ao publicar uma nova versao.
-const CACHE = 'fr-v4';
+const CACHE = 'fr-v5';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/data.js', 'js/exercises.js', 'js/speech.js', 'js/store.js', 'js/tutor.js', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
