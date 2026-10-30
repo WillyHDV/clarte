@@ -4,7 +4,7 @@ const DAY = 86400000;
 const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
-  xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [],
+  xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {},
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, patience: 'longo', goal: 20 },
 });
 let state = blank();
@@ -45,6 +45,37 @@ export function noteResult(ex, ok, fromReview) {
   }
   save();
 }
+// ---------- domínio por item (modelo simples de esquecimento, inspirado na "meia-vida" do Duolingo) ----------
+// Cada item guarda: s = força logo após a última prática (0..1), h = meia-vida em dias, t = quando foi. A força decai: s·2^(-dias/h).
+// Acertar sobe a força e alonga a meia-vida (mais ainda quando você PRODUZ a resposta do que quando só reconhece); errar derruba as duas.
+export function strength(id, now = Date.now()) {
+  const m = state.mastery[id]; if (!m) return null;
+  return m.s * Math.pow(2, -((now - m.t) / DAY) / m.h);
+}
+export function recordItems(items, ok, kind, now = Date.now()) {
+  const recog = kind === 'choice' || kind === 'listen-choice';
+  for (const id of items || []) {
+    const cur = strength(id, now) || 0; const m = state.mastery[id] || { s: 0, h: 0, t: now, n: 0, c: 0 };
+    m.n++;
+    if (ok) { m.c++; m.s = cur + (1 - cur) * (recog ? 0.3 : 0.5); m.h = m.h ? Math.min(45, m.h * (recog ? 1.4 : 2)) : (recog ? 0.8 : 1.5); }
+    else { m.s = cur * 0.5; m.h = m.h ? Math.max(0.3, m.h * 0.5) : 0.3; }
+    m.t = now; state.mastery[id] = m;
+  }
+  save();
+}
+// domínio de uma lista de itens: média das forças (item nunca visto conta 0)
+export function mastery(ids, now = Date.now()) {
+  let sum = 0; let seen = 0; const weak = [];
+  for (const id of ids) { const s = strength(id, now); if (s !== null) { seen++; sum += s; if (s < 0.6) weak.push([id, s]); } }
+  weak.sort((a, b) => a[1] - b[1]);
+  return { pct: ids.length ? Math.round((100 * sum) / ids.length) : 0, seen, total: ids.length, weak };
+}
+// competências ligadas aos critérios da prova oral (média móvel dos últimos resultados)
+export function recordSkill(name, v) {
+  const k = state.skills[name] || { v, n: 0 };
+  k.v = k.n ? k.v * 0.88 + v * 0.12 : v; k.n++; state.skills[name] = k; save();
+}
+export const skill = (name) => state.skills[name] || null;
 export const dueMistakes = () => state.mistakes.filter((m) => m.due <= Date.now()).map((m) => m.ex);
 export function setSetting(k, v) { state.settings[k] = v; save(); }
 export function setKey(provider, key) { state.settings.keys = { ...state.settings.keys, [provider]: key }; save(); }

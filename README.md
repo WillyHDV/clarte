@@ -11,6 +11,10 @@ npm start       # http://localhost:5173  (precisa de Python)
 
 Ou dê dois cliques em `iniciar.bat`. Use o **Chrome** ou o Edge (reconhecimento de voz). Não há dependências para instalar.
 
+## Domínio e prontidão
+
+Cada item do conteúdo (letra, frase, forma verbal, profissão, pergunta, negação) tem uma **força** que sobe quando você acerta, cai quando erra e **decai com o tempo** (modelo simples de meia-vida). O **treino inteligente** escolhe os exercícios dos itens mais fracos ou ainda não vistos. A tela inicial mostra a **prontidão** de cada unidade e uma estimativa dos 6 critérios da prova oral.
+
 ## Professora Clara (IA gratuita)
 
 Em **Ajustes** (ou na aba Clara), escolha um provedor com plano gratuito e cole a chave. Ela fica só no navegador do aparelho.

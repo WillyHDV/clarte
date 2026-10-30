@@ -1,5 +1,5 @@
 import { EXAM_DATE, UNITS, LESSONS, LETTERS, ACCENTS, PHRASES, VERBS, PRONOUNS, JOBS } from './data.js';
-import { buildSession, check, shuffle, speakScore } from './exercises.js';
+import { buildSession, check, shuffle, speakScore, unitItems, itemLabel, skillsFor } from './exercises.js';
 import { speak as rawSpeak, stopSpeaking, listen, canListen, canSpeak, prefetch, engineInfo, frenchVoiceName } from './speech.js';
 import * as V from './speech.js';
 import * as S from './store.js';
@@ -50,9 +50,33 @@ document.addEventListener('click', (e) => {
 
 // ---------- home ----------
 function daysToExam() { return Math.ceil((new Date(EXAM_DATE + 'T08:00:00') - new Date()) / 86400000); }
+// ---------- domínio e prontidão ----------
+const strengthOf = (id) => { const s = S.strength(id); return s === null ? 0.3 : s; };
+const unitMastery = (uid) => S.mastery(unitItems(uid));
+function readiness() {
+  const per = UNITS.map((u) => ({ u, m: unitMastery(u.id) }));
+  const overall = Math.round(per.reduce((a, x) => a + x.m.pct, 0) / per.length);
+  return { per, overall, weakCount: per.reduce((a, x) => a + x.m.weak.length, 0), weakest: [...per].sort((a, b) => a.m.pct - b.m.pct)[0] };
+}
+// critérios da prova oral (Contenus de la première évaluation) e a competência que os alimenta
+const CRITERIA = [
+  ['Compréhension des questions', 'Entender as perguntas', 'compreensao', 'exercícios de escuta'],
+  ['Capacité à répondre', 'Responder com pertinência', 'resposta', 'conversa por voz com a Clara'],
+  ['Vocabulaire', 'Vocabulário do curso', 'vocabulario', 'exercícios de vocabulário'],
+  ['Correction linguistique', 'Gramática correta', 'gramatica', 'exercícios de gramática'],
+  ['Prononciation', 'Pronúncia', 'pronuncia', 'exercícios de fala e repetições com a Clara'],
+  ["Aisance à l'oral", 'Fluência', 'fluidez', 'conversa por voz com a Clara'],
+];
+function criteriaHtml() {
+  return CRITERIA.map(([fr, pt, key, how]) => {
+    const k = S.skill(key); const ok = k && k.n >= 5; const v = ok ? Math.round(k.v * 100) : 0;
+    return `<div class="crit"><div class="ct"><b>${esc(fr)}</b><small>${esc(pt)}</small></div><div class="cb"><div class="bar ${ok ? '' : 'off'}"><i style="width:${v}%"></i></div><small>${ok ? v + '%' : 'sem dados — ' + esc(how)}</small></div></div>`;
+  }).join('');
+}
 function home() {
   S.touchDay(); S.save();
-  const s = st(); const d = daysToExam(); const due = S.dueMistakes().length;
+  const R = readiness();
+  const s = st(); const d = daysToExam(); const due = R.weakCount + S.dueMistakes().length;
   const goal = s.settings.goal; const pct = Math.min(100, Math.round((100 * s.today.n) / goal));
   const examTxt = d > 1 ? `Évaluation 1 em <b>${d} dias</b> (04/11)` : d === 1 ? 'Évaluation 1 é <b>amanhã</b>!' : d === 0 ? '<b>Hoje</b> é a Évaluation 1. Bonne chance !' : 'Évaluation 1 já passou. Próxima: 02/12 (Évaluation 2)';
   $app.innerHTML = `
@@ -61,16 +85,20 @@ function home() {
       <div>${examTxt}</div>
       <div class="goal"><div class="bar"><i style="width:${pct}%"></i></div><small>Meta de hoje: ${Math.min(s.today.n, goal)}/${goal} exercícios</small></div>
       <div class="row">
-        <button class="btn primary" data-go="#/practice/mix">⚡ Simulado misto</button>
-        <button class="btn" data-go="#/tutor">🎓 Prova oral com IA</button>
+        <button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button>
+        <button class="btn" data-go="#/tutor">📞 Falar com a Clara</button>
       </div>
-      ${due ? `<button class="btn warn wide" data-go="#/practice/review">🔁 Revisar ${due} erro${due > 1 ? 's' : ''}</button>` : ''}
+      ${due ? `<button class="btn warn wide" data-go="#/practice/review">🔁 Reforçar ${due} ${due > 1 ? 'itens que estão fracos' : 'item que está fraco'}</button>` : ''}
+    </section>
+    <section class="card ready">
+      <div class="rtop"><div class="ring" style="--p:${R.overall}"><b>${R.overall}%</b></div>
+        <div><h3>Prontidão para a prova</h3><small>Média do domínio das 8 unidades. O treino inteligente escolhe o que está mais fraco.${R.weakest ? `<br>Mais fraca agora: <b>${esc(R.weakest.u.title)}</b> (${R.weakest.m.pct}%).` : ''}</small></div></div>
+      <h4>Os 6 critérios da prova oral</h4>
+      ${criteriaHtml()}
+      <small class="fine">Estimativa do app a partir dos seus exercícios e das conversas por voz, não é a nota da professora.</small>
     </section>
     <h2>Trilha da avaliação</h2>
-    <div class="units">${UNITS.map((u) => {
-      const p = s.units[u.id]; const best = p ? p.best : 0;
-      return `<button class="unit" data-go="#/unit/${u.id}"><span class="ic">${u.icon}</span><span class="tx"><b>${u.n}. ${esc(u.title)}</b><small>${esc(u.sub)}</small><span class="bar"><i style="width:${best}%"></i></span></span><span class="sc">${p ? best + '%' : ''}</span></button>`;
-    }).join('')}</div>`;
+    <div class="units">${R.per.map(({ u, m }) => `<button class="unit" data-go="#/unit/${u.id}"><span class="ic">${u.icon}</span><span class="tx"><b>${u.n}. ${esc(u.title)}</b><small>${esc(u.sub)}</small><span class="bar"><i style="width:${m.pct}%"></i></span><small>${m.seen}/${m.total} itens vistos</small></span><span class="sc">${m.pct}%</span></button>`).join('')}</div>`;
 }
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); });
 
@@ -98,8 +126,12 @@ function renderLesson(html) {
 }
 function unitPage(id) {
   const u = UNITS.find((x) => x.id === id); if (!u) return go('#/');
+  const m = unitMastery(id);
+  const weak = m.weak.slice(0, 8).map(([iid]) => `<span class="wchip">${esc(itemLabel(iid))}</span>`).join('');
   $app.innerHTML = `
     <header class="top"><button class="back" data-go="#/">‹</button><h1>${u.icon} ${esc(u.title)}</h1></header>
+    <section class="card mast"><div class="mrow"><b>Seu domínio: ${m.pct}%</b><small>${m.seen} de ${m.total} itens vistos</small></div><div class="bar"><i style="width:${m.pct}%"></i></div>
+      ${weak ? `<small>Para reforçar agora:</small><div class="wchips">${weak}</div>` : `<small>${m.seen ? 'Nenhum item fraco no momento. Continue praticando para manter.' : 'Você ainda não praticou esta unidade.'}</small>`}</section>
     <article class="lesson card">${renderLesson(LESSONS[id])}</article>
     <div class="dock"><button class="btn primary wide" data-go="#/practice/${id}">Praticar · 10 exercícios</button></div>`;
 }
@@ -108,8 +140,19 @@ function unitPage(id) {
 const ACC = ['é', 'è', 'ê', 'ë', 'à', 'â', 'î', 'ï', 'ô', 'û', 'ù', 'ç', 'œ', '’'];
 function practice(id) {
   const review = id === 'review';
-  let list = review ? shuffle(S.dueMistakes()).slice(0, 10) : buildSession(id, 10);
-  if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/">‹</button><h1>Revisão</h1></header><div class="card center"><p>🎉 Nenhum erro pendente agora.</p><button class="btn primary" data-go="#/">Voltar</button></div>`; return; }
+  // treino adaptativo: escolhe os exercícios cujos itens estão mais fracos (ou ainda não vistos)
+  const scope = (review || id === 'mix') ? UNITS.map((u) => u.id) : [id];
+  const avgPct = () => Math.round(scope.reduce((a, u) => a + unitMastery(u).pct, 0) / scope.length);
+  const before = avgPct();
+  let list;
+  if (review) {
+    // revisão = frases mal repetidas + itens já vistos que estão enfraquecendo
+    const mis = shuffle(S.dueMistakes()).slice(0, 4);
+    const weakSeen = (iid) => { const s = S.strength(iid); return s === null ? 1 : s; };
+    const adapt = buildSession('mix', 24, weakSeen).filter((ex) => ex.items.some((iid) => { const s = S.strength(iid); return s !== null && s < 0.7; })).slice(0, 10 - mis.length);
+    list = [...mis, ...adapt];
+  } else list = buildSession(id, 10, strengthOf);
+  if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/">‹</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; let wrongList = [];
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false; let skipped = false;
 
@@ -119,7 +162,8 @@ function practice(id) {
     $app.innerHTML = `
       <div class="end card center"><div class="big">${pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '💪'}</div>
       <h2>${correct}/${attempted} corretas · ${pct}%</h2>
-      <p>+${correct * 10 + (correct === attempted ? 20 : 0)} ⭐ ${wrongList.length ? `· ${wrongList.length} erro(s) foram para a revisão` : ''}</p>
+      <p>+${correct * 10 + (correct === attempted ? 20 : 0)} ⭐ ${wrongList.length ? `· ${wrongList.length} erro(s) vão voltar no reforço` : ''}</p>
+      <p class="dom">Domínio ${review || id === 'mix' ? 'geral' : 'da unidade'}: <b>${before}% → ${avgPct()}%</b> ${avgPct() > before ? '▲' : avgPct() < before ? '▼' : ''}</p>
       <div class="row"><button class="btn primary" data-go="#/practice/${id}" id="again">Novamente</button>
       ${S.dueMistakes().length ? '<button class="btn warn" data-go="#/practice/review">🔁 Revisar erros</button>' : ''}</div>
       <button class="btn" data-go="#/">Voltar ao início</button></div>`;
@@ -208,6 +252,8 @@ function practice(id) {
     if (!skip) {
       if (first) { attempted++; if (r.ok) correct++; else wrongList.push(ex); }
       S.noteResult(ex, r.ok, review);
+      S.recordItems(ex.items, r.ok, ex.kind);
+      skillsFor(ex, r).forEach(([k, v]) => S.recordSkill(k, v));
       if (!r.ok && first) list.push({ ...ex, _retry: true });
     }
     document.querySelectorAll('.opt').forEach((b) => { const v = ex.options[+b.dataset.o]; b.disabled = true; if (v === ex.answer) b.classList.add('right'); else if (v === sel) b.classList.add('wrong'); });
@@ -425,8 +471,12 @@ async function tutorPage() {
         // frase que não saiu bem vai para a aba Revisão (repetição espaçada); se saiu bem, avança na revisão
         const ex = { unit: 'voice', kind: 'speak', q: 'Diga em voz alta (da conversa com a Clara):', answer: target.replace(/[.!?]+$/, ''), shown: target, audio: target, key: `speak|voice|${target}` };
         S.noteResult(ex, r.score >= 0.75, true);
+        S.recordSkill('pronuncia', r.score);
       }
       target = '';
+      // critérios da prova: responder de fato (não só pedir ajuda) e falar frases mais longas
+      S.recordSkill('resposta', plain ? 0 : 1);
+      if (!plain) S.recordSkill('fluidez', Math.min(1, t.trim().split(/\s+/).length / 7));
       getMsgs().push(m); saveChats(chats);
       $('cyou').textContent = `“${t}”`; clara();
     }

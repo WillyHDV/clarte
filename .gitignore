@@ -2,3 +2,7 @@ node_modules/
 .claude/
 *.log
 .DS_Store
+fontes/
+*.pdf
+*.epub
+*.mp4
