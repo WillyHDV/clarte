@@ -58,6 +58,12 @@ function readiness() {
   const overall = Math.round(per.reduce((a, x) => a + x.m.pct, 0) / per.length);
   return { per, overall, weakCount: per.reduce((a, x) => a + x.m.weak.length, 0), weakest: [...per].sort((a, b) => a.m.pct - b.m.pct)[0] };
 }
+// pontos fracos para a Clara puxar na conversa (só nos modos de conversa; na prova ela fica neutra, como numa prova de verdade)
+function weakContext() {
+  const ids = readiness().per.flatMap((x) => x.m.weak).sort((a, b) => a[1] - b[1]).map(([iid]) => iid).filter((iid) => !/^(letter|accent):/.test(iid));
+  const labels = [...new Set(ids.map((iid) => itemLabel(iid)).filter(Boolean))].slice(0, 5);
+  return labels.length ? `Points faibles de l'élève d'après ses exercices dans l'application (libellés en portugais) : ${labels.join(' ; ')}.\nDans la conversation, amène naturellement UN seul de ces points à la fois, par une question qui le fait utiliser. Ne dis jamais à l'élève que tu as cette liste.` : '';
+}
 // critérios da prova oral (Contenus de la première évaluation) e a competência que os alimenta
 const CRITERIA = [
   ['Compréhension des questions', 'Entender as perguntas', 'compreensao', 'exercícios de escuta'],
@@ -445,13 +451,19 @@ async function tutorPage() {
     const [fr, corr] = m.role === 'assistant' ? split(m.content) : [m.content, ''];
     return `<div class="msg ${m.role}"><div class="bub">${md(fr)}${m.role === 'assistant' && speakable(m.content) ? `<button class="say sm" data-say="${esc(fr)}">🔊</button>` : ''}</div>${corr ? `<div class="corr">${md(corr)}</div>` : ''}</div>`;
   }
+  function sumCard(msgs) {
+    const x = chats.sum; if (!x || x.mode !== tutorMode || x.n !== msgs.length) return '';
+    const rep = x.repeats.length ? `<p>Frases que você repetiu: ${x.repeats.map((r) => `<span>${r.ok ? '✅' : '🔁'} ${esc(r.t)}</span>`).join(' · ')}</p>${x.repeats.some((r) => !r.ok) ? '<small>As frases com 🔁 foram para o Reforço, para você repetir de novo depois.</small>' : ''}` : '';
+    const notes = x.notes.length ? `<small>Correções da Clara:</small><ul>${x.notes.map((n) => `<li>${md(n)}</li>`).join('')}</ul>` : '<small>A Clara não precisou corrigir nada. Muito bem!</small>';
+    return `<div class="card sumcard"><h3>Resumo da ligação</h3><p>Você falou <b>${x.turns} ${x.turns > 1 ? 'vezes' : 'vez'}</b>.</p>${rep}${notes}</div>`;
+  }
   function draw() {
     const msgs = getMsgs();
     $app.innerHTML = `
       <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1><button class="icon" id="newc" title="Nova conversa" aria-label="Nova conversa">${I('trash')}</button></header>
       <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${tutorMode !== 'duvidas' ? (canListen ? `<button class="btn primary wide callbtn" id="callbtn">${I('phone')} Conversar por voz com a Clara</button>` : '<div class="pt">A conversa por voz precisa do Chrome (ou Edge).</div>') : ''}
-      <div class="chat" id="chat">${msgs.filter((m) => !m.hidden).map(drawMsg).join('')}${tutorMode === 'exam' && !msgs.length ? `<div class="card center"><p>Simulação da <b>avaliação oral</b>: a professora Clara faz perguntas por voz ou texto, sem corrigir durante a prova. No fim, você recebe a nota nos 6 critérios.</p><button class="btn primary" id="startexam">Começar a prova</button></div>` : ''}</div>
+      <div class="chat" id="chat">${msgs.filter((m) => !m.hidden).map(drawMsg).join('')}${sumCard(msgs)}${tutorMode === 'exam' && !msgs.length ? `<div class="card center"><p>Simulação da <b>avaliação oral</b>: a professora Clara faz perguntas por voz ou texto, sem corrigir durante a prova. No fim, você recebe a nota nos 6 critérios.</p><button class="btn primary" id="startexam">Começar a prova</button></div>` : ''}</div>
       <div class="composer ${tutorMode === 'exam' && !msgs.length ? 'hide' : ''}">
         ${tutorMode === 'exam' && msgs.length ? '<button class="btn warn sm" id="endexam">Terminar e avaliar</button>' : ''}
         <div class="inrow">
@@ -499,7 +511,7 @@ async function tutorPage() {
     let acc = '';
     try {
       const c = cur();
-      const { text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode: tutorMode, messages: apiMsgs(), signal: ctrl.signal, onText: (d) => { acc += d; const live = document.getElementById('live'); if (live) { live.querySelector('.bub').innerHTML = md(split(acc)[0]); chat.scrollTop = chat.scrollHeight; } } });
+      const { text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode: tutorMode, messages: apiMsgs(), signal: ctrl.signal, context: tutorMode === 'free' ? weakContext() : '', onText: (d) => { acc += d; const live = document.getElementById('live'); if (live) { live.querySelector('.bub').innerHTML = md(split(acc)[0]); chat.scrollTop = chat.scrollHeight; } } });
       getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
       if (/Nota geral/i.test(text)) { planDone('exam'); recordExam(text); }
       busy = false; draw();
@@ -522,6 +534,7 @@ async function tutorPage() {
     let alive = true; let paused = false; let phase = 'think'; let target = ''; let cr = null; let listenId = 0; let blocked = false;
     let speaker = null; let abortCtl = null; let wake = null; let evalMode = false; let hideText = false;
     let recorder = null; let lastClip = null; let autoStop = null; let tries = 0;
+    const stats = { turns: 0, repeats: [], notes: [] }; // alimenta o resumo ao encerrar a ligação
     const el = document.createElement('div'); el.className = 'call';
     el.innerHTML = `
       <div class="call-glow"></div>
@@ -667,7 +680,9 @@ async function tutorPage() {
         const ex = { unit: 'voice', kind: 'speak', q: 'Diga em voz alta (da conversa com a Clara):', answer: target.replace(/[.!?]+$/, ''), shown: target, audio: target, key: `speak|voice|${target}` };
         S.noteResult(ex, r.score >= 0.75, true);
         S.recordSkill('pronuncia', r.score);
+        stats.repeats.push({ t: target, ok: r.score >= 0.75 });
       }
+      if (!plain) stats.turns++;
       target = '';
       // critérios da prova: responder de fato (não só pedir ajuda) e falar frases mais longas
       if (!plain && S.voiceTurn() >= 4) planDone('clara');
@@ -691,7 +706,7 @@ async function tutorPage() {
         const c = cur(); let text = ''; let attempt = 0;
         for (;;) {
           try {
-            ({ text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, messages: apiMsgs(), signal: abortCtl.signal,
+            ({ text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, messages: apiMsgs(), signal: abortCtl.signal, context: isExam ? '' : weakContext(),
               onText: (d) => { if (!alive || sp !== speaker) return; acc += d; const p = parts(acc); if (!began && p.spoken) { began = true; if (!evalMode) setPhase('speak', 'Clara está falando…'); } show(p.spoken, evalMode ? p.spoken : '', ''); flush(p.spoken, false); } }));
             break;
           } catch (e) {
@@ -705,6 +720,7 @@ async function tutorPage() {
         if (!alive || sp !== speaker) return;
         getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
         const p = parts(text); const isEval = evalMode || /Nota geral/i.test(text);
+        if (p.note && !isEval) stats.notes.push(p.note);
         if (isEval) { sp.stop(); planDone('exam'); recordExam(text); finish(true); return; }
         show(p.spoken, p.note, p.target); target = p.target; flush(p.spoken, true);
         if (!began) setPhase('speak', 'Clara está falando…');
@@ -733,6 +749,8 @@ async function tutorPage() {
       if (!alive) return; alive = false; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); stopSpeaking();
       if (wake) { try { wake.release(); } catch (e) { /* ignore */ } }
       document.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('incall'); callEnd = null;
+      // resumo da ligação (conversa livre com pelo menos 2 falas suas); aparece no chat até a conversa continuar
+      if (!isExam && !showEval && stats.turns >= 2) chats.sum = { mode: tutorMode, n: getMsgs().length, turns: stats.turns, repeats: stats.repeats.slice(-6), notes: [...new Set(stats.notes)].slice(-4) };
       saveChats(chats); draw(); if (showEval) toast('Avaliação pronta, no chat.');
     }
     callEnd = end;

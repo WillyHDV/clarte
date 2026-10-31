@@ -1,6 +1,6 @@
 ﻿// Cache para funcionar offline (exceto a professora de IA). A rede vem primeiro e sempre revalida,
 // então uma publicação nova chega sem esperar o cache do servidor; o cache só serve quando está sem internet.
-const CACHE = 'fr-v13';
+const CACHE = 'fr-v14';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/ui.js', 'js/version.js', 'js/folha.js', 'js/diag.js', 'js/data.js', 'js/exercises.js', 'js/speech.js', 'js/store.js', 'js/tutor.js', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => Promise.all(ASSETS.map((a) => c.add(new Request(a, { cache: 'reload' })).catch(() => {})))).then(() => self.skipWaiting())); });

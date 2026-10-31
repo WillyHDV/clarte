@@ -133,27 +133,28 @@ async function withFallback(provider, chosen, signal, fn, wasDelivered = () => f
 }
 
 // messages: [{role:'user'|'assistant', content}] → devolve { text, model }
-export function chat({ provider, apiKey, model, mode, messages, onText, signal }) {
+// context (opcional): texto extra anexado às instruções, ex. os pontos fracos do aluno
+export function chat({ provider, apiKey, model, mode, messages, onText, signal, context }) {
   let delivered = false;
   const track = (d) => { delivered = true; onText && onText(d); };
-  return withFallback(provider, model, signal, (m, ms) => chatOnce({ provider, apiKey, model: m, mode, messages, onText: track, signal, ms }), () => delivered);
+  return withFallback(provider, model, signal, (m, ms) => chatOnce({ provider, apiKey, model: m, mode, messages, onText: track, signal, ms, context }), () => delivered);
 }
 
-async function chatOnce({ provider, apiKey, model, mode, messages, onText, signal: outer, ms }) {
+async function chatOnce({ provider, apiKey, model, mode, messages, onText, signal: outer, ms, context }) {
   // limite de tempo: se o modelo não começar a responder, aborta com uma mensagem clara
   const ctl = new AbortController(); let timedOut = false;
   if (outer) outer.addEventListener('abort', () => ctl.abort());
   const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, ms);
   const signal = ctl.signal;
   const gotText = (d) => { clearTimeout(timer); onText && onText(d); };
-  try { return await run({ provider, apiKey, model, mode, messages, gotText, signal }); } catch (e) {
+  try { return await run({ provider, apiKey, model, mode, messages, gotText, signal, context }); } catch (e) {
     if (timedOut) throw new HttpError(408, 'timeout');
     throw e;
   } finally { clearTimeout(timer); }
 }
 
-async function run({ provider, apiKey, model, mode, messages, gotText, signal }) {
-  const p = PROVIDERS[provider]; const system = MODES[mode]; let text = '';
+async function run({ provider, apiKey, model, mode, messages, gotText, signal, context }) {
+  const p = PROVIDERS[provider]; const system = context ? `${MODES[mode]}\n\n${context}` : MODES[mode]; let text = '';
   const onText = gotText;
   if (p.kind === 'gemini') {
     const res = await fetch(`${p.base}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {

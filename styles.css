@@ -135,6 +135,7 @@ svg.i { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-wi
 .extra h3 { margin-top: 0; } .extra ul { margin: 6px 0; }
 .src { display: block; margin-top: 8px; font-size: .75rem; color: var(--muted); }
 .mast .mrow { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.sumcard { margin: 6px 0; } .sumcard h3 { margin: 0 0 6px; } .sumcard ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; } .sumcard p { margin: 4px 0; } .sumcard small { display: block; margin-top: 6px; }
 .wchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .wchip { background: var(--warn-bg); color: var(--warn); border-radius: 99px; padding: 3px 11px; font-size: .82rem; font-weight: 650; }
 .path h3 { margin-top: 0; color: var(--ink); }
