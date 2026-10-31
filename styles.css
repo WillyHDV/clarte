@@ -333,6 +333,12 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--brand); }
   .folha li span, .folha small, .brand { color: #333; }
   .folha .ftbl th { background: #eee; } .folha a { color: #000; }
 }
+/* ---- privacidade e créditos ---- */
+.about h3 { margin-top: 0; }
+.about ul { margin: 8px 0; padding-left: 20px; display: grid; gap: 8px; }
+.about p { margin: 8px 0; }
+.about code { word-break: break-all; font-size: .85em; background: var(--card-2); border-radius: 6px; padding: 1px 5px; }
+
 /* ---- associar pares ---- */
 .match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mcol { display: grid; gap: 8px; align-content: start; }

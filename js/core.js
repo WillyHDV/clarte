@@ -13,6 +13,12 @@ let cleanup = null;
 export const setCleanup = (fn) => { cleanup = fn; };
 export function runCleanup() { if (cleanup) { try { cleanup(); } catch (e) { /* ignore */ } cleanup = null; } }
 
+// baixa um arquivo gerado no aparelho (backup do progresso, lembretes de calendário)
+export function download(name, content, type) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+}
+
 // o roteador (js/app.js) se registra aqui, para as telas poderem navegar sem importá-lo
 let router = () => {};
 export const onRoute = (fn) => { router = fn; };

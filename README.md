@@ -44,6 +44,9 @@ Publique a pasta `publicar/` (gerada a partir de `app/`), abra o endereço no Ch
 ## Seus dados e atualizações
 
 - **Evolução:** na tela inicial, "Ver evolução" mostra os números da semana e três gráficos (prontidão, exercícios por dia, notas das simulações), cada um com leitura ao tocar e uma tabela equivalente. O histórico diário fica só neste aparelho.
+- **Lembretes no calendário:** Ajustes → Avaliações → "Lembretes no calendário" baixa um arquivo `.ics` com as avaliações futuras (alerta na véspera às 9h e no dia às 7h). As datas podem ser ajustadas ali mesmo.
+- **Atalhos do ícone:** com o app instalado no Android, segurar o ícone mostra "Falar com a Clara", "Treino inteligente", "Reforçar" e "Simular a prova oral".
+- **Privacidade e créditos:** Ajustes → Sobre → "Privacidade e créditos" explica o que fica no aparelho e o que sai dele. Um teste garante que o código só fala com os provedores de IA listados lá.
 - **Backup:** Ajustes → Seus dados → Exportar gera um arquivo `.json` com progresso, histórico, erros e conversas (a chave de IA só entra se você marcar). Importar restaura em outro aparelho ou depois de limpar os dados do site.
 - **Atualização:** o app confere sozinho se há versão nova e mostra o aviso "Nova versão disponível". A versão fica em `js/version.js`: aumente-a (e o `CACHE` do `sw.js`) a cada publicação.
 - **Diagnóstico:** Ajustes → Diagnóstico testa voz, microfone, transcrição, IA e armazenamento, e copia um relatório.

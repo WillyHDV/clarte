@@ -83,3 +83,35 @@ test('arquitetura: telas não importam umas às outras; a base não conhece as t
   }
   assert.ok(jsFiles.some((f) => f.startsWith('js/screens/')), 'não achei js/screens/');
 });
+
+test('manifest: identidade, categoria e ícone maskable', () => {
+  const man = JSON.parse(read('manifest.webmanifest'));
+  assert.equal(man.id, './'); assert.ok(man.categories.includes('education')); assert.equal(man.display, 'standalone'); assert.equal(man.lang, 'pt-BR');
+  assert.ok(man.icons.some((i) => i.purpose === 'maskable' && i.sizes === '512x512'), 'ícone maskable');
+  assert.ok(man.icons.some((i) => i.sizes === '192x192'), 'ícone 192');
+});
+
+test('manifest: atalhos do ícone apontam para rotas que existem', () => {
+  const man = JSON.parse(read('manifest.webmanifest')); const app = read('js/app.js');
+  const rotas = new Set([...app.matchAll(/page === '(\w+)'/g)].map((m) => m[1]));
+  assert.ok(rotas.has('tutor') && rotas.has('practice'), 'não consegui ler as rotas de app.js');
+  assert.ok(man.shortcuts.length >= 3 && man.shortcuts.length <= 4, 'o Android mostra até 4 atalhos');
+  for (const s of man.shortcuts) {
+    assert.ok(s.name && s.short_name && s.name.length <= 30, `nome do atalho: ${s.name}`);
+    const m = /^\.\/index\.html#\/(\w+)(?:\/|$)/.exec(s.url); assert.ok(m, `url do atalho fora do padrão: ${s.url}`);
+    assert.ok(rotas.has(m[1]), `o atalho "${s.name}" leva a #/${m[1]}, que não é uma rota`);
+    for (const i of s.icons) assert.ok(existsSync(join(root, i.src)), `ícone do atalho ${i.src}`);
+  }
+  assert.equal(new Set(man.shortcuts.map((s) => s.url)).size, man.shortcuts.length, 'atalhos repetidos');
+});
+
+test('privacidade: o app só fala com os provedores de IA (a tela "Privacidade" depende disso)', () => {
+  // seu-usuario.github.io é só o exemplo que aparece no campo de endereço, não uma chamada de rede
+  const permitidos = new Set(['generativelanguage.googleapis.com', 'api.groq.com', 'api.mistral.ai', 'www.w3.org', 'seu-usuario.github.io']);
+  const arquivos = [...jsFiles, 'index.html', 'styles.css', 'sw.js', 'manifest.webmanifest'];
+  const achados = [];
+  for (const f of arquivos) for (const m of read(f).matchAll(/https?:\/\/([a-zA-Z0-9.-]+)/g)) if (!permitidos.has(m[1])) achados.push(`${f}: ${m[0]}`);
+  assert.deepEqual(achados, [], 'endereço novo no código: atualize js/screens/about.js (o que sai do aparelho) e este teste');
+  assert.ok(!/<script[^>]+src="https?:|<link[^>]+href="https?:/.test(read('index.html')), 'index.html não carrega nada de fora');
+  assert.ok(!/@import|url\(\s*['"]?https?:/.test(read('styles.css')), 'styles.css não carrega nada de fora');
+});

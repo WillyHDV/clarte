@@ -332,3 +332,28 @@ test('pares: perfeito conta como acerto e a sessão continua normalmente', async
   assert.match($('#fb').className, /good/); assert.doesNotMatch($('#fb').textContent, /Confira/);
   $('#ok').click(); await tick(); assert.ok($('.qcard, .end'), 'foi para o próximo exercício ou para o fim');
 });
+
+// ---- Privacidade e créditos, lembretes de calendário ----
+test('Privacidade e créditos: seções, link de Ajustes e volta', async () => {
+  await goto('#/settings'); $('[data-go="#/about"]').click(); await tick();
+  assert.match(w.location.hash, /#\/about/);
+  for (const h of ['O que fica só no seu aparelho', 'O que sai do aparelho', 'Proteja a sua chave', 'Conteúdo e créditos']) assert.ok(text().includes(h), `seção ausente: ${h}`);
+  assert.match(text(), /Google Gemini, Groq ou Mistral/); assert.match(text(), /Français basique 1 \(v1\)/); assert.match(text(), /sem vínculo oficial/);
+  assert.ok($$('nav.tabs a.on').some((a) => a.dataset.p === 'settings'), 'a aba Ajustes continua marcada');
+  noBroken('privacidade'); $('.top .back').click(); await tick(); assert.match(w.location.hash, /#\/settings/);
+});
+
+test('Ajustes: lembretes no calendário baixam só as avaliações futuras', async () => {
+  const baixados = []; const proto = w.HTMLAnchorElement.prototype; const click0 = proto.click; const criar0 = URL.createObjectURL;
+  let ultimo = null; URL.createObjectURL = (b) => { ultimo = b; return 'blob:teste'; }; proto.click = function () { baixados.push({ nome: this.download, blob: ultimo }); };
+  try {
+    const gerar = async (data) => { mock.timers.setTime(data.getTime()); await goto('#/history'); await goto('#/settings'); baixados.length = 0; $('#sics').click(); await tick(); return baixados[0]; };
+    let d = await gerar(DIA(11, 1)); assert.equal(d.nome, 'clarte-avaliacoes.ics'); let t = await d.blob.text();
+    assert.equal(d.blob.type, 'text/calendar'); assert.match(t, /SUMMARY:Évaluation 1 \(prova oral\)/); assert.match(t, /SUMMARY:Évaluation 2 \(prova oral\)/); assert.match(t, /DTSTART;VALUE=DATE:20261204|DTSTART;VALUE=DATE:20261202/);
+    d = await gerar(DIA(11, 5)); t = await d.blob.text(); assert.doesNotMatch(t, /Évaluation 1/); assert.match(t, /Évaluation 2/);
+    d = await gerar(DIA(11, 4, 20)); t = await d.blob.text(); assert.match(t, /Évaluation 1/, 'no dia da prova ela ainda entra');
+    d = await gerar(DIA(12, 10)); assert.equal(d, undefined, 'sem avaliações futuras não baixa nada'); assert.match([...document.querySelectorAll('[role="status"]')].at(-1)?.textContent || '', /Não há avaliações futuras/);
+    // datas ajustadas valem no arquivo
+    S.setSetting('evalDates', { eval2: '2026-12-09' }); d = await gerar(DIA(11, 1)); t = await d.blob.text(); assert.match(t, /DTSTART;VALUE=DATE:20261209/);
+  } finally { proto.click = click0; URL.createObjectURL = criar0; S.setSetting('evalDates', {}); await inicioEm(DIA(11, 1)); }
+});

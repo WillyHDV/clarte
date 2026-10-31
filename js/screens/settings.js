@@ -4,8 +4,9 @@ import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast } from '../ui.js';
 import { VERSION, BUILD_DATE } from '../version.js';
-import { $app, st, rate, speak, cur, provOptions, CHAT_KEY } from '../core.js';
+import { $app, st, rate, speak, cur, provOptions, CHAT_KEY, download } from '../core.js';
 import { checkUpdate } from '../update.js';
+import { buildIcs } from '../ics.js';
 import { evaluations, parseDay } from '../progress.js';
 
 // ---------- ajustes ----------
@@ -25,7 +26,7 @@ export function settingsPage() {
     </section>
     <section class="card"><h3>Usar em outro aparelho</h3>
       <small>Gera um link que salva a chave sozinho (sem digitar). Cole o endereço do app publicado, copie o link e mande para você mesmo (ex.: WhatsApp). Não compartilhe esse link com ninguém: quem abrir recebe a sua chave.</small>
-      <label>Endereço do app<input id="sbase" class="inp" value="${esc(/^(localhost|127\.)/.test(location.hostname) ? '' : location.origin + location.pathname)}" placeholder="https://seu-site.netlify.app/" autocomplete="off" spellcheck="false"></label>
+      <label>Endereço do app<input id="sbase" class="inp" value="${esc(/^(localhost|127\.)/.test(location.hostname) ? '' : location.origin + location.pathname)}" placeholder="https://seu-usuario.github.io/clarte/" autocomplete="off" spellcheck="false"></label>
       <button class="btn" id="slink">🔗 Copiar link de configuração</button><div id="slmsg"></div>
     </section>
     <section class="card"><h3>Voz</h3>
@@ -52,13 +53,14 @@ export function settingsPage() {
     <section class="card"><h3>Sobre</h3>
       <p>Clarté <b>v${VERSION}</b> · ${BUILD_DATE}</p>
       <div class="row"><button class="btn" id="supd">${I('refresh')} Verificar atualização</button><button class="btn" data-go="#/diag">${I('activity')} Diagnóstico</button></div>
-      <div class="row"><button class="btn" data-go="#/folha">${I('file')} Folha de revisão</button></div>
+      <div class="row"><button class="btn" data-go="#/folha">${I('file')} Folha de revisão</button><button class="btn" data-go="#/about">${I('shield')} Privacidade e créditos</button></div>
       <small>Sua chave e seu progresso ficam só neste aparelho. Nos planos gratuitos, os provedores de IA podem usar as conversas para melhorar os modelos.</small>
     </section>
     <section class="card"><h3>Meta diária</h3><label>Exercícios por dia<input id="sgoal" class="inp" type="number" min="5" max="100" value="${s.goal}"></label></section>
     <section class="card"><h3>Avaliações</h3><p class="pt">Se a professora mudar uma data, ajuste aqui: a contagem regressiva e a reta final seguem a próxima avaliação.</p>
       ${evaluations().map((e) => `<label>${esc(e.title)}<input class="inp" type="date" data-eval="${e.id}" value="${e.date}"></label>`).join('')}
-      <button class="btn sm" id="sevreset">Voltar às datas do curso</button></section>
+      <div class="row"><button class="btn sm" id="sics">${I('calendar')} Lembretes no calendário</button><button class="btn sm" id="sevreset">Voltar às datas do curso</button></div>
+      <small>O lembrete é um arquivo (.ics): ao abrir, o seu calendário cria um evento por avaliação futura, com alerta na véspera às 9h e no dia às 7h.</small></section>
     <section class="card"><h3>App</h3>
       ${deferredInstall ? '<button class="btn primary wide" id="sinstall">📲 Instalar no aparelho</button>' : '<small>No Android: menu ⋮ do Chrome → “Instalar app”.</small>'}
       <button class="btn danger" id="sreset">Zerar progresso</button>
@@ -93,6 +95,13 @@ export function settingsPage() {
   on('sgoal', 'change', (e) => S.setSetting('goal', Math.max(5, +e.target.value || 20)));
   // data vazia ou inválida volta à data do curso
   document.querySelectorAll('[data-eval]').forEach((inp) => { inp.onchange = () => { const mine = { ...(st().settings.evalDates || {}) }; if (parseDay(inp.value)) mine[inp.dataset.eval] = inp.value; else delete mine[inp.dataset.eval]; S.setSetting('evalDates', mine); toast('Data salva.'); }; });
+  on('sics', 'click', () => {
+    const hoje = new Date(); const dia0 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const futuras = evaluations().filter((e) => { const d = parseDay(e.date); return d && d >= dia0; });
+    if (!futuras.length) { toast('Não há avaliações futuras para lembrar.'); return; }
+    download('clarte-avaliacoes.ics', buildIcs(futuras), 'text/calendar');
+    toast('Arquivo gerado. Abra-o para adicionar ao seu calendário.');
+  });
   on('sevreset', 'click', () => { S.setSetting('evalDates', {}); toast('Datas do curso restauradas.'); settingsPage(); });
   const paintVoice = () => {
     const el = document.getElementById('vstatus'); if (!el) return; const ei = engineInfo(); const hasKey = !!((st().settings.keys || {}).gemini);
@@ -110,8 +119,7 @@ export function settingsPage() {
   (async () => { const el = document.getElementById('spersist'); if (!el) return; try { const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false; el.textContent = p ? 'sim' : 'não (faça backups)'; } catch (e) { el.textContent = 'desconhecido'; } })();
   on('sexport', 'click', () => {
     const data = S.exportData({ includeKeys: document.getElementById('sbkkeys').checked });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
-    a.download = `clarte-progresso-${new Date().toLocaleDateString('sv-SE')}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+    download(`clarte-progresso-${new Date().toLocaleDateString('sv-SE')}.json`, JSON.stringify(data, null, 1), 'application/json');
     document.getElementById('sbk').textContent = 'Backup salvo agora. Procure o arquivo em Downloads.'; toast('Backup exportado.');
   });
   on('simport', 'click', () => document.getElementById('sfile').click());
