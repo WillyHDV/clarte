@@ -49,12 +49,15 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 É preciso o JDK 21 (`JAVA_HOME`) e o Android SDK (`ANDROID_HOME`). Se `adb devices` não listar o celular, confira o cabo e a depuração USB.
 
+## Lembrete diário
+
+Em Ajustes → Lembrete diário dá para ligar, escolher a hora e enviar um teste. O app agenda os próximos 7 dias e cancela o de hoje se você já estudou. Na primeira vez o Android 13+ pergunta se pode mostrar notificações. Se o Ajustes disser que o app foi instalado antes dos lembretes, aperte ▶ Run de novo no Android Studio.
+
 ## Backup automático
 
 O app grava o progresso sozinho em `Documentos/Clarte/clarte-backup.json` (e a cópia do dia anterior em `clarte-backup-anterior.json`), sem a chave de IA. Essa pasta sobrevive à desinstalação. Em Ajustes → Seus dados dá para desligar, gravar na hora e restaurar. Depois de reinstalar, o app oferece restaurar na tela inicial; se o Android não deixar o app novo ler o arquivo, use **Importar** e escolha Documentos → Clarte → `clarte-backup.json`.
 
 ## O que vem depois
 
-1. Lembretes diários de estudo.
-2. Manter a tela ligada durante a ligação com a Clara.
-3. Voz e reconhecimento nativos do Android; depois, aos poucos, mais telas nativas.
+1. Manter a tela ligada durante a ligação com a Clara (já usa o recurso do navegador; falta conferir no celular).
+2. Voz e reconhecimento nativos do Android; depois, aos poucos, mais telas nativas.

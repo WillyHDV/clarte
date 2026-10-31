@@ -7,7 +7,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00' },
 });
 // ---------- versões do formato ----------
 // MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
@@ -65,6 +65,11 @@ export function touchDay() {
     state.streak = state.lastDay === y ? state.streak + 1 : 1;
     state.lastDay = t;
   }
+}
+// já estudou no dia de `d` (exercícios ou fala com a Clara)? Usado para não lembrar de quem já estudou
+export function studiedToday(d = new Date()) {
+  const t = dayStr(d);
+  return (state.today.date === t && state.today.n > 0) || (state.voiceToday.date === t && state.voiceToday.n > 0);
 }
 export function recordSession(unit, correct, total) {
   touchDay();

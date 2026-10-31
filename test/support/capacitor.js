@@ -2,7 +2,8 @@
 // quebra: diretórios em que toda gravação falha · leitura: texto fixo devolvido por qualquer leitura
 // negarEscrita / negarLeitura: nomes de arquivo (só o nome) que o Android recusa, como acontece com arquivos de uma instalação anterior
 // inicial: { 'DOCUMENTS:Clarte/arquivo.json': 'texto' } já existentes
-export function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], native = true, leitura, negarEscrita = [], negarLeitura = [], inicial = {} } = {}) {
+// permissao: estado da permissão de notificações ('granted' | 'prompt' | 'denied'); pedir: o que o usuário responde ao pedido; falhaAgendar: o agendamento recusa
+export function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], native = true, leitura, negarEscrita = [], negarLeitura = [], inicial = {}, permissao = 'granted', pedir = 'granted', falhaAgendar = false } = {}) {
   const arquivos = new Map(Object.entries(inicial)); const chamadas = [];
   const key = (a) => `${a.directory}:${a.path}`;
   const nome = (a) => String(a.path).split('/').pop();
@@ -26,9 +27,18 @@ export function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], 
     },
     async deleteFile(a) { chamadas.push(['delete', a]); arquivos.delete(key(a)); },
   };
+  const pendentes = new Map(); const canais = []; const agendamentos = []; let perm = permissao;
+  const LocalNotifications = {
+    async checkPermissions() { return { display: perm }; },
+    async requestPermissions() { chamadas.push(['pedir-permissao']); if (perm === 'prompt') perm = pedir; return { display: perm }; },
+    async createChannel(c) { canais.push(c); },
+    async schedule({ notifications }) { if (falhaAgendar) throw new Error('Notifications are blocked'); agendamentos.push(notifications); for (const n of notifications) pendentes.set(n.id, n); return { notifications: notifications.map((n) => ({ id: n.id })) }; },
+    async cancel({ notifications }) { for (const n of notifications) pendentes.delete(n.id); },
+    async getPending() { return { notifications: [...pendentes.values()].map((n) => ({ id: n.id })) }; },
+  };
   globalThis.Capacitor = {
     isNativePlatform: () => native, getPlatform: () => (native ? 'android' : 'web'), isPluginAvailable: (n) => plugins.includes(n),
-    Plugins: { Filesystem, Share: { canShare: async () => ({ value: true }) } },
+    Plugins: { Filesystem, Share: { canShare: async () => ({ value: true }) }, LocalNotifications },
   };
-  return { arquivos, chamadas };
+  return { arquivos, chamadas, pendentes, canais, agendamentos };
 }

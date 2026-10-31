@@ -7,6 +7,8 @@ import { VERSION, BUILD_DATE } from '../version.js';
 import { $app, st, rate, speak, cur, provOptions, CHAT_KEY, download } from '../core.js';
 import { checkUpdate } from '../update.js';
 import * as A from '../autobackup.js';
+import * as N from '../native.js';
+import * as R from '../reminders.js';
 import { buildIcs } from '../ics.js';
 import { evaluations, parseDay } from '../progress.js';
 
@@ -65,6 +67,12 @@ export function settingsPage() {
       <div class="row"><button class="btn" data-go="#/folha">${I('file')} Folha de revisão</button><button class="btn" data-go="#/about">${I('shield')} Privacidade e créditos</button></div>
       <small>Sua chave e seu progresso ficam só neste aparelho. Nos planos gratuitos, os provedores de IA podem usar as conversas para melhorar os modelos.</small>
     </section>
+    ${N.isNative() ? `<section class="card"><h3>Lembrete diário</h3>
+      ${R.disponivel() ? `<p class="pt">Uma notificação por dia, na hora que você escolher, só se você ainda não tiver estudado.</p>
+      <label class="chk-l"><input type="checkbox" id="srem" ${s.reminder ? 'checked' : ''}> Lembrar de estudar</label>
+      <label>Horário<input type="time" id="sremt" class="inp" value="${esc(R.config().hora)}"></label>
+      <div class="row"><button class="btn sm" id="sremtest">Enviar um teste (em 8 segundos)</button></div>` : ''}
+      <small id="sremst">${esc(R.statusText())}</small></section>` : ''}
     <section class="card"><h3>Meta diária</h3><label>Exercícios por dia<input id="sgoal" class="inp" type="number" min="5" max="100" value="${s.goal}"></label></section>
     <section class="card"><h3>Avaliações</h3><p class="pt">Se a professora mudar uma data, ajuste aqui: a contagem regressiva e a reta final seguem a próxima avaliação.</p>
       ${evaluations().map((e) => `<label>${esc(e.title)}<input class="inp" type="date" data-eval="${e.id}" value="${e.date}"></label>`).join('')}
@@ -156,6 +164,23 @@ export function settingsPage() {
       S.importData(obj); toast('Progresso restaurado ✅'); settingsPage();
     } catch (er) { toast('Não consegui ler o arquivo: ' + (er.message || 'formato inválido')); }
     e.target.value = '';
+  });
+  // lembrete diário (só no app Android com o plugin de notificações)
+  const sremst = () => { const el = document.getElementById('sremst'); if (el) el.textContent = R.statusText(); };
+  if (R.disponivel()) R.sync().then(sremst);
+  on('srem', 'change', async (e) => {
+    const box = e.target; S.setSetting('reminder', box.checked);
+    const r = await R.sync({ pedirPermissao: box.checked });
+    if (box.checked && (r.estado === 'negado' || r.estado === 'sem-permissao')) { box.checked = false; S.setSetting('reminder', false); await R.sync(); toast('O Android não deixou o Clarté mostrar notificações. Libere em Configurações → Apps → Clarté → Notificações.'); }
+    sremst();
+  });
+  on('sremt', 'change', async (e) => {
+    if (!R.horaValida(e.target.value)) { e.target.value = R.config().hora; return; }
+    S.setSetting('reminderTime', e.target.value); await R.sync(); sremst();
+  });
+  on('sremtest', 'click', async () => {
+    const r = await R.testar(8);
+    toast(r.estado === 'ok' ? 'Teste enviado: ele aparece em 8 segundos (pode sair do app).' : r.estado === 'negado' ? 'O Android não deixou mostrar notificações. Libere em Configurações → Apps → Clarté → Notificações.' : 'Não consegui enviar o teste: ' + (r.erro || r.estado));
   });
   // backup automático em Documentos/Clarte (só no app Android)
   const sautost = (t) => { const el = document.getElementById('sautost'); if (el) el.textContent = t || A.statusText(); };

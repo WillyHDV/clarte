@@ -6,6 +6,7 @@ import { toast } from './ui.js';
 import { $app, rate, speak, go, onRoute, runCleanup } from './core.js';
 import { checkUpdate } from './update.js';
 import { startAutoBackup } from './autobackup.js';
+import { startReminders } from './reminders.js';
 import { home } from './screens/home.js';
 import { unitPage } from './screens/lesson.js';
 import { practice } from './screens/practice.js';
@@ -61,6 +62,7 @@ document.addEventListener('click', (e) => {
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 S.requestPersist();
 startAutoBackup(); // só age dentro do app Android
+startReminders(); // idem, e só com o plugin de notificações instalado
 if (location.protocol !== 'file:') { setTimeout(() => checkUpdate(false), 4000); setInterval(() => checkUpdate(false), 15 * 60 * 1000); document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(false); }); }
 // registro simples de erros inesperados (aparece no relatório de diagnóstico futuro e evita tela travada sem aviso)
 window.addEventListener('error', (e) => { try { const l = JSON.parse(localStorage.getItem('fr_errlog') || '[]'); l.push({ t: new Date().toISOString(), m: String(e.message).slice(0, 200), f: String(e.filename || '').split('/').pop(), l: e.lineno }); localStorage.setItem('fr_errlog', JSON.stringify(l.slice(-20))); } catch (er) { /* ignore */ } });

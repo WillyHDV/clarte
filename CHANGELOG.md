@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## v21 — 31/10/2026
+
+Lembrete diário de estudo no app Android.
+
+- **Lembrete diário** (Ajustes → Lembrete diário, só no app Android): uma notificação por dia na hora que você escolher (19:00 por padrão). Ficam agendados os próximos 7 dias; ao abrir e ao sair do app o plano é refeito, e **o aviso de hoje some se você já estudou** (exercícios ou fala com a Clara). O horário não precisa ser exato, então o Android não abre a tela de "Alarmes e lembretes". Há um botão para enviar um teste em 8 segundos.
+- **Precisa atualizar o app no celular**: a notificação depende de um plugin novo na casca Android. Abra o projeto `native/android` no Android Studio e aperte ▶ Run de novo (o progresso é mantido). Enquanto isso, Ajustes explica isso em vez de mostrar controles que não funcionam.
+- **Diagnóstico**: mostra se as notificações estão permitidas e quantos lembretes estão agendados.
+- **Testes**: 216 → 235 (planejamento dos horários, permissão, reagendamento, telas).
+
 ## v20 — 31/10/2026
 
 Backup automático no app Android: o progresso passa a ter uma cópia fora do app, que sobrevive à desinstalação.

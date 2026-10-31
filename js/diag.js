@@ -4,6 +4,7 @@ import * as T from './tutor.js';
 import * as V from './speech.js';
 import * as N from './native.js';
 import * as A from './autobackup.js';
+import * as R from './reminders.js';
 import { VERSION, BUILD_DATE } from './version.js';
 import { esc, I, toast } from './ui.js';
 
@@ -130,7 +131,7 @@ export function initDiag(root, { cur }) {
   }
 
   // recursos do app Android: a ponte nativa chegou ao site? onde dá para gravar backups?
-  async function nativo() { for (const l of [...await N.selfTest(), ...await A.diagnose()]) add(l.estado, l.nome, l.detalhe); }
+  async function nativo() { for (const l of [...await N.selfTest(), ...await A.diagnose(), ...await R.diagnose()]) add(l.estado, l.nome, l.detalhe); }
 
   const run = { voz, vozes, nativo, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
   let busy = false;
