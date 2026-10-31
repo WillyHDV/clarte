@@ -5,6 +5,8 @@ const str = (x) => typeof x === 'string' && x.length > 0;
 const clean = (x) => str(x) && x === x.trim() && !/\s{2,}|undefined|NaN|\[object/.test(x);
 const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 const REG = ['tu', 'vous'];
+// "2026-11-04" é uma data que existe no calendário? (2026-02-30 e 2026-13-01 não)
+const realDate = (s) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return false; const d = new Date(`${s}T12:00:00Z`); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; };
 
 export function validatePack(pack) {
   const bad = [];
@@ -29,7 +31,17 @@ export function validatePack(pack) {
   need(/^[a-z][a-z0-9-]*$/.test(pack.id || ''), 'id: use letras minúsculas, números e hífen');
   need(str(pack.title), 'title: texto obrigatório');
   need(Number.isInteger(pack.version) && pack.version >= 1, 'version: inteiro a partir de 1');
-  need(/^\d{4}-\d{2}-\d{2}$/.test(pack.examDate || '') && !Number.isNaN(new Date(`${pack.examDate}T12:00:00`).getTime()), 'examDate: data no formato AAAA-MM-DD');
+
+  // avaliações: datas reais, em ordem
+  const evIds = new Set(); let prev = '';
+  list('evaluations').forEach((e, i) => {
+    const at = `evaluations[${i}]`;
+    need(/^[a-z][a-z0-9]*$/.test(e.id || '') && !evIds.has(e.id), `${at}.id: só letras minúsculas e números, sem repetir`); evIds.add(e.id);
+    need(str(e.title), `${at}.title: texto obrigatório`);
+    need(realDate(e.date), `${at}.date: data real no formato AAAA-MM-DD`);
+    need(!prev || e.date >= prev, `${at}.date: as avaliações precisam estar em ordem de data`); prev = e.date || prev;
+    need(e.sheet === undefined || typeof e.sheet === 'boolean', `${at}.sheet: true ou false`);
+  });
 
   // unidades e aulas
   const ids = new Set();

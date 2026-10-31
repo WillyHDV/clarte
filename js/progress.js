@@ -1,11 +1,29 @@
 // Domínio, prontidão, degraus da trilha e plano do dia: regras puras, usadas por várias telas.
-import { EXAM_DATE, UNITS } from './data.js';
+import { EVALUATIONS, UNITS } from './data.js';
 import { unitItems } from './exercises.js';
 import { canListen } from './speech.js';
 import * as S from './store.js';
 import { toast } from './ui.js';
 
-export function daysToExam() { return Math.ceil((new Date(EXAM_DATE + 'T08:00:00') - new Date()) / 86400000); }
+// ---------- avaliações ----------
+// "2026-11-04" → data local à meia-noite (ou null se não for uma data real)
+export function parseDay(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] ? d : null;
+}
+// avaliações do pacote com as datas que você ajustou em Ajustes (data inválida é ignorada), em ordem de data
+export function evaluations() {
+  const mine = S.get().settings.evalDates || {};
+  return EVALUATIONS.map((e) => ({ ...e, date: parseDay(mine[e.id]) ? mine[e.id] : e.date })).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+// a próxima avaliação (o próprio dia dela ainda conta) e quantos dias faltam; null se não há mais nenhuma
+export function nextEvaluation(now = new Date()) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (const ev of evaluations()) { const d = parseDay(ev.date); if (d && d >= today) return { ev, days: Math.round((d - today) / 86400000) }; }
+  return null;
+}
+export function daysToExam() { const n = nextEvaluation(); return n ? n.days : null; }
 export const strengthOf = (id) => { const s = S.strength(id); return s === null ? 0.3 : s; };
 export const unitMastery = (uid) => S.mastery(unitItems(uid));
 export function readiness() {
@@ -47,6 +65,6 @@ export function ensurePlan() {
   tasks.push(ns ? { id: 'focus', icon: cur.icon, title: `${cur.title}: ${ns.title}`, min: 5, go: stepHref(cur.id, ns) } : { id: 'focus', icon: '⚡', title: 'Treino inteligente', min: 5, go: '#/practice/mix' });
   if (canListen) tasks.push({ id: 'speak', icon: '🎤', title: 'Treino de fala: repetir 5 frases', min: 3, go: '#/practice/speakdrill' });
   tasks.push({ id: 'clara', icon: '📞', title: 'Conversar com a Clara (4 respostas)', min: 4, go: '#/tutor/free' });
-  if (d >= 0 && d <= 2) tasks.push({ id: 'exam', icon: '🎓', title: 'Simular a prova oral com a Clara', min: 6, go: '#/tutor/exam' });
+  if (d !== null && d <= 2) tasks.push({ id: 'exam', icon: '🎓', title: 'Simular a prova oral com a Clara', min: 6, go: '#/tutor/exam' });
   p.tasks = tasks; S.save(); return p;
 }

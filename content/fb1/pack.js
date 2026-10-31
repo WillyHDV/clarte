@@ -2,6 +2,7 @@
 // vídeos da professora e livros de apoio). Só dados: nada aqui executa lógica, e tudo precisa sobreviver a JSON.stringify.
 // Formato e validação: content/README.md e content/validate.js (rodam nos testes).
 import { UNITS } from './units.js';
+import { EVALUATIONS } from './evaluations.js';
 import { LETTERS, ACCENTS, NAMES } from './alphabet.js';
 import { PHRASES } from './phrases.js';
 import { PROFILES, VIDEO_TV, TUVOUS, SITUATIONS } from './social.js';
@@ -15,7 +16,7 @@ export default {
   id: 'fb1',
   title: 'Français basique 1',
   version: 1, // aumente quando o conteúdo mudar
-  examDate: '2026-11-04', // Évaluation 1 (oral)
+  evaluations: EVALUATIONS,
   units: UNITS,
   lessons: LESSONS,
   letters: LETTERS,

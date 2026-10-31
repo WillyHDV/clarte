@@ -1,11 +1,15 @@
 // Testes de tela: carrega o index.html no jsdom, importa o app de verdade e navega pelas telas.
 // Não substituem testar no celular, mas pegam telas que quebram (erro de código, texto "undefined", botão que sumiu).
 import './support/storage.js';
-import { test, before, after } from 'node:test';
+import { test, before, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { UNITS } from '../js/data.js';
+
+// relógio fixo (1/11/2026, três dias antes da Évaluation 1): o texto do início depende da data de hoje
+const DIA = (m, d, h = 10) => new Date(2026, m - 1, d, h);
+mock.timers.enable({ apis: ['Date'], now: DIA(11, 1) });
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const dom = new JSDOM(html, { url: 'file:///clarte/index.html', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
@@ -46,11 +50,11 @@ async function drive(hash) {
 
 let S;
 before(async () => { await import('../js/app.js'); S = await import('../js/store.js'); await tick(); });
-after(() => { assert.deepEqual(problems, [], 'erros durante a navegação'); assert.equal(localStorage.getItem('fr_errlog'), null, 'o app registrou erros no fr_errlog'); });
+after(() => { mock.timers.reset(); assert.deepEqual(problems, [], 'erros durante a navegação'); assert.equal(localStorage.getItem('fr_errlog'), null, 'o app registrou erros no fr_errlog'); });
 
 test('início: prontidão, plano do dia e as 8 unidades', () => {
   const t = text();
-  assert.match(t, /Prontidão para a prova/);
+  assert.match(t, /Prontidão para a avaliação/);
   for (const u of UNITS) assert.ok(t.includes(u.title), `unidade ausente no início: ${u.title}`);
   assert.equal($$('nav.tabs a').length, 4);
   assert.ok($$('nav.tabs a.on').some((a) => a.dataset.p === 'home'));
@@ -97,7 +101,7 @@ test('fim do treino mostra o ganho de domínio e volta ao início', async () => 
   await drive('#/practice/comm');
   assert.match($('.end').textContent, /Domínio da unidade/);
   $('.end [data-go="#/"]').click(); await tick();
-  assert.match(text(), /Prontidão para a prova/);
+  assert.match(text(), /Prontidão para a avaliação/);
 });
 
 test('Clara sem chave pede a chave; o link de configuração salva e abre o chat', async () => {
@@ -167,6 +171,35 @@ test('diagnóstico: botões e informações do aparelho', async () => {
 });
 
 test('rota desconhecida cai no início e nenhuma tela some o menu', async () => {
-  await goto('#/nao-existe'); assert.match(text(), /Prontidão para a prova/);
+  await goto('#/nao-existe'); assert.match(text(), /Prontidão para a avaliação/);
   assert.equal($$('nav.tabs a').length, 4);
+});
+
+async function inicioEm(data) { mock.timers.setTime(data.getTime()); await goto('#/settings'); await goto('#/'); return text(); }
+
+test('início segue a próxima avaliação: contagem, reta final e folha', async () => {
+  let t = await inicioEm(DIA(11, 1));
+  assert.match(t, /Évaluation 1 em 3 dias \(04\/11\)/); assert.match(t, /Reta final · Évaluation 1/); assert.ok($('[data-go="#/folha"]'), 'folha de revisão da avaliação 1');
+  assert.match(await inicioEm(DIA(11, 3)), /Évaluation 1 é amanhã/);
+  assert.match(await inicioEm(DIA(11, 4, 20)), /Hoje é a Évaluation 1/);
+  t = await inicioEm(DIA(11, 6));
+  assert.match(t, /Évaluation 2 em 26 dias \(02\/12\)/); assert.doesNotMatch(t, /Reta final/, 'longe da avaliação 2 a reta final some');
+  t = await inicioEm(DIA(11, 25));
+  assert.match(t, /Reta final · Évaluation 2/); assert.ok(!$('[data-go="#/folha"]'), 'a avaliação 2 ainda não tem folha');
+  assert.match(await inicioEm(DIA(12, 10)), /Nenhuma avaliação marcada/);
+  noBroken('início depois de todas as avaliações');
+  await inicioEm(DIA(11, 1));
+});
+
+test('Ajustes: mudar a data de uma avaliação muda a contagem; vazio e "voltar" restauram', async () => {
+  await goto('#/settings');
+  assert.deepEqual($$('[data-eval]').map((i) => i.value), ['2026-11-04', '2026-12-02']);
+  const eval1 = $('[data-eval="eval1"]'); eval1.value = '2026-11-10'; eval1.dispatchEvent(new w.Event('change')); await tick();
+  assert.equal(S.get().settings.evalDates.eval1, '2026-11-10');
+  assert.match(await inicioEm(DIA(11, 1)), /Évaluation 1 em 9 dias \(10\/11\)/);
+  await goto('#/settings'); const again = $('[data-eval="eval1"]'); again.value = ''; again.dispatchEvent(new w.Event('change')); await tick();
+  assert.deepEqual(S.get().settings.evalDates, {}, 'data vazia volta à data do curso');
+  $('[data-eval="eval2"]').value = '2026-12-09'; $('[data-eval="eval2"]').dispatchEvent(new w.Event('change')); await tick();
+  $('#sevreset').click(); await tick();
+  assert.deepEqual(S.get().settings.evalDates, {}); assert.equal($('[data-eval="eval2"]').value, '2026-12-02');
 });

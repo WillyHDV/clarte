@@ -3,7 +3,7 @@
 import pack from '../content/fb1/pack.js';
 
 export const PACK = pack;
-export const EXAM_DATE = pack.examDate;
+export const EVALUATIONS = pack.evaluations;
 export const UNITS = pack.units;
 export const LESSONS = pack.lessons;
 export const LETTERS = pack.letters;

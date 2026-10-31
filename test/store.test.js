@@ -169,3 +169,9 @@ test('dados salvos válidos, mas com campos ruins, não derrubam o app', async (
   assert.doesNotThrow(() => { novo.recordItems(['a'], true, 'type'); novo.noteResult({ key: 'k' }, false); novo.dueMistakes(); });
   assert.equal(novo.get().settings.provider, 'gemini');
 });
+
+test('normalize: datas de avaliação ajustadas precisam ser um objeto (e vêm vazias por padrão)', () => {
+  assert.deepEqual(S.normalize({}).settings.evalDates, {});
+  assert.deepEqual(S.normalize({ settings: { evalDates: 'x' } }).settings.evalDates, {});
+  assert.deepEqual(S.normalize({ settings: { evalDates: { eval1: '2026-11-10' } } }).settings.evalDates, { eval1: '2026-11-10' });
+});

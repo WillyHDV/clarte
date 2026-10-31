@@ -6,6 +6,7 @@ import { esc, I, toast } from '../ui.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { $app, st, rate, speak, cur, provOptions, CHAT_KEY } from '../core.js';
 import { checkUpdate } from '../update.js';
+import { evaluations, parseDay } from '../progress.js';
 
 // ---------- ajustes ----------
 let deferredInstall = null;
@@ -55,6 +56,9 @@ export function settingsPage() {
       <small>Sua chave e seu progresso ficam só neste aparelho. Nos planos gratuitos, os provedores de IA podem usar as conversas para melhorar os modelos.</small>
     </section>
     <section class="card"><h3>Meta diária</h3><label>Exercícios por dia<input id="sgoal" class="inp" type="number" min="5" max="100" value="${s.goal}"></label></section>
+    <section class="card"><h3>Avaliações</h3><p class="pt">Se a professora mudar uma data, ajuste aqui: a contagem regressiva e a reta final seguem a próxima avaliação.</p>
+      ${evaluations().map((e) => `<label>${esc(e.title)}<input class="inp" type="date" data-eval="${e.id}" value="${e.date}"></label>`).join('')}
+      <button class="btn sm" id="sevreset">Voltar às datas do curso</button></section>
     <section class="card"><h3>App</h3>
       ${deferredInstall ? '<button class="btn primary wide" id="sinstall">📲 Instalar no aparelho</button>' : '<small>No Android: menu ⋮ do Chrome → “Instalar app”.</small>'}
       <button class="btn danger" id="sreset">Zerar progresso</button>
@@ -87,6 +91,9 @@ export function settingsPage() {
   on('svoice', 'change', (e) => S.setSetting('voice', e.target.checked));
   on('sslow', 'change', (e) => S.setSetting('slow', e.target.checked));
   on('sgoal', 'change', (e) => S.setSetting('goal', Math.max(5, +e.target.value || 20)));
+  // data vazia ou inválida volta à data do curso
+  document.querySelectorAll('[data-eval]').forEach((inp) => { inp.onchange = () => { const mine = { ...(st().settings.evalDates || {}) }; if (parseDay(inp.value)) mine[inp.dataset.eval] = inp.value; else delete mine[inp.dataset.eval]; S.setSetting('evalDates', mine); toast('Data salva.'); }; });
+  on('sevreset', 'click', () => { S.setSetting('evalDates', {}); toast('Datas do curso restauradas.'); settingsPage(); });
   const paintVoice = () => {
     const el = document.getElementById('vstatus'); if (!el) return; const ei = engineInfo(); const hasKey = !!((st().settings.keys || {}).gemini);
     el.innerHTML = !canSpeak ? '<small>Este navegador não tem síntese de voz.</small>'

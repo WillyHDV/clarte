@@ -8,7 +8,8 @@ Um pacote é **só dados**: módulos JavaScript que exportam listas e objetos, s
 
 | Arquivo | Conteúdo |
 | --- | --- |
-| `pack.js` | junta tudo e traz os metadados: `schema`, `id`, `title`, `version`, `examDate` |
+| `pack.js` | junta tudo e traz os metadados: `schema`, `id`, `title`, `version` |
+| `evaluations.js` | avaliações do curso (`id`, `title`, `date`, `sheet`), em ordem de data; o app mostra a próxima, e as datas podem ser ajustadas em Ajustes |
 | `units.js` | unidades, na ordem da trilha (`id`, `n`, `icon`, `title`, `sub`) |
 | `lessons.js` | uma aula em HTML por unidade, com marcadores `{{…}}` |
 | `alphabet.js` | letras, acentos e prenomes para soletrar |
@@ -34,7 +35,7 @@ npm test
 
 ## Acrescentar unidades ou um pacote novo
 
-1. Copie `fb1/` para uma pasta nova (ex.: `fb2/`) e ajuste `pack.js` (`id`, `title`, `examDate`).
+1. Copie `fb1/` para uma pasta nova (ex.: `fb2/`) e ajuste `pack.js` (`id`, `title`) e `evaluations.js` (as datas das provas do novo curso).
 2. Acrescente os dados e as aulas. Cada `id` de unidade precisa de um gerador de exercícios em `js/exercises.js` (os testes avisam quando falta).
 3. Liste os arquivos novos em `ASSETS` no `sw.js` (o teste de publicação avisa se faltar algum, para o app funcionar offline).
 4. Aumente `version` do pacote e a versão do app (`js/version.js` + `CACHE` do `sw.js`).

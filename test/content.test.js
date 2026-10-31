@@ -15,7 +15,7 @@ test('o pacote é só dados: sobrevive a JSON sem perder nada', () => {
 });
 
 test('data.js entrega cada parte do pacote com os nomes que o app usa', () => {
-  const map = { EXAM_DATE: 'examDate', UNITS: 'units', LESSONS: 'lessons', LETTERS: 'letters', ACCENTS: 'accents', NAMES: 'names', PHRASES: 'phrases', PROFILES: 'profiles', VIDEO_TV: 'videoTv', TUVOUS: 'tuvous', SITUATIONS: 'situations', PRONOUNS: 'pronouns', VERBS: 'verbs', NATS: 'nats', LANGS: 'langs', CITIES: 'cities', QUARTIERS: 'quartiers', JOBS: 'jobs', STATEMENTS: 'statements', QWORDS: 'qwords' };
+  const map = { EVALUATIONS: 'evaluations', UNITS: 'units', LESSONS: 'lessons', LETTERS: 'letters', ACCENTS: 'accents', NAMES: 'names', PHRASES: 'phrases', PROFILES: 'profiles', VIDEO_TV: 'videoTv', TUVOUS: 'tuvous', SITUATIONS: 'situations', PRONOUNS: 'pronouns', VERBS: 'verbs', NATS: 'nats', LANGS: 'langs', CITIES: 'cities', QUARTIERS: 'quartiers', JOBS: 'jobs', STATEMENTS: 'statements', QWORDS: 'qwords' };
   for (const [name, key] of Object.entries(map)) assert.equal(D[name], pack[key], `${name} deveria ser pack.${key}`);
   const meta = new Set(['schema', 'id', 'title', 'version']);
   const unused = Object.keys(pack).filter((k) => !meta.has(k) && !Object.values(map).includes(k));
@@ -40,7 +40,12 @@ test('o validador reprova defeitos de conteúdo (cada regra é testada)', () => 
     'frase sem tradução': [(p) => { p.phrases.comm[0].pt = ''; }, /phrases\.comm\[0\]/],
     'espaço sobrando em francês': [(p) => { p.phrases.saluer[0].fr += ' '; }, /phrases\.saluer\[0\]/],
     'alfabeto incompleto': [(p) => { delete p.letters.Z; }, /26 letras/],
-    'data da prova inválida': [(p) => { p.examDate = '2026-13-45'; }, /examDate/],
+    'data de avaliação inexistente': [(p) => { p.evaluations[0].date = '2026-02-30'; }, /evaluations\[0\]\.date: data real/],
+    'avaliações fora de ordem': [(p) => { p.evaluations.reverse(); }, /em ordem de data/],
+    'avaliação repetida': [(p) => { p.evaluations[1].id = 'eval1'; }, /evaluations\[1\]\.id/],
+    'avaliação sem título': [(p) => { p.evaluations[0].title = ''; }, /evaluations\[0\]\.title/],
+    'sheet que não é booleano': [(p) => { p.evaluations[0].sheet = 'sim'; }, /evaluations\[0\]\.sheet/],
+    'sem avaliações': [(p) => { p.evaluations = []; }, /evaluations: precisa ser uma lista/],
     'registro tu/vous inválido': [(p) => { p.videoTv[0].reg = 'toi'; }, /videoTv\[0\]\.reg/],
     'situação com errada igual à certa': [(p) => { p.situations[0].wrong = p.situations[0].fr; }, /situations\[0\]\.wrong/],
     'profissão sem feminino': [(p) => { delete p.jobs[3].f; }, /jobs\[3\]\.f/],

@@ -7,7 +7,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
   v: SCHEMA, exams: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20 },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {} },
 });
 // ---------- versões do formato ----------
 // MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
@@ -27,7 +27,7 @@ export function normalize(raw) {
   for (const k of ['today', 'plan', 'voiceToday']) out[k] = { ...base[k], ...out[k] };
   if (!isObj(out.plan.done)) out.plan.done = {};
   out.settings = { ...base.settings, ...(isObj(s.settings) ? s.settings : {}) };
-  for (const k of ['keys', 'models']) if (!isObj(out.settings[k])) out.settings[k] = {};
+  for (const k of ['keys', 'models', 'evalDates']) if (!isObj(out.settings[k])) out.settings[k] = {};
   return out;
 }
 
