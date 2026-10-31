@@ -56,12 +56,13 @@ A chave fica só no navegador de cada aparelho. Para limitar o estrago caso ela 
 
 - **Branches:** `main` é o que está publicado (GitHub Pages) e só recebe versões testadas. O trabalho novo acontece em `dev`.
 - **Verificação:** `npm install` uma vez e depois `npm run check` (ESLint + testes). O mesmo roda no GitHub a cada envio (`.github/workflows/ci.yml`). Só precisa de Node 20 ou mais novo; o app em si não tem etapa de build.
-- **Testes** (`test/`): geradores e correção de exercícios, progresso e revisão espaçada, backup, migração e validação dos dados salvos, reserva de modelos da IA, telas (o app inteiro roda no jsdom: início, unidades, treinos até o fim, Clara, ajustes, folha, diagnóstico) e checagens de publicação (versão × cache do service worker, arquivos offline, imports, chaves de API no código, material do curso fora do repositório).
+- **Testes** (`test/`): geradores e correção de exercícios, progresso e revisão espaçada, backup, migração e validação dos dados salvos, pacotes de conteúdo (validador próprio), reserva de modelos da IA, telas (o app inteiro roda no jsdom: início, unidades, treinos até o fim, Clara, ajustes, folha, diagnóstico) e checagens de publicação (versão × cache do service worker, arquivos offline, imports, chaves de API no código, material do curso fora do repositório).
 - **Publicar uma versão:** aumente `VERSION` em `js/version.js` e o `CACHE` em `sw.js` (o teste confere se andam juntos), rode `npm run check`, faça merge em `main` e confira o app no ar.
 
 ## Estrutura
 
-- `js/data.js` — conteúdo das aulas (vocabulário, verbos, profissões, frases)
+- `content/` — pacotes de conteúdo (aulas, vocabulário, verbos, profissões, frases); veja `content/README.md`
+- `js/data.js` — entrega o pacote ativo com os nomes usados pelo app
 - `js/exercises.js` — geradores de exercícios e correção
 - `js/ui.js` — ícones, escape de HTML e avisos; `js/folha.js` e `js/diag.js` — folha de revisão e diagnóstico; `js/version.js` — versão
 - `js/app.js` — telas; `js/store.js` — progresso e revisão; `js/speech.js` — voz
