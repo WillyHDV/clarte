@@ -617,7 +617,8 @@ async function tutorPage() {
       if (!recorder) return; clearTimeout(autoStop); const r = recorder; recorder = null; listenId++;
       const { blob, ms, peak } = await r.stop(); setLevel(0);
       if (!alive || paused) return;
-      if (ms < 800 || (peak >= 0 && peak < 0.012)) { tries++; setPhase('idle', tries >= 2 ? 'Não ouvi nada. Veja se o microfone está liberado e toque em Falar.' : 'Não ouvi nada. Toque em Falar e tente de novo.'); return; }
+      // só silêncio quase total é barrado: fala baixa passa e é amplificada antes de transcrever
+      if (ms < 800 || (peak >= 0 && peak < 0.003)) { tries++; setPhase('idle', tries >= 2 ? 'Não ouvi nada. Veja se o microfone está liberado e toque em Falar.' : 'Não ouvi nada. Toque em Falar e tente de novo.'); return; }
       tries = 0; await transcribeClip(blob);
     }
     async function transcribeClip(blob) {

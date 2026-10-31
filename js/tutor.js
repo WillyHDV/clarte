@@ -102,12 +102,48 @@ async function ensureOk(res) {
   throw new HttpError(res.status, typeof msg === 'string' ? msg : JSON.stringify(msg));
 }
 
-// messages: [{role:'user'|'assistant', content}] → devolve o texto completo
-export async function chat({ provider, apiKey, model, mode, messages, onText, signal: outer }) {
-  // limite de tempo: se o modelo não começar a responder em 25 s, aborta com uma mensagem clara
+// ---------- reserva de modelos ----------
+// Cada modelo tem cota e fila próprias: quando o escolhido está sobrecarregado (5xx), esgotado (429), lento (408) ou
+// inexistente (404), o app tenta o próximo da lista sozinho. O que funcionou fica de preferência por alguns minutos.
+const FALLBACKS = {
+  gemini: ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'],
+  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+  mistral: ['mistral-small-latest', 'ministral-8b-latest'],
+};
+const MAX_TRIES = 4; const STICKY_MS = 10 * 60 * 1000; const sticky = {};
+const transient = (e) => !!e && (e.status === 404 || e.status === 408 || e.status === 429 || e.status >= 500);
+
+function modelChain(provider, chosen) {
+  const s = sticky[provider]; const first = s && s.until > Date.now() && s.from === chosen ? [s.model] : [];
+  return [...new Set([...first, chosen, ...(FALLBACKS[provider] || [])])].slice(0, MAX_TRIES);
+}
+const remember = (provider, chosen, used) => { if (used !== chosen) sticky[provider] = { from: chosen, model: used, until: Date.now() + STICKY_MS }; else delete sticky[provider]; };
+
+// roda fn(model, ms) em cada modelo da lista até um funcionar; só segue adiante se nada foi entregue ainda
+async function withFallback(provider, chosen, signal, fn, wasDelivered = () => false) {
+  const chain = modelChain(provider, chosen); const errs = [];
+  for (let i = 0; i < chain.length; i++) {
+    try { const r = await fn(chain[i], i ? 15000 : 25000); remember(provider, chosen, chain[i]); return { ...r, model: chain[i] }; } catch (e) {
+      if (wasDelivered() || !transient(e) || (signal && signal.aborted)) throw e;
+      e.model = chain[i]; errs.push(e);
+    }
+  }
+  // mostra o erro do modelo escolhido (os de reserva podem ser só “não existe”) e quais modelos foram tentados
+  const best = errs.find((x) => x.status !== 404) || errs[0]; best.tried = errs.map((x) => x.model); throw best;
+}
+
+// messages: [{role:'user'|'assistant', content}] → devolve { text, model }
+export function chat({ provider, apiKey, model, mode, messages, onText, signal }) {
+  let delivered = false;
+  const track = (d) => { delivered = true; onText && onText(d); };
+  return withFallback(provider, model, signal, (m, ms) => chatOnce({ provider, apiKey, model: m, mode, messages, onText: track, signal, ms }), () => delivered);
+}
+
+async function chatOnce({ provider, apiKey, model, mode, messages, onText, signal: outer, ms }) {
+  // limite de tempo: se o modelo não começar a responder, aborta com uma mensagem clara
   const ctl = new AbortController(); let timedOut = false;
   if (outer) outer.addEventListener('abort', () => ctl.abort());
-  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, 25000);
+  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, ms);
   const signal = ctl.signal;
   const gotText = (d) => { clearTimeout(timer); onText && onText(d); };
   try { return await run({ provider, apiKey, model, mode, messages, gotText, signal }); } catch (e) {
@@ -174,7 +210,10 @@ async function toWav16k(blob) {
   const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(dec.duration * 16000)), 16000);
   const src = off.createBufferSource(); src.buffer = dec; src.connect(off.destination); src.start();
   const f = (await off.startRendering()).getChannelData(0);
-  const pcm = new Int16Array(f.length); for (let i = 0; i < f.length; i++) { const s = Math.max(-1, Math.min(1, f[i])); pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff; }
+  // fala baixa (celular longe da boca) é amplificada até ~70% do máximo, no máx. 10×; silêncio digital fica como está
+  let top = 0; for (let i = 0; i < f.length; i++) { const a = Math.abs(f[i]); if (a > top) top = a; }
+  const gain = top > 0.0008 && top < 0.35 ? Math.min(10, 0.7 / top) : 1;
+  const pcm = new Int16Array(f.length); for (let i = 0; i < f.length; i++) { const s = Math.max(-1, Math.min(1, f[i] * gain)); pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff; }
   const h = new DataView(new ArrayBuffer(44)); const w = (o, t) => [...t].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
   w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true);
   h.setUint32(24, 16000, true); h.setUint32(28, 32000, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length * 2, true);
@@ -183,29 +222,40 @@ async function toWav16k(blob) {
 
 const TRANSCRIBE_PROMPT = 'Transcreva exatamente o que a pessoa disse em francês. Ela é uma aprendiz brasileira iniciante e pode fazer pausas, hesitar e cometer erros de gramática: NÃO corrija nada, escreva as palavras como foram ditas. Se houver palavras em português, mantenha-as. Responda SOMENTE com a transcrição, sem aspas e sem comentários. Se não houver fala compreensível, responda exatamente: <vazio>';
 
+const cleanTranscript = (text) => { const t = text.replace(/^["“«\s]+|["”»\s]+$/g, '').trim(); return /^<?\s*vazio\s*>?\.?$/i.test(t) ? '' : t; };
+
+// devolve o texto falado (string vazia se não houve fala). O modelo que respondeu fica em transcribe.lastModel.
 export async function transcribe({ provider, apiKey, model, blob, signal: outer }) {
+  const p = PROVIDERS[provider];
+  if (provider === 'groq') {
+    return cleanTranscript(await timed(outer, 30000, async (signal) => {
+      const fd = new FormData(); fd.append('file', blob, 'fala.webm'); fd.append('model', 'whisper-large-v3-turbo'); fd.append('language', 'fr'); fd.append('temperature', '0'); fd.append('response_format', 'json');
+      const res = await fetch(`${p.base}/audio/transcriptions`, { method: 'POST', signal, headers: { authorization: `Bearer ${apiKey}` }, body: fd });
+      await ensureOk(res); return { text: (await res.json()).text || '' };
+    }).then((r) => r.text));
+  }
+  if (provider !== 'gemini') throw new Error('Este provedor não transcreve áudio.');
+  let audio = blob;
+  try { audio = await toWav16k(blob); } catch (e) { /* manda o original */ }
+  const data = await toBase64(audio); const mimeType = audio.type.split(';')[0];
+  const r = await withFallback('gemini', model || p.model, outer, (m, ms) => timed(outer, ms + 5000, async (signal) => {
+    const res = await fetch(`${p.base}/models/${encodeURIComponent(m)}:generateContent`, {
+      method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: TRANSCRIBE_PROMPT }, { inlineData: { mimeType, data } }] }], generationConfig: { temperature: 0, maxOutputTokens: 800 } }),
+    });
+    await ensureOk(res); const j = await res.json();
+    return { text: ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('') };
+  }));
+  transcribe.lastModel = r.model;
+  return cleanTranscript(r.text);
+}
+
+// executa fn(signal) com limite de tempo (vira erro 408) e cancelamento externo
+async function timed(outer, ms, fn) {
   const ctl = new AbortController(); let timedOut = false;
   if (outer) outer.addEventListener('abort', () => ctl.abort());
-  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, 30000);
-  try {
-    const p = PROVIDERS[provider]; let text = '';
-    if (provider === 'gemini') {
-      let audio = blob;
-      try { audio = await toWav16k(blob); } catch (e) { /* manda o original */ }
-      const res = await fetch(`${p.base}/models/${encodeURIComponent(model || p.model)}:generateContent`, {
-        method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: TRANSCRIBE_PROMPT }, { inlineData: { mimeType: audio.type.split(';')[0], data: await toBase64(audio) } }] }], generationConfig: { temperature: 0, maxOutputTokens: 800 } }),
-      });
-      await ensureOk(res); const j = await res.json();
-      text = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('');
-    } else if (provider === 'groq') {
-      const fd = new FormData(); fd.append('file', blob, 'fala.webm'); fd.append('model', 'whisper-large-v3-turbo'); fd.append('language', 'fr'); fd.append('temperature', '0'); fd.append('response_format', 'json');
-      const res = await fetch(`${p.base}/audio/transcriptions`, { method: 'POST', signal: ctl.signal, headers: { authorization: `Bearer ${apiKey}` }, body: fd });
-      await ensureOk(res); text = (await res.json()).text || '';
-    } else throw new Error('Este provedor não transcreve áudio.');
-    text = text.replace(/^["“«\s]+|["”»\s]+$/g, '').trim();
-    return /^<?\s*vazio\s*>?\.?$/i.test(text) ? '' : text;
-  } catch (e) { if (timedOut) throw new HttpError(408, 'timeout'); throw e; } finally { clearTimeout(timer); }
+  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, ms);
+  try { return await fn(ctl.signal); } catch (e) { if (timedOut) throw new HttpError(408, 'timeout'); throw e; } finally { clearTimeout(timer); }
 }
 
 // lista os modelos disponíveis para a chave (para o seletor em Ajustes)
@@ -232,6 +282,13 @@ export function friendlyError(e) {
   if (s === 404) return 'Modelo não encontrado. Em Ajustes, toque em “Carregar modelos” e escolha outro.';
   if (s === 408) return 'O modelo demorou demais para responder. Em Ajustes, escolha outro modelo (ex.: gemini-3.1-flash-lite) ou outro provedor.';
   if (s === 429) return 'Limite gratuito atingido por agora. Espere cerca de 1 minuto, ou troque de modelo/provedor em Ajustes.';
-  if (s >= 500) return 'O servidor do provedor está instável. Tente de novo em instantes.';
+  if (s >= 500) return `O servidor do provedor está instável (erro ${s}${e.tried && e.tried.length > 1 ? `; já tentei ${e.tried.length} modelos` : ''}). Tente de novo em instantes.`;
   return (e && e.message) || 'Erro desconhecido.';
+}
+
+// detalhe técnico para o diagnóstico: código HTTP, mensagem do provedor e modelos tentados
+export function errorDetail(e) {
+  if (!e) return '';
+  const msg = e.message && e.message !== 'timeout' ? String(e.message).replace(/\s+/g, ' ').slice(0, 160) : (e.status === 408 ? 'tempo esgotado' : '');
+  return [e.status ? `HTTP ${e.status}` : e.name, msg, e.tried && e.tried.length ? `modelos tentados: ${e.tried.join(', ')}` : ''].filter(Boolean).join(' · ');
 }
