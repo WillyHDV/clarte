@@ -28,6 +28,8 @@ export function practice(id, stepId) {
   if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/" aria-label="Voltar">${I('back')}</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; const wrongList = [];
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false;
+  // associar pares: seleção atual, pares já feitos, pares em que errou e a ordem embaralhada das colunas
+  let mSelL = null; let mSelR = null; let mDone = new Set(); let mMiss = new Set(); let mOrderL = []; let mOrderR = []; let mLock = false;
 
   function showEnd() {
     S.recordSession(review ? 'review' : id, correct, Math.max(attempted, 1)); S.logDay({ r: readiness().overall });
@@ -68,6 +70,7 @@ export function practice(id, stepId) {
     ex = list[i]; sel = null; heard = ''; answered = false; rec = null;
     const k = ex.kind; const listen = k.startsWith('listen');
     placed = []; bank = k === 'tiles' ? ex.tiles.map((t, n) => ({ t, n })) : [];
+    if (k === 'match') { mSelL = null; mSelR = null; mDone = new Set(); mMiss = new Set(); mLock = false; const idx = ex.pairs.map((_, n) => n); mOrderL = shuffle(idx); mOrderR = shuffle(idx); }
     let body = '';
     const audioBtn = ex.audio ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}" id="play">🔊</button><button class="say" data-slow="1" title="Devagar">🐢</button></div>` : '';
     if (k === 'choice' || k === 'listen-choice') {
@@ -76,6 +79,8 @@ export function practice(id, stepId) {
       body = `<input id="inp" class="inp" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Digite em francês…"><div class="acc">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>`;
     } else if (k === 'tiles') {
       body = `<div class="place" id="place"></div><div class="bank" id="bank"></div>`;
+    } else if (k === 'match') {
+      body = '<div class="match" id="match"><div class="mcol" id="mleft"></div><div class="mcol" id="mright"></div></div>';
     } else if (k === 'speak') {
       body = `<div class="speakbox"><div class="target">${esc(ex.shown || ex.answer)}</div>
         ${canListen ? `<button class="mic" id="mic">🎤</button><div class="heard" id="heard">Toque no microfone e fale.</div>` : `<div class="heard">Seu navegador não reconhece voz (use o Chrome). Leia em voz alta e toque em "Pular".</div>`}</div>`;
@@ -91,6 +96,7 @@ export function practice(id, stepId) {
     wire();
     if (listen && ex.audio && st().settings.voice !== false) setTimeout(() => speak(ex.audio, { rate: rate() }), 250);
     if (k === 'tiles') drawTiles();
+    if (k === 'match') drawMatch();
     if (k === 'type' || k === 'listen-type') document.getElementById('inp').focus();
     const nxt = list[i + 1]; if (nxt && nxt.audio) prefetch(nxt.audio);
   }
@@ -100,6 +106,23 @@ export function practice(id, stepId) {
     place.innerHTML = placed.map((t, n) => `<button class="tile" data-p="${n}">${esc(t.t)}</button>`).join('') || '<span class="hint">Toque nas palavras abaixo</span>';
     bk.innerHTML = bank.filter((t) => !placed.includes(t)).map((t) => `<button class="tile" data-b="${t.n}">${esc(t.t)}</button>`).join('');
     if (!answered) document.getElementById('ok').disabled = !placed.length;
+  }
+
+  function drawMatch() {
+    const col = (order, side, field) => order.map((n) => `<button class="mbtn ${mDone.has(n) ? 'done' : ''} ${(side === 'l' ? mSelL : mSelR) === n ? 'sel' : ''}" data-${side}="${n}" ${mDone.has(n) ? 'disabled' : ''}>${esc(ex.pairs[n][field])}</button>`).join('');
+    document.getElementById('mleft').innerHTML = col(mOrderL, 'l', 'l');
+    document.getElementById('mright').innerHTML = col(mOrderR, 'r', 'r');
+  }
+  function pickMatch(side, n) {
+    if (answered || mLock || mDone.has(n)) return;
+    if (side === 'l') mSelL = mSelL === n ? null : n; else mSelR = mSelR === n ? null : n;
+    if (mSelL === null || mSelR === null) { drawMatch(); return; }
+    if (mSelL === mSelR) { mDone.add(mSelL); mSelL = null; mSelR = null; drawMatch(); if (mDone.size === ex.pairs.length) verify(); return; }
+    // par errado: pisca em vermelho, conta o erro e libera a seleção
+    mMiss.add(mSelL); mLock = true; drawMatch();
+    document.querySelectorAll(`[data-l="${mSelL}"], [data-r="${mSelR}"]`).forEach((b) => b.classList.add('bad'));
+    const atual = ex;
+    setTimeout(() => { if (ex !== atual || answered) return; mSelL = null; mSelR = null; mLock = false; drawMatch(); }, 450);
   }
 
   function wire() {
@@ -114,6 +137,9 @@ export function practice(id, stepId) {
     if (ex.kind === 'tiles') {
       document.getElementById('place').onclick = (e) => { const b = e.target.closest('[data-p]'); if (b && !answered) { placed.splice(+b.dataset.p, 1); drawTiles(); } };
       document.getElementById('bank').onclick = (e) => { const b = e.target.closest('[data-b]'); if (b && !answered) { placed.push(bank.find((t) => t.n === +b.dataset.b)); drawTiles(); } };
+    }
+    if (ex.kind === 'match') {
+      document.getElementById('match').onclick = (e) => { const b = e.target.closest('.mbtn'); if (!b) return; if (b.dataset.l !== undefined) pickMatch('l', +b.dataset.l); else pickMatch('r', +b.dataset.r); };
     }
     const mic = document.getElementById('mic');
     if (mic) mic.onclick = () => {
@@ -135,6 +161,7 @@ export function practice(id, stepId) {
     if (ex.kind === 'choice' || ex.kind === 'listen-choice') input = sel;
     else if (ex.kind === 'tiles') input = placed.map((t) => t.t);
     else if (ex.kind === 'speak') input = heard;
+    else if (ex.kind === 'match') input = [...mMiss];
     else input = document.getElementById('inp').value;
     const r = check(ex, input); answered = true; if (rec) rec.stop();
     feedback(r, false);
@@ -146,17 +173,19 @@ export function practice(id, stepId) {
     if (!skip) {
       if (first) { attempted++; if (r.ok) correct++; else wrongList.push(ex); }
       S.noteResult(ex, r.ok, review);
-      S.recordItems(ex.items, r.ok, ex.kind);
+      // associar pares: cada par conta só para o seu item (acertar um não esconde o erro de outro)
+      if (ex.kind === 'match') ex.pairs.forEach((p, n) => S.recordItems([p.item], !r.wrong.includes(n), 'match')); else S.recordItems(ex.items, r.ok, ex.kind);
       skillsFor(ex, r).forEach(([k, v]) => S.recordSkill(k, v));
       if (!r.ok && first) list.push({ ...ex, _retry: true });
     }
     document.querySelectorAll('.opt').forEach((b) => { const v = ex.options[+b.dataset.o]; b.disabled = true; if (v === ex.answer) b.classList.add('right'); else if (v === sel) b.classList.add('wrong'); });
-    const answer = [].concat(ex.answer)[0];
+    const answer = ex.kind === 'match' ? '' : [].concat(ex.answer)[0];
     let extra = '';
     if (ex.kind === 'speak' && r.words) extra = `<div class="words">${r.words.map((w, n) => `<span class="${r.marks[n] ? 'g' : 'r'}">${esc(w)}</span>`).join(' ')}</div>`;
-    const title = skip ? 'Pulado' : r.ok ? (r.almost ? 'Quase! Atenção aos acentos' : ['Très bien !', 'Parfait !', 'Excellent !', 'Bravo !'][Math.floor(Math.random() * 4)]) : (ex.kind === 'speak' ? 'Tente pronunciar de novo' : 'Resposta correta:');
+    if (ex.kind === 'match' && !r.ok) extra = `<div class="words">${ex.pairs.map((p, n) => `<span class="${r.wrong.includes(n) ? 'r' : 'g'}">${esc(p.l)} = ${esc(p.r)}</span>`).join(' · ')}</div>`;
+    const title = skip ? 'Pulado' : r.ok ? (r.almost ? 'Quase! Atenção aos acentos' : ['Très bien !', 'Parfait !', 'Excellent !', 'Bravo !'][Math.floor(Math.random() * 4)]) : (ex.kind === 'speak' ? 'Tente pronunciar de novo' : ex.kind === 'match' ? 'Confira os pares (em vermelho, os que você errou):' : 'Resposta correta:');
     fb.className = 'fb show ' + (skip ? 'neutral' : r.ok && !r.almost ? 'good' : r.ok ? 'almost' : 'bad');
-    fb.innerHTML = `<b>${title}</b>${!r.ok || r.almost ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio ? `<button class="say" data-say="${esc(ex.audio)}">🔊 Ouvir</button>` : ''}`;
+    fb.innerHTML = `<b>${title}</b>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio ? `<button class="say" data-say="${esc(ex.audio)}">🔊 Ouvir</button>` : ''}`;
     ok.disabled = false; ok.textContent = 'Continuar'; ok.classList.toggle('bad', !r.ok && !skip);
     if (document.getElementById('inp')) document.getElementById('inp').disabled = true;
   }

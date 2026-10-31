@@ -70,3 +70,12 @@ test('historySeries: sempre N dias, hoje por último, dias sem registro zerados'
   assert.equal(historySeries(3, at(2026, 3, 1)).at(-1).d, '2026-03-01');
   assert.deepEqual(historySeries(2, at(2026, 3, 1)).map((x) => x.d), ['2026-02-28', '2026-03-01'], 'vira o mês');
 });
+
+test('etapa "Reconhecer" da trilha inclui associar pares (e o sorteio entrega pares)', async () => {
+  const { STEPS } = await import('../js/progress.js'); const { buildSession } = await import('../js/exercises.js');
+  const reconhecer = STEPS.find((s) => s.id === 'recognize'); assert.ok(reconhecer.kinds.includes('match'), 'pares precisam estar na etapa Reconhecer');
+  const escrever = STEPS.find((s) => s.id === 'write'); assert.ok(!escrever.kinds.includes('match'), 'pares não são exercício de escrita');
+  let pares = 0; for (let n = 0; n < 40; n++) pares += buildSession('comm', reconhecer.n, () => 0.3, { kinds: reconhecer.kinds }).filter((e) => e.kind === 'match').length;
+  assert.ok(pares > 0, 'a etapa nunca sorteou um exercício de pares em 40 sessões');
+  for (const e of buildSession('metiers', 8, () => 0.3, { kinds: reconhecer.kinds })) assert.ok(reconhecer.kinds.includes(e.kind));
+});

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { UNITS } from '../js/data.js';
 import { buildSession, check, speakScore, skillsFor, unitItems, itemLabel, norm, stripAcc } from '../js/exercises.js';
 
-const KINDS = new Set(['choice', 'listen-choice', 'type', 'listen-type', 'tiles', 'speak']);
+const KINDS = new Set(['choice', 'listen-choice', 'type', 'listen-type', 'tiles', 'speak', 'match']);
 const unitIds = UNITS.map((u) => u.id);
 const universe = new Set(unitIds.flatMap((u) => unitItems(u)));
 
@@ -77,8 +77,46 @@ test('a resposta de cada exercício é aceita pela própria correção', () => {
     if (ex.kind === 'speak') { assert.equal(check(ex, [].concat(ex.answer)[0]).ok, true, `fala sem aceitar a própria resposta: ${ex.key}`); continue; }
     if (ex.kind === 'tiles') { assert.equal(check(ex, [].concat(ex.answer)[0].split(' ')).ok, true, `peças: ${ex.key}`); continue; }
     if (ex.kind === 'choice' || ex.kind === 'listen-choice') { assert.equal(check(ex, ex.answer).ok, true, ex.key); continue; }
+    if (ex.kind === 'match') { assert.deepEqual(check(ex, []), { ok: true, wrong: [] }, `par sem erro deveria valer: ${ex.key}`); continue; }
     assert.equal(check(ex, [].concat(ex.answer)[0]).ok, true, `digitação sem aceitar a própria resposta: ${ex.key}`);
   }
+});
+
+// ---- associar pares ----
+const matches = all.filter((e) => e.kind === 'match');
+
+test('associar pares: aparece nas unidades que têm pares (menos na negação)', () => {
+  const por = {}; for (const ex of matches) por[ex.unit] = (por[ex.unit] || 0) + 1;
+  for (const u of unitIds.filter((x) => x !== 'negation')) assert.ok(por[u] > 0, `a unidade ${u} deveria gerar associação de pares`);
+  assert.equal(por.negation, undefined);
+  assert.ok(matches.length / all.length > 0.08 && matches.length / all.length < 0.35, `proporção de pares: ${(matches.length / all.length).toFixed(2)}`);
+});
+
+test('associar pares: 4 pares sem ambiguidade, cada um com seu item de domínio', () => {
+  for (const ex of matches) {
+    assert.equal(ex.pairs.length, 4, ex.key);
+    assert.equal(new Set(ex.pairs.map((p) => p.l)).size, 4, `lados esquerdos repetidos: ${ex.key}`);
+    assert.equal(new Set(ex.pairs.map((p) => p.r)).size, 4, `lados direitos repetidos (par ambíguo): ${ex.key}`);
+    assert.deepEqual(ex.items, ex.pairs.map((p) => p.item), 'items = o item de cada par, na ordem');
+    for (const p of ex.pairs) { assert.ok(p.l && p.r && p.item, ex.key); assert.ok(universe.has(p.item), `item fora do universo: ${p.item}`); }
+  }
+});
+
+test('associar pares: correção aponta exatamente os pares errados', () => {
+  const ex = matches[0];
+  assert.deepEqual(check(ex, [2, 0, 2]), { ok: false, wrong: [0, 2] }, 'repetidos contam uma vez e vêm em ordem');
+  assert.equal(check(ex, [1]).ok, false); assert.equal(check(ex, []).ok, true);
+});
+
+test('associar pares: pares de verbos não repetem a mesma forma (je e il/elle em -er)', () => {
+  const verbos = matches.filter((e) => e.unit === 'verbes'); assert.ok(verbos.length > 5);
+  for (const ex of verbos) assert.ok(!ex.pairs.some((p) => p.l === 'il/elle' && ex.pairs.some((q) => q.l === 'je' && q.r === p.r)), ex.key);
+});
+
+test('associar pares conta como reconhecimento: a sessão da etapa "Reconhecer" pode trazer pares', () => {
+  let achou = false;
+  for (let n = 0; n < 40 && !achou; n++) achou = buildSession('comm', 10, () => 0.3, { kinds: ['choice', 'listen-choice', 'match'] }).some((e) => e.kind === 'match');
+  assert.ok(achou);
 });
 
 test('sem textos quebrados nos exercícios', () => {

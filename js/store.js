@@ -100,7 +100,7 @@ export function strength(id, now = Date.now()) {
   return m.s * Math.pow(2, -((now - m.t) / DAY) / m.h);
 }
 export function recordItems(items, ok, kind, now = Date.now()) {
-  const recog = kind === 'choice' || kind === 'listen-choice';
+  const recog = kind === 'choice' || kind === 'listen-choice' || kind === 'match'; // reconhecer rende menos que produzir
   for (const id of items || []) {
     const cur = strength(id, now) || 0; const m = state.mastery[id] || { s: 0, h: 0, t: now, n: 0, c: 0 };
     m.n++;

@@ -33,6 +33,13 @@ const tick = (ms = 25) => new Promise((r) => setTimeout(r, ms));
 async function goto(hash) { w.location.hash = hash; await tick(); }
 const noBroken = (where) => assert.ok(!/undefined|NaN|\[object|{{/.test($('#app').textContent), `texto quebrado em ${where}: ${text().match(/.{0,40}(undefined|NaN|\[object|{{).{0,40}/)?.[0]}`);
 
+// associar pares: o índice do par está nos botões (data-l / data-r), então o parceiro certo é o de mesmo índice
+async function resolverPares(comErro) {
+  const n = $$('#mleft .mbtn').length;
+  if (comErro) { $('#mleft [data-l="0"]').click(); $('#mright [data-r="1"]').click(); await tick(470); } // trava de 450 ms depois de um erro
+  for (let k = 0; k < n; k++) { $(`#mleft [data-l="${k}"]`).click(); $(`#mright [data-r="${k}"]`).click(); }
+}
+
 // responde qualquer exercício (certo ou errado) até aparecer a tela final
 async function drive(hash) {
   await goto(hash);
@@ -41,7 +48,8 @@ async function drive(hash) {
     const ok = $('#ok'); assert.ok(ok, `sem botão de verificar em ${hash} (passo ${n}): ${text().slice(0, 120)}`);
     if (ok.textContent.trim() !== 'Continuar') {
       const inp = $('#inp'); const tile = $('#bank [data-b]');
-      if ($('.opt')) $('.opt').click(); else if (inp) { inp.value = 'x'; inp.dispatchEvent(new w.Event('input')); } else if (tile) tile.click();
+      if ($('#match')) await resolverPares(n % 2 === 0); // nos pares, um treino sim e outro não começa errando de propósito
+      else if ($('.opt')) $('.opt').click(); else if (inp) { inp.value = 'x'; inp.dispatchEvent(new w.Event('input')); } else if (tile) tile.click();
     }
     ok.click();
   }
@@ -268,4 +276,59 @@ test('início leva à Evolução e a Evolução volta ao início', async () => {
   await goto('#/settings'); await goto('#/'); $('[data-go="#/history"]').click(); await tick();
   assert.match(w.location.hash, /#\/history/); assert.ok($$('.tile').length === 4);
   $('.top .back').click(); await tick(); assert.match(text(), /Prontidão para a avaliação/);
+});
+
+// ---- associar pares na tela ----
+// navega por treinos até aparecer um exercício de pares (20% dos exercícios das unidades com pares)
+async function irAtePares(unidade) {
+  for (let tentativa = 0; tentativa < 12; tentativa++) {
+    await goto('#/settings'); await goto(`#/practice/${unidade}`);
+    for (let n = 0; n < 40 && !$('.end'); n++) {
+      if ($('#match')) return;
+      const ok = $('#ok'); if (ok.textContent.trim() !== 'Continuar') { const inp = $('#inp'); if ($('.opt')) $('.opt').click(); else if (inp) { inp.value = 'x'; inp.dispatchEvent(new w.Event('input')); } else if ($('#bank [data-b]')) $('#bank [data-b]').click(); }
+      ok.click();
+    }
+  }
+  assert.fail(`não apareceu um exercício de pares em ${unidade}`);
+}
+
+test('pares: duas colunas, selecionar, acertar trava o par e errar pisca e conta', async () => {
+  await irAtePares('comm');
+  assert.equal($$('#mleft .mbtn').length, 4); assert.equal($$('#mright .mbtn').length, 4); assert.equal($('#ok').disabled, true, 'sem botão até terminar');
+  $('#mleft [data-l="2"]').click(); assert.ok($('#mleft [data-l="2"]').classList.contains('sel'));
+  $('#mleft [data-l="2"]').click(); assert.ok(!$('#mleft [data-l="2"]').classList.contains('sel'), 'tocar de novo desmarca');
+  $('#mleft [data-l="0"]').click(); $('#mright [data-r="1"]').click(); // par errado
+  assert.ok($('#mleft [data-l="0"]').classList.contains('bad') && $('#mright [data-r="1"]').classList.contains('bad'), 'pisca em vermelho');
+  $('#mleft [data-l="3"]').click(); assert.ok(!$('#mleft [data-l="3"]').classList.contains('sel'), 'durante o piscar os toques são ignorados');
+  await tick(480);
+  assert.ok(!$('#mleft [data-l="0"]').classList.contains('bad'), 'a seleção é liberada'); assert.equal($('#mleft [data-l="0"]').classList.contains('sel'), false);
+  $('#mleft [data-l="1"]').click(); $('#mright [data-r="1"]').click();
+  assert.ok($('#mleft [data-l="1"]').classList.contains('done') && $('#mleft [data-l="1"]').disabled, 'par certo fica travado em verde');
+  $('#mleft [data-l="1"]').click(); assert.equal(document.querySelectorAll('#mleft .mbtn.sel').length, 0, 'par travado não seleciona');
+});
+
+test('pares: ao completar verifica sozinho; com erro mostra os pares e vai para a revisão', async () => {
+  await irAtePares('presenter');
+  const antes = S.get().mistakes.length;
+  $('#mleft [data-l="0"]').click(); $('#mright [data-r="3"]').click(); await tick(480); // erra o par 0
+  for (let k = 0; k < 4; k++) { $(`#mleft [data-l="${k}"]`).click(); $(`#mright [data-r="${k}"]`).click(); }
+  assert.match($('#fb').textContent, /Confira os pares/); assert.equal($$('#fb .words .r').length, 1, 'só o par errado em vermelho'); assert.equal($$('#fb .words .g').length, 3);
+  assert.equal($('#ok').textContent.trim(), 'Continuar'); assert.ok($('#ok').classList.contains('bad'));
+  assert.equal(S.get().mistakes.length, antes + 1, 'o exercício errado entra na revisão');
+});
+
+test('pares: cada item é avaliado sozinho (o par errado enfraquece, os certos fortalecem)', async () => {
+  await irAtePares('verbes'); S.get().mastery = {};
+  const itens = $$('#mleft .mbtn').map((b) => b.textContent); assert.equal(itens.length, 4);
+  $('#mleft [data-l="0"]').click(); $('#mright [data-r="2"]').click(); await tick(480);
+  for (let k = 0; k < 4; k++) { $(`#mleft [data-l="${k}"]`).click(); $(`#mright [data-r="${k}"]`).click(); }
+  const forcas = Object.values(S.get().mastery).map((m) => m.s).sort((a, b) => a - b);
+  assert.equal(forcas.length, 4, 'um registro por par'); assert.equal(forcas[0], 0, 'o par errado fica sem força'); assert.ok(forcas[1] > 0 && forcas[3] > 0, 'os acertados ganham força');
+});
+
+test('pares: perfeito conta como acerto e a sessão continua normalmente', async () => {
+  await irAtePares('metiers');
+  await resolverPares(false);
+  assert.match($('#fb').className, /good/); assert.doesNotMatch($('#fb').textContent, /Confira/);
+  $('#ok').click(); await tick(); assert.ok($('.qcard, .end'), 'foi para o próximo exercício ou para o fim');
 });

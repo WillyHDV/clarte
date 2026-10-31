@@ -221,3 +221,8 @@ test('backup leva e traz o histórico', () => {
   const b = JSON.parse(JSON.stringify(S.exportData())); S.resetAll(); assert.deepEqual(S.get().history, []);
   S.importData(b); assert.equal(S.get().history.at(-1).n, 4);
 });
+
+test('associar pares rende como reconhecimento (igual à escolha), menos que digitar', () => {
+  S.recordItems(['p1'], true, 'match', T0); S.recordItems(['p2'], true, 'choice', T0); S.recordItems(['p3'], true, 'type', T0);
+  assert.equal(S.strength('p1', T0), S.strength('p2', T0)); assert.ok(S.strength('p1', T0) < S.strength('p3', T0));
+});

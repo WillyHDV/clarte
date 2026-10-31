@@ -333,6 +333,15 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--brand); }
   .folha li span, .folha small, .brand { color: #333; }
   .folha .ftbl th { background: #eee; } .folha a { color: #000; }
 }
+/* ---- associar pares ---- */
+.match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mcol { display: grid; gap: 8px; align-content: start; }
+.mbtn { text-align: left; border: 2px solid var(--line); background: var(--card-2); border-radius: 16px; padding: 10px 12px; min-height: 52px; font-size: .95rem; font-weight: 550; overflow-wrap: anywhere; transition: transform .1s, border-color .15s, background .15s; }
+.mbtn:active { transform: scale(.985); }
+.mbtn.sel { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 11%, var(--card)); }
+.mbtn.done { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.mbtn.bad { border-color: var(--bad); background: var(--bad-bg); }
+
 /* ---- Evolução: cartões de números e gráficos (cores e fontes do tema; cada gráfico tem uma série só) ---- */
 .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
 .tile { display: grid; gap: 2px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: var(--shadow); }
