@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/', 'fontes/', '.claude/', 'icons/'] },
+  { ignores: ['node_modules/', 'fontes/', '.claude/', 'icons/', 'native/'] },
   js.configs.recommended,
   {
     files: ['js/**/*.js'],

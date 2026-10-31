@@ -132,3 +132,33 @@ test('a classe .chk (círculo de tarefa feita) não é usada em rótulos de caix
   assert.match(css, /^\.chk-l \{/m, 'falta a regra .chk-l');
   assert.doesNotMatch(css, /label\.chk/, 'sobrou regra para label.chk');
 });
+
+test('app Android: configuração do Capacitor aponta para o site publicado e tem tudo o que precisa', () => {
+  const cfg = JSON.parse(read('native/capacitor.config.json'));
+  assert.equal(cfg.appId, 'br.willy.clarte'); assert.equal(cfg.appName, 'Clarté'); assert.equal(cfg.webDir, 'www');
+  assert.equal(cfg.server.url, 'https://willyhdv.github.io/clarte/'); assert.ok(cfg.server.allowNavigation.includes('willyhdv.github.io')); assert.equal(cfg.server.androidScheme, 'https');
+  assert.ok(existsSync(join(root, 'native/www', cfg.server.errorPath)), 'página de erro offline do app');
+  assert.ok(existsSync(join(root, 'native/www/index.html')));
+  const man = read('native/android/app/src/main/AndroidManifest.xml');
+  for (const p of ['INTERNET', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS']) assert.match(man, new RegExp(`android.permission.${p}`), p);
+  assert.match(man, /microphone" android:required="false"/);
+});
+
+test('app Android: versões do Capacitor iguais e plugins esperados', () => {
+  const pkg = JSON.parse(read('native/package.json')); const v = { ...pkg.dependencies, ...pkg.devDependencies };
+  assert.equal(v['@capacitor/core'], v['@capacitor/android']); assert.equal(v['@capacitor/core'], v['@capacitor/cli']);
+  for (const p of ['@capacitor/filesystem', '@capacitor/share']) assert.ok(v[p], p);
+  for (const [nome, versao] of Object.entries(v)) assert.match(versao, /^\d+\.\d+\.\d+$/, `${nome} deve estar fixo (sem ^ ou ~)`);
+});
+
+test('chaves de assinatura e arquivos locais do Android nunca vão para o Git', () => {
+  const rastreados = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const ruins = rastreados.filter((f) => /\.(keystore|jks|p12|pfx|pem)$/i.test(f) || /(^|\/)local\.properties$/.test(f) || /(^|\/)(keystore|signing)\.properties$/.test(f) || /\.(apk|aab)$/i.test(f));
+  assert.deepEqual(ruins, [], 'arquivo de assinatura, de configuração local ou binário no Git');
+  assert.ok(rastreados.some((f) => f === 'native/android/gradlew.bat'), 'o projeto Android precisa estar versionado');
+});
+
+test('o app Android carrega o mesmo site que o teste de privacidade conhece (nenhum endereço novo)', () => {
+  const cfg = JSON.parse(read('native/capacitor.config.json')); const host = new URL(cfg.server.url).host;
+  assert.equal(host, 'willyhdv.github.io'); assert.ok(read('sw.js').includes('fr-v'), 'o site publicado é o mesmo que a casca abre');
+});

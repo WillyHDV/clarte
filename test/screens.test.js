@@ -460,3 +460,30 @@ test('os avisos de dados deixam claro que reinstalar ou limpar o navegador apaga
   await goto('#/history'); await goto('#/settings'); assert.match(text(), /desinstalar o app ou limpar os dados do navegador, ele some/);
   await goto('#/about'); assert.match(text(), /Desinstalar o app ou limpar os dados do navegador apaga o seu progresso/);
 });
+
+// ---- app Android (Capacitor) no Diagnóstico ----
+test('Diagnóstico no site: modo de uso "site instalado" e sem botão do app Android', async () => {
+  await goto('#/history'); await goto('#/diag'); await tick(80);
+  assert.match($('#dres').textContent, /Modo de uso.*site instalado ou navegador/); assert.ok(!$('[data-t="nativo"]'), 'o botão só existe dentro do app');
+});
+
+test('Diagnóstico dentro do app Android: mostra o modo e o botão confere os arquivos', async () => {
+  const gravados = new Map();
+  globalThis.Capacitor = {
+    isNativePlatform: () => true, getPlatform: () => 'android', isPluginAvailable: (n) => n === 'Filesystem' || n === 'Share',
+    Plugins: {
+      Filesystem: { async writeFile(a) { if (a.directory === 'DOCUMENTS') throw new Error('sem permissão'); gravados.set(a.directory, a.data); }, async readFile(a) { return { data: gravados.get(a.directory) }; }, async deleteFile(a) { gravados.delete(a.directory); } },
+      Share: { canShare: async () => ({ value: true }) },
+    },
+  };
+  try {
+    await goto('#/history'); await goto('#/diag'); await tick(80);
+    assert.match($('#dres').textContent, /Modo de uso.*app Android \(site dentro do app, android\)/);
+    const botao = $('[data-t="nativo"]'); assert.ok(botao, 'botão do teste nativo'); botao.click();
+    for (let n = 0; n < 40 && !/Compartilhar arquivos/.test($('#dres').textContent); n++) await tick(25);
+    const t = $('#dres').textContent;
+    assert.match(t, /Plugin Filesystem.*disponível/); assert.match(t, /Gravar em Documentos\/Clarte.*sem permissão/); assert.match(t, /Gravar em dados internos do app.*gravou e leu de volta/);
+    assert.ok($$('#dres li.warn').some((li) => /Documentos/.test(li.textContent)), 'Documentos sem permissão é aviso');
+    assert.equal(botao.disabled, false, 'os botões voltam a funcionar');
+  } finally { delete globalThis.Capacitor; }
+});

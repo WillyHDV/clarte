@@ -1,0 +1,14 @@
+{
+  "appId": "br.willy.clarte",
+  "appName": "Clarté",
+  "webDir": "www",
+  "server": {
+    "url": "https://willyhdv.github.io/clarte/",
+    "androidScheme": "https",
+    "allowNavigation": ["willyhdv.github.io"],
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

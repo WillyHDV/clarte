@@ -2,6 +2,7 @@
 import * as S from './store.js';
 import * as T from './tutor.js';
 import * as V from './speech.js';
+import * as N from './native.js';
 import { VERSION, BUILD_DATE } from './version.js';
 import { esc, I, toast } from './ui.js';
 
@@ -15,6 +16,7 @@ export function diagHtml() {
       <button class="btn" data-t="transc">${I('send')} Testar a transcrição (4 s)</button>
       <button class="btn" data-t="ia">${I('chat')} Testar a Clara</button>
       <button class="btn" data-t="vozes">${I('volume')} Comparar vozes (4 pedidos)</button>
+      ${N.isNative() ? `<button class="btn" data-t="nativo">${I('shield')} Testar o app Android (arquivos)</button>` : ''}
       <button class="btn primary" data-t="tudo">${I('activity')} Rodar tudo</button>
     </div>
     <p id="dstat" class="dstat" role="status" aria-live="polite" hidden></p>
@@ -37,6 +39,7 @@ export function initDiag(root, { cur }) {
   async function info() {
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     add('ok', 'Versão do app', `v${VERSION} (${BUILD_DATE})`);
+    add('ok', 'Modo de uso', N.isNative() ? `app Android (site dentro do app, ${N.platform()})` : 'site instalado ou navegador');
     add(standalone ? 'ok' : 'warn', 'Instalado como app', standalone ? 'sim' : 'não: abrindo pelo navegador (menu ⋮ → Instalar app)');
     add(navigator.onLine ? 'ok' : 'warn', 'Internet', navigator.onLine ? 'conectado' : 'sem conexão');
     add(navigator.serviceWorker && navigator.serviceWorker.controller ? 'ok' : 'warn', 'Modo offline (service worker)', navigator.serviceWorker && navigator.serviceWorker.controller ? 'ativo' : 'ainda não ativo (recarregue uma vez)');
@@ -122,7 +125,10 @@ export function initDiag(root, { cur }) {
     }
   }
 
-  const run = { voz, vozes, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
+  // recursos do app Android: a ponte nativa chegou ao site? onde dá para gravar backups?
+  async function nativo() { for (const l of await N.selfTest()) add(l.estado, l.nome, l.detalhe); }
+
+  const run = { voz, vozes, nativo, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
   let busy = false;
   root.querySelectorAll('[data-t]').forEach((b) => { b.onclick = async () => { if (busy) return; busy = true; root.querySelectorAll('[data-t]').forEach((x) => { x.disabled = true; }); try { await run[b.dataset.t](); } finally { busy = false; root.querySelectorAll('[data-t]').forEach((x) => { x.disabled = false; }); } }; });
   root.querySelector('#dcopy').onclick = async () => { const txt = `Clarté diagnóstico (${new Date().toLocaleString('pt-BR')})\n` + lines.join('\n'); try { await navigator.clipboard.writeText(txt); toast('Relatório copiado.'); } catch (e) { prompt('Copie o relatório:', txt); } };

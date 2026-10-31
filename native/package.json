@@ -1,0 +1,23 @@
+{
+  "name": "clarte-native",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Casca Android do Clarté (Capacitor): abre o site publicado dentro de um app instalável",
+  "scripts": {
+    "sync": "cap sync android",
+    "abrir": "cap open android",
+    "apk": "cd android && gradlew.bat assembleDebug"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}

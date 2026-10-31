@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## v18 — 31/10/2026
+
+Primeiro passo para o app Android.
+
+- **Casca Android** (pasta `native/`): um app que abre o Clarté publicado dentro de uma janela própria, instalado pelo Android Studio com o celular ligado ao PC. Ele atualiza junto com o site; o passo a passo está em `native/README.md`.
+- **Diagnóstico**: mostra o modo de uso (site instalado ou app Android) e, dentro do app, o botão "Testar o app Android (arquivos)", que confere se a ponte nativa chegou ao site e em quais lugares dá para gravar backups (Documentos, pasta do app, dados internos).
+
 ## v17 — 31/10/2026
 
 Proteção do progresso e uma correção visual, a partir do diagnóstico da v16 (que mostrou o armazenamento zerado depois de reinstalar o app).
