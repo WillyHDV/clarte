@@ -65,7 +65,7 @@ test('o validador não aceita lixo no lugar do pacote', () => {
 
 // ---- aulas: marcadores e HTML ----
 test('as aulas só usam marcadores {{…}} que o app sabe desenhar (os desconhecidos somem sem aviso)', () => {
-  const app = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8'); const fn = app.slice(app.indexOf('function renderLesson'));
+  const app = readFileSync(new URL('../js/screens/lesson.js', import.meta.url), 'utf8'); const fn = app.slice(app.indexOf('function renderLesson'));
   const exact = new Set([...fn.matchAll(/t === '(\w+)'/g)].map((m) => m[1]));
   const prefixed = new Set([...fn.matchAll(/t\.startsWith\('(\w+):'\)/g)].map((m) => m[1]));
   assert.ok(exact.size >= 6 && prefixed.has('say') && prefixed.has('phrases'), 'não consegui ler os marcadores do renderLesson');

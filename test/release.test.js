@@ -68,3 +68,18 @@ test('material do curso e livros não vão para o repositório', () => {
   const bad = files.filter((f) => /\.(pdf|epub|mp4|mov|mkv)$/i.test(f) || /^fontes\//.test(f));
   assert.deepEqual(bad, []);
 });
+
+test('arquitetura: telas não importam umas às outras; a base não conhece as telas', () => {
+  const imports = (f) => [...read(f).matchAll(/from '(\.[^']+)'/g)].map((m) => posix.join(posix.dirname(f), m[1]));
+  const tolerado = new Set(['js/screens/tutor.js>js/screens/practice.js']); // só a lista de acentos (ACC)
+  for (const f of jsFiles.filter((x) => x.startsWith('js/screens/'))) {
+    for (const alvo of imports(f)) {
+      if (alvo.startsWith('js/screens/')) assert.ok(tolerado.has(`${f}>${alvo}`), `${f} importa outra tela (${alvo}): leve o que é comum para js/core.js ou js/progress.js`);
+      assert.notEqual(alvo, 'js/app.js', `${f} importa app.js`);
+    }
+  }
+  for (const f of ['js/core.js', 'js/progress.js', 'js/update.js', 'js/data.js', 'js/exercises.js', 'js/store.js', 'js/tutor.js', 'js/speech.js']) {
+    for (const alvo of imports(f)) assert.ok(!alvo.startsWith('js/screens/') && alvo !== 'js/app.js', `${f} (base) importa ${alvo}`);
+  }
+  assert.ok(jsFiles.some((f) => f.startsWith('js/screens/')), 'não achei js/screens/');
+});

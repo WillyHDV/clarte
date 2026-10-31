@@ -62,8 +62,11 @@ A chave fica só no navegador de cada aparelho. Para limitar o estrago caso ela 
 ## Estrutura
 
 - `content/` — pacotes de conteúdo (aulas, vocabulário, verbos, profissões, frases); veja `content/README.md`
-- `js/data.js` — entrega o pacote ativo com os nomes usados pelo app
-- `js/exercises.js` — geradores de exercícios e correção
+- `js/app.js` — ponto de entrada: roteador (`#/...`), cliques globais e inicialização
+- `js/screens/` — uma tela por arquivo: `home` (início), `lesson` (unidade), `practice` (treino), `tutor` (Clara: chat, prova oral e ligação por voz), `settings` (ajustes), `tools` (folha e diagnóstico)
+- `js/core.js` — o que as telas compartilham (elemento raiz, fala, navegação, limpeza ao sair, provedor de IA); `js/progress.js` — domínio, trilha e plano do dia; `js/update.js` — aviso de versão nova
+- `js/data.js` — entrega o pacote ativo com os nomes usados pelo app; `js/exercises.js` — geradores de exercícios e correção
+- `js/store.js` — progresso, revisão e backup; `js/speech.js` — voz e microfone; `js/tutor.js` — professora de IA (prompts + chamadas aos provedores gratuitos)
 - `js/ui.js` — ícones, escape de HTML e avisos; `js/folha.js` e `js/diag.js` — folha de revisão e diagnóstico; `js/version.js` — versão
-- `js/app.js` — telas; `js/store.js` — progresso e revisão; `js/speech.js` — voz
-- `js/tutor.js` — professora de IA (prompts + chamadas aos provedores gratuitos)
+- Regra de dependência: as telas importam `core`, `progress` e os módulos de base, e só `app.js` conhece todas elas. A única exceção é `tutor`, que reaproveita a lista de acentos de `practice`.
+
