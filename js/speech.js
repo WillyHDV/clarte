@@ -2,6 +2,7 @@
 // Ouvir: voz francesa do aparelho (Edge no PC, Google no Android) ou, se não houver, voz natural do Gemini (grátis, com cache).
 import * as S from './store.js';
 import * as T from './tutor.js';
+import * as N from './native.js';
 
 let voices = [];
 const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
@@ -220,8 +221,10 @@ export async function createRecorder({ onLevel } = {}) {
 // ---------- falar sem o reconhecimento do navegador (ex.: dentro do app Android, cujo WebView não o tem) ----------
 // Grava a fala e a IA transcreve (Gemini ou Groq, o mesmo caminho da ligação com a Clara). Precisa de chave.
 export const canDictate = () => canRecord && !!T.transcribeProvider(S.get().settings || {});
+// Reconhecimento do navegador: no app Android o WebView até expõe a API, mas ela não é confiável ali; o app usa gravação + IA.
+export const browserRec = () => canListen && !N.isNative();
 // Dá para o aluno falar? Pelo reconhecimento do navegador ou por gravação + IA.
-export const canTalk = () => canListen || canDictate();
+export const canTalk = () => browserRec() || canDictate();
 
 // Mesma forma de listen(): { stop() } encerra a gravação e, depois da transcrição, chama onFinal(texto).
 // onPhase('rec' | 'think') avisa a tela; onError(código, mensagem) cobre microfone negado e falha da IA.

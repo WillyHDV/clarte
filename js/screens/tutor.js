@@ -1,7 +1,7 @@
 // Professora Clara: conversa em texto, prova oral simulada, dúvidas e ligação por voz.
 import { speakScore, itemLabel } from '../exercises.js';
 import * as V from '../speech.js';
-import { stopSpeaking, listen, dictate, canListen, canTalk, canRecord } from '../speech.js';
+import { stopSpeaking, listen, dictate, browserRec, canTalk, canRecord } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast } from '../ui.js';
@@ -91,7 +91,7 @@ async function tutorPage() {
     if (tm) tm.onclick = () => {
       if (busy) return; if (rec) { rec.stop(); return; }
       stopSpeaking(); tm.classList.add('on');
-      rec = (canListen ? listen : dictate)({ onInterim: (t) => { tin.value = t; }, onPhase: (p) => { tin.placeholder = p === 'think' ? 'Entendendo você…' : 'Gravando… toque de novo para enviar'; }, onFinal: (t) => { tm.classList.remove('on'); rec = null; if (t) submit(t); else tin.placeholder = 'Não ouvi nada, tente de novo'; }, onError: (er, msg) => { tm.classList.remove('on'); rec = null; tin.placeholder = er === 'not-allowed' ? 'Permita o microfone no navegador' : msg || 'Não ouvi nada, tente de novo'; } });
+      rec = (browserRec() ? listen : dictate)({ onInterim: (t) => { tin.value = t; }, onPhase: (p) => { tin.placeholder = p === 'think' ? 'Entendendo você…' : 'Gravando… toque de novo para enviar'; }, onFinal: (t) => { tm.classList.remove('on'); rec = null; if (t) submit(t); else tin.placeholder = 'Não ouvi nada, tente de novo'; }, onError: (er, msg) => { tm.classList.remove('on'); rec = null; tin.placeholder = er === 'not-allowed' ? 'Permita o microfone no navegador' : msg || 'Não ouvi nada, tente de novo'; } });
     };
   }
   function ensureOpening() {
@@ -169,7 +169,7 @@ async function tutorPage() {
     document.body.appendChild(el); document.body.classList.add('incall');
     const $ = (id) => el.querySelector('#' + id);
     // micMode 'web' (reserva escolhida no PC/Chrome) só vale onde o navegador tem reconhecimento; no app Android a gravação é o único caminho
-    const recOk = () => V.canRecord && (st().settings.micMode !== 'web' || !canListen) && !!T.transcribeProvider(st().settings);
+    const recOk = () => V.canRecord && (st().settings.micMode !== 'web' || !browserRec()) && !!T.transcribeProvider(st().settings);
     const micFace = (p) => (p === 'listen' ? `${I('send')}<span>Enviar</span>` : p === 'think' ? '<span class="dots3"><i></i><i></i><i></i></span>' : `${I('mic')}<span>Falar</span>`);
     const setPhase = (p, txt) => {
       phase = p; $('cav').dataset.state = p; $('cstatus').textContent = txt;
@@ -247,7 +247,7 @@ async function tutorPage() {
         userSaid(text);
       } catch (e) {
         if (!alive || e.name === 'AbortError') return;
-        fail(T.friendlyError(e), () => transcribeClip(lastClip), canListen ? { label: 'Usar o reconhecimento do navegador', fn: () => { S.setSetting('micMode', 'web'); toast('Usando o reconhecimento de voz do navegador.'); listenTurn(); } } : null);
+        fail(T.friendlyError(e), () => transcribeClip(lastClip), browserRec() ? { label: 'Usar o reconhecimento do navegador', fn: () => { S.setSetting('micMode', 'web'); toast('Usando o reconhecimento de voz do navegador.'); listenTurn(); } } : null);
       }
     }
 

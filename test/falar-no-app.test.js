@@ -5,6 +5,7 @@ import { test, before, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
+import { fakeCapacitor } from './support/capacitor.js';
 
 mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 1, 10) });
 
@@ -31,13 +32,18 @@ class FakeRecorder {
 w.MediaRecorder = globalThis.MediaRecorder = FakeRecorder;
 Object.defineProperty(w.navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } });
 
+// O WebView do app expõe o reconhecimento de fala do Chrome (webkitSpeechRecognition), mas dentro do app ele não deve ser usado: vale a gravação + IA.
+let reconhecimentosCriados = 0;
+w.webkitSpeechRecognition = class { constructor() { reconhecimentosCriados++; } start() {} stop() {} abort() {} };
+fakeCapacitor(); // e o Capacitor injetado pelo app Android
+
 const $ = (sel) => document.querySelector(sel);
 const tick = (ms = 25) => new Promise((r) => setTimeout(r, ms));
 async function goto(hash) { w.location.hash = hash; await tick(); }
 
 let S;
 before(async () => { await import('../js/app.js'); S = await import('../js/store.js'); await tick(); });
-after(() => { mock.timers.reset(); assert.deepEqual(problems, [], 'erros durante a navegação'); assert.equal(localStorage.getItem('fr_errlog'), null, 'o app registrou erros no fr_errlog'); });
+after(() => { mock.timers.reset(); delete globalThis.Capacitor; assert.equal(reconhecimentosCriados, 0, 'o app não pode abrir o reconhecimento do navegador'); assert.deepEqual(problems, [], 'erros durante a navegação'); assert.equal(localStorage.getItem('fr_errlog'), null, 'o app registrou erros no fr_errlog'); });
 
 test('sem chave de IA: Falar oferece "Pular" e a Clara explica o que falta (e não manda usar o Chrome)', async () => {
   await goto('#/practice/speakdrill');

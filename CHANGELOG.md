@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## v22 — 31/10/2026
+
+Correção do "Falar" no app Android, a partir do diagnóstico da v21.
+
+- **Falar no app**: o WebView do app expõe o reconhecimento de fala do Chrome, mas ele não é confiável ali. Dentro do app, os exercícios "Falar", o microfone do chat e a ligação com a Clara agora usam sempre a gravação + transcrição pelo Gemini (ou Groq). No Chrome e no site instalado nada muda.
+- **Diagnóstico**: a linha "Falar (exercícios e Clara)" diz qual caminho está valendo.
+- **Testes**: 235 → 237.
+
 ## v21 — 31/10/2026
 
 Lembrete diário de estudo no app Android.
