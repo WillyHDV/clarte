@@ -52,11 +52,11 @@ export const CRITERIA = [
   ["Aisance à l'oral", 'Fluência', 'fluidez', 'conversa por voz com a Clara'],
 ];
 export const STEPS = [
-  { id: 'learn', title: 'Aprender', icon: '📖', desc: 'Leia o resumo da unidade' },
-  { id: 'recognize', title: 'Reconhecer', icon: '👀', desc: 'Escolher e entender, com escuta', kinds: ['choice', 'listen-choice', 'match'], n: 8, pass: 80 },
-  { id: 'write', title: 'Escrever', icon: '✍️', desc: 'Escrever e montar frases', kinds: ['type', 'tiles', 'listen-type'], n: 8, pass: 80 },
-  { id: 'speak', title: 'Falar', icon: '🎤', desc: 'Repetir em voz alta', kinds: ['speak'], n: 5, pass: 70 },
-  { id: 'test', title: 'Teste da unidade', icon: '🏁', desc: 'Misto, para concluir a unidade', n: 12, pass: 80 },
+  { id: 'learn', title: 'Aprender', icon: '📖', ic: 'book', desc: 'Leia o resumo da unidade' },
+  { id: 'recognize', title: 'Reconhecer', icon: '👀', ic: 'eye', desc: 'Escolher e entender, com escuta', kinds: ['choice', 'listen-choice', 'match'], n: 8, pass: 80 },
+  { id: 'write', title: 'Escrever', icon: '✍️', ic: 'pencil', desc: 'Escrever e montar frases', kinds: ['type', 'tiles', 'listen-type'], n: 8, pass: 80 },
+  { id: 'speak', title: 'Falar', icon: '🎤', ic: 'microphone', desc: 'Repetir em voz alta', kinds: ['speak'], n: 5, pass: 70 },
+  { id: 'test', title: 'Teste da unidade', icon: '🏁', ic: 'trophy', desc: 'Misto, para concluir a unidade', n: 12, pass: 80 },
 ];
 export const activeSteps = () => STEPS.filter((s) => s.id !== 'speak' || canTalk());
 export const stepDone = (uid, sid) => { const p = S.pathOf(uid); return sid === 'learn' ? !!p.learned : !!(p[sid] && p[sid].done); };

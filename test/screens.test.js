@@ -60,10 +60,12 @@ let S;
 before(async () => { await import('../js/app.js'); S = await import('../js/store.js'); await tick(); });
 after(() => { mock.timers.reset(); assert.deepEqual(problems, [], 'erros durante a navegação'); assert.equal(localStorage.getItem('fr_errlog'), null, 'o app registrou erros no fr_errlog'); });
 
-test('início: prontidão, plano do dia e as 8 unidades', () => {
+test('Trilha: cartão "Continuar" e as 8 unidades em caminho, sem o que mudou de lugar', () => {
   const t = text();
-  assert.match(t, /Prontidão para a avaliação/);
+  assert.match($('.continuar').textContent, /Continuar de onde parou/); assert.ok($('#continuar').dataset.go, 'o botão Continuar leva a algum lugar');
   for (const u of UNITS) assert.ok(t.includes(u.title), `unidade ausente no início: ${u.title}`);
+  assert.equal($$('.caminho .passo').length, UNITS.length); assert.equal($$('.passo.atual').length, 1, 'uma unidade é a atual');
+  assert.doesNotMatch(t, /Prontidão para a avaliação|Plano de hoje|Reta final/, 'prontidão vai para Evolução; plano e reta final, para Praticar');
   assert.equal($$('nav.tabbar a').length, 3);
   assert.deepEqual($$('nav.tabbar a').map((a) => a.dataset.p), ['home', 'tutor', 'praticar']);
   assert.ok($$('nav.tabbar a.on').some((a) => a.dataset.p === 'home'));
@@ -110,7 +112,7 @@ test('fim do treino mostra o ganho de domínio e volta ao início', async () => 
   await drive('#/practice/comm');
   assert.match($('.end').textContent, /Domínio da unidade/);
   $('.end [data-go="#/"]').click(); await tick();
-  assert.match(text(), /Prontidão para a avaliação/);
+  assert.match(text(), /Continuar de onde parou/);
 });
 
 test('Clara sem chave pede a chave; o link de configuração salva e abre o chat', async () => {
@@ -180,21 +182,23 @@ test('diagnóstico: botões e informações do aparelho', async () => {
 });
 
 test('rota desconhecida cai no início e nenhuma tela some o menu', async () => {
-  await goto('#/nao-existe'); assert.match(text(), /Prontidão para a avaliação/);
+  await goto('#/nao-existe'); assert.match(text(), /Continuar de onde parou/);
   assert.equal($$('nav.tabbar a').length, 3);
 });
 
 async function inicioEm(data) { mock.timers.setTime(data.getTime()); await goto('#/settings'); await goto('#/'); return text(); }
 
-test('início segue a próxima avaliação: contagem, reta final e folha', async () => {
+// a Trilha mostra a contagem; a reta final (simular a prova e a folha de revisão) aparece em Praticar
+async function praticarEm(data) { mock.timers.setTime(data.getTime()); await goto('#/settings'); await goto('#/praticar'); return text(); }
+test('a Trilha segue a próxima avaliação e Praticar põe a reta final em evidência', async () => {
   let t = await inicioEm(DIA(11, 1));
-  assert.match(t, /Évaluation 1 em 3 dias \(04\/11\)/); assert.match(t, /Reta final · Évaluation 1/); assert.ok($('[data-go="#/folha"]'), 'folha de revisão da avaliação 1');
+  assert.match(t, /Évaluation 1 em 3 dias \(04\/11\)/);
+  t = await praticarEm(DIA(11, 1)); assert.match(t, /Simular a prova oral.*Évaluation 1/); assert.ok($('[data-go="#/folha"]'), 'folha de revisão da avaliação 1'); assert.ok($('[data-go="#/tutor/exam"]'));
   assert.match(await inicioEm(DIA(11, 3)), /Évaluation 1 é amanhã/);
   assert.match(await inicioEm(DIA(11, 4, 20)), /Hoje é a Évaluation 1/);
-  t = await inicioEm(DIA(11, 6));
-  assert.match(t, /Évaluation 2 em 26 dias \(02\/12\)/); assert.doesNotMatch(t, /Reta final/, 'longe da avaliação 2 a reta final some');
-  t = await inicioEm(DIA(11, 25));
-  assert.match(t, /Reta final · Évaluation 2/); assert.ok(!$('[data-go="#/folha"]'), 'a avaliação 2 ainda não tem folha');
+  assert.match(await inicioEm(DIA(11, 6)), /Évaluation 2 em 26 dias \(02\/12\)/);
+  t = await praticarEm(DIA(11, 6)); assert.doesNotMatch(t, /Simular a prova oral/, 'longe da avaliação 2 a reta final some');
+  t = await praticarEm(DIA(11, 25)); assert.match(t, /Simular a prova oral.*Évaluation 2/); assert.ok(!$('[data-go="#/folha"]'), 'a avaliação 2 ainda não tem folha');
   assert.match(await inicioEm(DIA(12, 10)), /Nenhuma avaliação marcada/);
   noBroken('início depois de todas as avaliações');
   await inicioEm(DIA(11, 1));
@@ -273,10 +277,11 @@ test('Evolução: com uma só simulação, mostra a dica em vez de um gráfico d
   assert.equal($$('figure.chart').length, 2); assert.match(text(), /Faça mais uma simulação/);
 });
 
-test('início leva à Evolução e a Evolução volta ao início', async () => {
-  await goto('#/settings'); await goto('#/'); $('[data-go="#/history"]').click(); await tick();
+test('o Perfil leva à Evolução (com a prontidão e os critérios) e a Evolução volta ao Perfil', async () => {
+  await goto('#/settings'); await goto('#/perfil'); $('[data-go="#/history"]').click(); await tick();
   assert.match(w.location.hash, /#\/history/); assert.ok($$('.tile').length === 4);
-  $('.top .back').click(); await tick(); assert.match(text(), /Prontidão para a avaliação/);
+  assert.match($('.ready').textContent, /Prontidão para a avaliação/); assert.equal($$('.crit').length, 6, 'os 6 critérios da prova oral');
+  $('.top .back').click(); await tick(); assert.match(w.location.hash, /#\/perfil/);
 });
 
 // ---- associar pares na tela ----
@@ -420,7 +425,7 @@ test('lembrete de backup: aparece sem backup ou com 7+ dias, some com backup rec
   mock.timers.setTime(DIA(11, 1).getTime());
   const inicio = async () => { await goto('#/settings'); await goto('#/'); return $$('.nudge').map((n) => n.textContent).join(' | '); };
   S.resetAll(); S.get().xp = 30; assert.equal(await inicio(), '', 'pouco progresso: sem aviso');
-  S.get().xp = 200; assert.match(await inicio(), /ainda não fez backup.*reinstalado.*dados do navegador/);
+  S.get().xp = 200; assert.match(await inicio(), /ainda não fez backup.*reinstalado/);
   S.get().lastBackup = new Date(DIA(10, 23).getTime()).toISOString(); assert.match(await inicio(), /Faz 9 dias desde o último backup/);
   S.get().lastBackup = new Date(DIA(10, 30).getTime()).toISOString(); assert.equal(await inicio(), '', 'backup de 2 dias atrás: sem aviso');
   assert.ok($('.nudge') === null);
@@ -519,4 +524,73 @@ test('Perfil: dados, atalhos para Evolução e Ajustes, e troca de avatar que ap
   $('.apphead .avatar-btn').click(); await tick(); assert.equal(w.location.hash, '#/perfil', 'o avatar abre o perfil');
   $('#pvoltar').click(); await tick(); assert.equal(w.location.hash, '#/'); S.setSetting('avatar', 'initial');
   noBroken('perfil');
+});
+
+// ---------- fase 2: Trilha em caminho e Unidade em abas ----------
+test('Trilha: o botão Continuar leva ao próximo degrau da unidade atual e o caminho mostra feita, atual e depois', async () => {
+  S.resetAll(); await goto('#/settings'); await goto('#/');
+  assert.match($('#ctitulo').textContent, /L'alphabet.*Aprender/s); assert.equal($('#continuar').dataset.go, '#/unit/alphabet', 'primeiro degrau: ler a lição');
+  S.setLearned('alphabet'); await goto('#/settings'); await goto('#/');
+  assert.match($('#ctitulo').textContent, /Reconhecer/); assert.equal($('#continuar').dataset.go, '#/step/alphabet/recognize');
+  S.get().path = { alphabet: { learned: true, test: { done: true, best: 90 } }, comm: { learned: true, test: { done: true, best: 85 } } };
+  await goto('#/settings'); await goto('#/');
+  const estados = $$('.caminho .passo').map((p) => ['feita', 'atual', 'depois'].find((e) => p.classList.contains(e)));
+  assert.deepEqual(estados, ['feita', 'feita', 'atual', 'depois', 'depois', 'depois', 'depois', 'depois']);
+  assert.ok($('.passo.feita .selo.ok svg.i'), 'concluída tem o selo de check'); assert.ok($('.passo.depois .selo svg.i'), 'as próximas têm cadeado');
+  assert.equal($$('.passo.depois[data-lock]').length, 5, 'tocar numa unidade adiantada pergunta antes');
+  assert.match($('.passo.atual').textContent, /você está aqui/); assert.match($('#ctitulo').textContent, /Se présenter/);
+  S.get().path = Object.fromEntries(UNITS.map((u) => [u.id, { learned: true, test: { done: true, best: 95 } }])); await goto('#/settings'); await goto('#/');
+  assert.match($('#ctitulo').textContent, /Tudo concluído/); assert.equal($('#continuar').dataset.go, '#/practice/mix'); assert.equal($$('.passo.feita').length, 8);
+  S.resetAll(); noBroken('trilha');
+});
+
+test('ligarNos: desenha o trecho percorrido e o que falta quando a tela tem medidas', async () => {
+  const H = await import('../js/screens/home.js');
+  assert.deepEqual(H.ONDA, [0, 30, 52, 30]); assert.deepEqual([H.estadoDe(0, true, 1), H.estadoDe(1, false, 1), H.estadoDe(2, false, 1)], ['feita', 'atual', 'depois']);
+  const caixa = document.createElement('div'); caixa.className = 'caminho'; document.body.appendChild(caixa);
+  const medir = (el, x, y, larg, alt) => { el.getBoundingClientRect = () => ({ left: x, top: y, width: larg, height: alt, right: x + larg, bottom: y + alt }); };
+  medir(caixa, 0, 0, 400, 400);
+  ['feita', 'atual', 'depois'].forEach((e, i) => { const p = document.createElement('div'); p.className = `passo ${e}`; const n = document.createElement('span'); n.className = 'no'; medir(n, 20 + i * 30, 20 + i * 120, 72, 72); p.appendChild(n); caixa.appendChild(p); });
+  H.ligarNos(caixa); const svg = caixa.querySelector('svg.liga');
+  assert.ok(svg, 'a linha foi desenhada'); assert.equal(svg.getAttribute('viewBox'), '0 0 400 400');
+  assert.match(svg.querySelector('.ok').getAttribute('d'), /^M 56 56 C/); assert.match(svg.querySelector('.falta').getAttribute('d'), /^M 86 176 C/, 'o que falta começa na unidade atual');
+  H.ligarNos(caixa); assert.equal(caixa.querySelectorAll('svg.liga').length, 1, 'redesenhar não duplica');
+  const vazia = document.createElement('div'); document.body.appendChild(vazia); H.ligarNos(vazia); assert.equal(vazia.querySelector('svg'), null, 'sem medidas não desenha');
+  caixa.remove(); vazia.remove();
+});
+
+test('Unidade: abas Trilha, Aula e Frases, com o botão de continuar fixo e a aula em cartões que abrem', async () => {
+  S.resetAll(); await goto('#/settings'); await goto('#/unit/presenter');
+  assert.deepEqual($$('[role="tab"]').map((b) => b.textContent), ['Trilha', 'Aula', 'Frases']);
+  assert.equal($('#painel-trilha').hidden, false); assert.equal($('#painel-aula').hidden, true); assert.equal($('#painel-frases').hidden, true);
+  assert.equal($('#aba-trilha').getAttribute('aria-selected'), 'true'); assert.ok($('.apphead .dom'), 'o domínio da unidade fica no cabeçalho');
+  assert.ok($$('[data-step]').length >= 4 && $$('[data-step]').every((b) => b.querySelector('.si svg.i')), 'degraus com ícone de linha');
+  assert.match($('#cont').textContent, /Começar: Aprender/); assert.ok($('.cta-fixo #cont'));
+  $('#aba-aula').click(); assert.equal($('#painel-aula').hidden, false); assert.equal($('#painel-trilha').hidden, true); assert.equal($('#aba-aula').getAttribute('aria-selected'), 'true');
+  const cartoes = $$('#painel-aula details.acc'); assert.equal(cartoes.length, 4, 'a aula tem 4 títulos = 4 cartões'); assert.ok(cartoes[0].open && cartoes.slice(1).every((c) => !c.open), 'só o primeiro abre aberto');
+  assert.ok(cartoes.every((c) => !/[{}<]/.test(c.querySelector('summary').textContent)), 'título limpo, sem marcador'); assert.ok($('#painel-aula [data-say]'), 'a aula tem botões de áudio');
+  $('#learned').click(); await tick(); assert.equal($('#painel-aula').hidden, false, 'continua na aba Aula depois de marcar como lida'); assert.match($('#learned').textContent, /Lição lida/);
+  $('#aba-trilha').click(); assert.match($('#cont').textContent, /Continuar: Reconhecer/); assert.ok($('.step.done[data-step="learn"]'));
+  $('[data-step="learn"]').click(); assert.equal($('#painel-aula').hidden, false, 'tocar em Aprender abre a aula');
+  $('#aba-frases').click(); assert.ok($$('.frases li').length >= 5); assert.ok($$('.frases .say.circ svg.i').length >= 5);
+  S.resetAll(); noBroken('unidade');
+});
+
+test('Frases e aula em cartões: lista por unidade sem repetição, e unidades sem frases não ganham a aba', async () => {
+  const L = await import('../js/screens/lesson.js');
+  for (const u of UNITS) {
+    const fr = L.fraseList(u.id); assert.ok(fr.length <= 40); assert.equal(new Set(fr.map((p) => p.fr)).size, fr.length, `${u.id}: frases repetidas`);
+    const { intro, cartoes } = L.aulaCartoes(u.id); assert.ok(cartoes.length >= 1, `${u.id}: sem cartões`); assert.ok(cartoes.every((c) => c.titulo && c.corpo.trim()), `${u.id}: cartão vazio`);
+    assert.equal(typeof intro, 'string');
+  }
+  assert.ok(L.fraseList('comm').length >= 5 && L.fraseList('presenter').some((p) => p.pt), 'frases de tema trazem a tradução');
+  assert.equal(L.aulaCartoes('verbes').cartoes[0].titulo.includes('{{'), false); assert.match(L.aulaCartoes('verbes').cartoes[0].titulo, /être/);
+  await goto('#/settings'); await goto('#/unit/negation'); assert.equal($('#aba-frases') === null, L.fraseList('negation').length === 0);
+});
+
+test('Praticar traz o plano de hoje com ícones de linha', async () => {
+  S.resetAll(); await goto('#/settings'); await goto('#/praticar');
+  assert.match($('.plan').textContent, /Plano de hoje.*de \d/s); assert.ok($$('.ptask').length >= 2, 'foco e conversa com a Clara, no mínimo'); assert.equal($$('.ptask .tt svg.i').length, $$('.ptask').length, 'sem emoji nas tarefas');
+  assert.ok($$('.ptask').every((t) => t.dataset.go.startsWith('#/')));
+  noBroken('praticar com plano');
 });

@@ -12,6 +12,14 @@ Reforma completa do visual, só para celular, em fases na linha de trabalho `dev
 - **Peças reutilizáveis**: linha de lista que abre algo, sanfona, interruptor e cartão do Reforço.
 - **Testes**: 268 → 282 (contraste, tamanho de texto, ícones, avatares, barra, Praticar e Perfil).
 
+Fase 2 (Trilha e Unidade) pronta:
+
+- **Trilha**: o topo agora é o cartão "Continuar de onde parou" (a unidade e o degrau certos, a contagem da avaliação, a meta do dia e um botão grande). Abaixo, as 8 unidades num **caminho em zigue-zague**: concluídas em verde com selo de check, a atual maior e destacada, as próximas com cadeado e linha pontilhada, cada uma com o anel do seu domínio. A tela caiu de cerca de 3.000 px para cerca de 1.400 px.
+- **O que mudou de lugar**: o plano do dia e a reta final (simular a prova oral, folha de revisão) foram para **Praticar**; a prontidão e os 6 critérios da prova, para **Evolução**, que agora se abre pelo Perfil.
+- **Unidade**: três abas (Trilha, Aula e Frases), cabeçalho com o domínio e botão "Continuar" fixo embaixo (a página caiu de 3.470 px para cerca de 950 px). A **aula virou cartões que abrem**, um por título, com o primeiro aberto, e os botões de áudio usam ícone de linha. A aba **Frases** lista as frases da unidade, com tradução quando existe, para ouvir com um toque.
+- **Degraus** da unidade e **tarefas do plano** com ícones de linha, sem emoji.
+- **Testes**: 282 → 287.
+
 ## v25 — 31/10/2026
 
 Cenários da Clara: missões de conversa por voz com objetivos.

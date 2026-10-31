@@ -40,6 +40,9 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Sanfona (`.acc`) | aulas e seções longas | usa `<details>`, sem JavaScript |
 | Interruptor (`.switch`) | Ajustes | área de toque de 52×32 px |
 | Cartão do Reforço (`.reforco`) | Praticar | anel com o contador e botão branco dentro |
+| Cartão Continuar (`.continuar`) | Trilha | unidade e degrau certos, contagem da avaliação, meta do dia |
+| Caminho (`.caminho`, `.passo`) | Trilha | nós em zigue-zague (`ONDA`), anel de domínio, selo de check ou cadeado; a linha é desenhada por `ligarNos` |
+| Abas (`.abas`) e botão fixo (`.cta-fixo`) | Unidade | abas Trilha, Aula e Frases; o botão fica acima da barra de baixo |
 
 ## Navegação
 
@@ -48,7 +51,7 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 ## Fases
 
 1. **Base**: tokens, teste de contraste, ícones, componentes, nova barra, cabeçalho com avatar, Praticar e Perfil (feita).
-2. Trilha (cartão "Continuar" e trilha em caminho) e Unidade (abas Trilha, Aula e Frases; aula em cartões que abrem).
+2. **Trilha** (cartão "Continuar" e caminho em zigue-zague) e **Unidade** (abas Trilha, Aula e Frases; aula em cartões que abrem; botão fixo): feita. O plano do dia e a reta final foram para Praticar; a prontidão e os critérios, para Evolução.
 3. Exercícios (feedback em painel que sobe) e chamada alinhada ao novo visual.
 4. Clara (abas, cenários e chat), Evolução e Ajustes por subtelas.
 5. Polimento (animações leves, vibração no app, modo escuro conferido) e publicação de tudo junto.
