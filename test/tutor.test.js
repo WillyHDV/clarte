@@ -1,4 +1,5 @@
-import { test, afterEach } from 'node:test';
+import './support/storage.js';
+import { test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from '../js/tutor.js';
 
@@ -146,4 +147,61 @@ test('qual provedor transcreve: o escolhido se puder, senão o que tiver chave',
   assert.equal(T.transcribeProvider({ provider: 'gemini', keys: { gemini: 'a' } }), 'gemini');
   assert.equal(T.transcribeProvider({ provider: 'mistral', keys: { mistral: 'a', groq: 'b' } }), 'groq');
   assert.equal(T.transcribeProvider({ provider: 'mistral', keys: { mistral: 'a' } }), null);
+});
+
+// ---- por que o modelo principal falhou, e a reserva lembrada entre aberturas ----
+test('o resultado diz quais modelos falharam e por quê', async () => {
+  fakeGemini({ 'g-m': () => fail(503, 'The model is overloaded. Please try again later.'), 'gemini-3.1-flash-lite': () => fail(429, 'quota'), 'gemini-3.5-flash-lite': () => sseGemini('ok') });
+  const r = await chatGemini('g-m');
+  assert.equal(r.model, 'gemini-3.5-flash-lite');
+  assert.deepEqual(r.skipped.map((s) => [s.model, s.status]), [['g-m', 503], ['gemini-3.1-flash-lite', 429]]);
+  assert.equal(T.skippedText(r.skipped), 'g-m (HTTP 503 · The model is overloaded. Please try again later.); gemini-3.1-flash-lite (HTTP 429 · quota)');
+  assert.equal(T.skippedText([]), ''); assert.equal(T.skippedText(undefined), '');
+  assert.equal(T.skippedText([{ model: 'x', status: 408, message: 'timeout' }]), 'x (HTTP 408 · tempo esgotado)');
+  assert.equal(T.skippedText([{ model: 'y' }]), 'y (sem resposta)');
+  const direto = await (async () => { fakeGemini({ 'g-n': () => sseGemini('ok') }); return chatGemini('g-n'); })();
+  assert.deepEqual(direto.skipped, [], 'sem falhas, lista vazia');
+});
+
+test('a reserva fica lembrada ao fechar e abrir o app (localStorage), por 30 minutos', async () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 1, 10) });
+  try {
+    fakeGemini({ 'g-p': () => fail(503, 'overloaded'), 'gemini-3.5-flash-lite': () => sseGemini('ok') });
+    await chatGemini('g-p');
+    assert.match(localStorage.getItem('fr_model_pref'), /"from":"g-p".*"model":"gemini-3.5-flash-lite"/);
+    // "reabre o app": módulo novo, memória vazia, só o localStorage sobrou
+    const T2 = await import(`../js/tutor.js?reabriu=${Date.now()}`);
+    let calls = fakeGemini({ 'g-p': () => sseGemini('principal'), 'gemini-3.5-flash-lite': () => sseGemini('reserva') });
+    const r = await T2.chat({ provider: 'gemini', apiKey: 'k', model: 'g-p', mode: 'duvidas', messages: msgs });
+    assert.equal(r.model, 'gemini-3.5-flash-lite'); assert.deepEqual(calls.map((c) => c.model), ['gemini-3.5-flash-lite'], 'nem tenta o principal que falhou');
+    // passados 31 minutos, volta a tentar o principal (e, funcionando, esquece a reserva)
+    mock.timers.setTime(new Date(2026, 10, 1, 10, 31).getTime());
+    calls = fakeGemini({ 'g-p': () => sseGemini('principal'), 'gemini-3.5-flash-lite': () => sseGemini('reserva') });
+    const T3 = await import(`../js/tutor.js?depois=${Date.now()}`);
+    const r2 = await T3.chat({ provider: 'gemini', apiKey: 'k', model: 'g-p', mode: 'duvidas', messages: msgs });
+    assert.equal(r2.model, 'g-p'); assert.deepEqual(calls.map((c) => c.model), ['g-p']);
+    assert.ok(!/"gemini"/.test(localStorage.getItem('fr_model_pref')), 'a preferência some quando o principal volta a funcionar');
+  } finally { mock.timers.reset(); }
+});
+
+test('se a reserva lembrada também falhar, o principal é tentado em seguida', async () => {
+  fakeGemini({ 'g-q': () => fail(503, 'x'), 'gemini-3.5-flash-lite': () => sseGemini('ok') }); await chatGemini('g-q'); // lembra 3.5
+  const calls = fakeGemini({ 'g-q': () => sseGemini('principal'), 'gemini-3.5-flash-lite': () => fail(500, 'caiu') });
+  const r = await chatGemini('g-q');
+  assert.equal(r.model, 'g-q'); assert.deepEqual(calls.map((c) => c.model), ['gemini-3.5-flash-lite', 'g-q']);
+  assert.equal(r.skipped[0].model, 'gemini-3.5-flash-lite');
+});
+
+test('armazenamento ilegível não derruba a reserva', async () => {
+  localStorage.setItem('fr_model_pref', '{quebrado');
+  fakeGemini({ 'g-r': () => fail(503, 'x'), 'gemini-3.5-flash-lite': () => sseGemini('ok') });
+  assert.equal((await chatGemini('g-r')).model, 'gemini-3.5-flash-lite');
+});
+
+test('transcrição: a dica dos nomes segue no pedido e o motivo das falhas fica disponível', async () => {
+  const blob = new Blob([new Uint8Array(500)], { type: 'audio/webm' });
+  const calls = fakeGemini({ 't-z': () => fail(503, 'sobrecarga'), 'gemini-3.1-flash-lite': () => fail(500, 'x'), 'gemini-3.5-flash-lite': () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'Bonjour, je m’appelle Willy.' }] } }] }), { status: 200 }) });
+  assert.equal(await T.transcribe({ provider: 'gemini', apiKey: 'k', model: 't-z', blob }), 'Bonjour, je m’appelle Willy.');
+  assert.match(calls.at(-1).body.contents[0].parts[0].text, /Willy \(o aluno\), Clara \(a professora\), Maceió/);
+  assert.equal(T.transcribe.lastSkipped[0].status, 503); assert.equal(T.transcribe.lastModel, 'gemini-3.5-flash-lite');
 });

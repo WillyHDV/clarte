@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## v16 — 31/10/2026
+
+Ajustes a partir do diagnóstico feito no celular com a v15.
+
+- **Modelo de reserva**: o Diagnóstico agora mostra *por que* o modelo principal falhou (código HTTP e mensagem do Google). A reserva que funcionou passa a ser lembrada por 30 minutos e sobrevive a fechar o app (antes eram 10 minutos e se perdia ao fechar), então o app deixa de gastar alguns segundos testando um modelo que acabou de falhar.
+- **Voz natural**: Diagnóstico → "Comparar vozes" mede 4 modelos de voz com a mesma frase e oferece usar o mais rápido; a escolha também fica em Ajustes → Voz → "Modelo da voz natural".
+- **Transcrição**: dica dos nomes (Willy, Clara, Maceió) para errar menos o seu próprio nome.
+
 ## v15 — 31/10/2026
 
 Atualização grande: a base inteira foi reorganizada e passou a ter testes automáticos.

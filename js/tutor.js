@@ -16,8 +16,10 @@ export const PROVIDERS = {
   },
 };
 
+const ALUNO = 'Willy';
+
 const BASE = `Tu t'appelles Clara. Tu es une femme, française, et tu es professeure de français langue étrangère (niveau A1, « Français basique 1 »). Quand tu parles de toi, accorde toujours au féminin (je suis contente, ravie, professeure, française) et présente-toi comme « Clara ».
-Ton élève est brésilien (portugais du Brésil), s'appelle Willy et prépare la première évaluation orale.
+Ton élève est brésilien (portugais du Brésil), s'appelle ${ALUNO} et prépare la première évaluation orale.
 Contenus du cours (reste dans ce cadre):
 1. L'alphabet et épeler un prénom ; 2. Expressions pour régler des problèmes de communication (Je ne sais pas, Je ne comprends pas, Répétez s'il vous plaît, Comment ça se dit… en portugais/français ?) ;
 3. Se présenter : prénom, métier, nationalité, lieu d'habitation, langues parlées ; 4. Saluer et prendre congé (tu / vous) ;
@@ -47,7 +49,7 @@ Depois, uma linha para cada critério, com nota de 0 a 5 e uma frase: Compréhen
 Au tout début (premier message), salue l'élève en français avec « vous » et pose la première question.`,
   voice: `${BASE}
 
-MODE : CONVERSATION PAR VOIX (comme un appel téléphonique). Ta mission : apprendre à Willy à PARLER et à bien PRONONCER. Tout ce que tu écris avant la ligne --- est lu à voix haute par une synthèse vocale.
+MODE : CONVERSATION PAR VOIX (comme un appel téléphonique). Ta mission : apprendre à ${ALUNO} à PARLER et à bien PRONONCER. Tout ce que tu écris avant la ligne --- est lu à voix haute par une synthèse vocale.
 Partie parlée (avant ---) :
 - 1 à 3 phrases très courtes (12 mots maximum chacune), rythme lent, UNE seule question à la fin. Pas d'emoji, pas de markdown, pas de parenthèses, pas de listes, aucun mot en portugais.
 - Utilise « tu ». Varie les sujets du cours : se présenter, nationalité, ville, métier, langues, poser des questions, négation, épeler un prénom.
@@ -62,7 +64,7 @@ Partie parlée (avant ---) :
 Après la partie parlée, seulement si tu as corrigé ou demandé de répéter, ajoute une ligne contenant exactement --- puis une courte note EN PORTUGAIS (1 à 2 phrases) : l'erreur et la règle. Cette note est seulement affichée, jamais lue.
 Quand tu demandes de répéter une phrase, ajoute à la toute fin une ligne qui commence par >> suivie de la phrase exacte à répéter, sans guillemets. Exemple : >> J'habite à Maceió.
 Si l'élève ne fait pas d'erreur et ne doit rien répéter, n'écris ni --- ni >>.`,
-  duvidas: `Você é a professora Clara, uma mulher francesa, professora de francês para brasileiros, nível A1 (Français basique 1). Fale de si sempre no feminino. O aluno se chama Willy e está se preparando para a primeira avaliação oral.
+  duvidas: `Você é a professora Clara, uma mulher francesa, professora de francês para brasileiros, nível A1 (Français basique 1). Fale de si sempre no feminino. O aluno se chama ${ALUNO} e está se preparando para a primeira avaliação oral.
 Responda sempre em PORTUGUÊS do Brasil, de forma curta e clara, com exemplos em francês. Dê no máximo 1 exemplo extra e 1 mini-exercício de verificação ao final.
 Conteúdo do curso: alfabeto, expressões de comunicação, apresentação, saudações/despedidas (tu × vous), être e verbos em -er no presente, nacionalidades e profissões (masculino/feminino), interrogação (entonação, est-ce que, inversão, où/qui/comment/pourquoi), negação ne…pas.
 Se a pergunta fugir muito do nível A1, responda de forma simples e diga que será visto mais adiante.`,
@@ -110,20 +112,44 @@ const FALLBACKS = {
   groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
   mistral: ['mistral-small-latest', 'ministral-8b-latest'],
 };
-const MAX_TRIES = 4; const STICKY_MS = 10 * 60 * 1000; const sticky = {};
+const MAX_TRIES = 4; const STICKY_MS = 30 * 60 * 1000; const STICKY_KEY = 'fr_model_pref';
+// A reserva que funcionou fica de preferência por 30 min e sobrevive a fechar o app (localStorage). Sem armazenamento, só em memória.
+const memSticky = {};
+function stickyRead() { try { return JSON.parse(globalThis.localStorage.getItem(STICKY_KEY)) || {}; } catch (e) { return { ...memSticky }; } }
+function stickyWrite(all) {
+  const novo = { ...all }; // cópia: `all` pode ser a própria memória
+  for (const k of Object.keys(memSticky)) delete memSticky[k];
+  Object.assign(memSticky, novo);
+  try { globalThis.localStorage.setItem(STICKY_KEY, JSON.stringify(all)); } catch (e) { /* sem armazenamento */ }
+}
 const transient = (e) => !!e && (e.status === 404 || e.status === 408 || e.status === 429 || e.status >= 500);
 
 function modelChain(provider, chosen) {
-  const s = sticky[provider]; const first = s && s.until > Date.now() && s.from === chosen ? [s.model] : [];
+  const s = stickyRead()[provider]; const first = s && s.until > Date.now() && s.from === chosen ? [s.model] : [];
   return [...new Set([...first, chosen, ...(FALLBACKS[provider] || [])])].slice(0, MAX_TRIES);
 }
-const remember = (provider, chosen, used) => { if (used !== chosen) sticky[provider] = { from: chosen, model: used, until: Date.now() + STICKY_MS }; else delete sticky[provider]; };
+function remember(provider, chosen, used) {
+  const all = stickyRead();
+  if (used !== chosen) all[provider] = { from: chosen, model: used, until: Date.now() + STICKY_MS }; else delete all[provider];
+  stickyWrite(all);
+}
+
+// reserva de modelo ainda lembrada (ou null), para o Diagnóstico mostrar
+export function stickyInfo(provider) { const s = stickyRead()[provider]; return s && s.until > Date.now() ? { ...s } : null; }
+
+// "modelo A (HTTP 503 · mensagem); modelo B (...)": o motivo de cada modelo que falhou antes de um responder
+export function skippedText(list) {
+  return (list || []).map((s) => {
+    const msg = s.message && s.message !== 'timeout' ? String(s.message).replace(/\s+/g, ' ').slice(0, 90) : (s.status === 408 ? 'tempo esgotado' : '');
+    return `${s.model} (${[s.status ? `HTTP ${s.status}` : 'sem resposta', msg].filter(Boolean).join(' · ')})`;
+  }).join('; ');
+}
 
 // roda fn(model, ms) em cada modelo da lista até um funcionar; só segue adiante se nada foi entregue ainda
 async function withFallback(provider, chosen, signal, fn, wasDelivered = () => false) {
   const chain = modelChain(provider, chosen); const errs = [];
   for (let i = 0; i < chain.length; i++) {
-    try { const r = await fn(chain[i], i ? 15000 : 25000); remember(provider, chosen, chain[i]); return { ...r, model: chain[i] }; } catch (e) {
+    try { const r = await fn(chain[i], i ? 15000 : 25000); remember(provider, chosen, chain[i]); return { ...r, model: chain[i], skipped: errs.map(({ model, status, message }) => ({ model, status, message })) }; } catch (e) {
       if (wasDelivered() || !transient(e) || (signal && signal.aborted)) throw e;
       e.model = chain[i]; errs.push(e);
     }
@@ -221,7 +247,7 @@ async function toWav16k(blob) {
   return new Blob([h, pcm], { type: 'audio/wav' });
 }
 
-const TRANSCRIBE_PROMPT = 'Transcreva exatamente o que a pessoa disse em francês. Ela é uma aprendiz brasileira iniciante e pode fazer pausas, hesitar e cometer erros de gramática: NÃO corrija nada, escreva as palavras como foram ditas. Se houver palavras em português, mantenha-as. Responda SOMENTE com a transcrição, sem aspas e sem comentários. Se não houver fala compreensível, responda exatamente: <vazio>';
+const TRANSCRIBE_PROMPT = `Transcreva exatamente o que a pessoa disse em francês. Ela é uma aprendiz brasileira iniciante e pode fazer pausas, hesitar e cometer erros de gramática: NÃO corrija nada, escreva as palavras como foram ditas. Se houver palavras em português, mantenha-as. Responda SOMENTE com a transcrição, sem aspas e sem comentários. Nomes que podem aparecer: ${ALUNO} (o aluno), Clara (a professora), Maceió. Se não houver fala compreensível, responda exatamente: <vazio>`;
 
 const cleanTranscript = (text) => { const t = text.replace(/^["“«\s]+|["”»\s]+$/g, '').trim(); return /^<?\s*vazio\s*>?\.?$/i.test(t) ? '' : t; };
 
@@ -247,7 +273,7 @@ export async function transcribe({ provider, apiKey, model, blob, signal: outer 
     await ensureOk(res); const j = await res.json();
     return { text: ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('') };
   }));
-  transcribe.lastModel = r.model;
+  transcribe.lastModel = r.model; transcribe.lastSkipped = r.skipped;
   return cleanTranscript(r.text);
 }
 

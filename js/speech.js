@@ -57,7 +57,31 @@ function browserSpeak(text, rate, cancel = true) {
 }
 
 // ---------- voz natural (Gemini TTS) ----------
-const TTS_MODELS = ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'];
+const TTS_DEFAULT = ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'];
+// modelos de voz que o Diagnóstico sabe comparar; o escolhido em Ajustes → Voz passa à frente dos padrões
+export const TTS_CANDIDATES = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
+export function ttsModels() {
+  const p = (S.get().settings || {}).ttsModel;
+  return p && TTS_CANDIDATES.includes(p) ? [p, ...TTS_DEFAULT.filter((m) => m !== p)] : TTS_DEFAULT;
+}
+const ttsFetch = (model, text, signal) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+  method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey() },
+  body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } } }),
+});
+// Mede quanto cada modelo leva para gerar a mesma frase (não toca nem guarda): serve para escolher o mais rápido.
+export async function ttsBenchmark(text, models = TTS_CANDIDATES) {
+  const out = [];
+  for (const model of models) {
+    const t0 = performance.now();
+    try {
+      const res = await ttsFetch(model, text);
+      if (!res.ok) { let msg = ''; try { const j = await res.json(); msg = (j.error && j.error.message) || ''; } catch (e) { /* sem corpo */ } out.push({ model, ok: false, status: res.status, message: msg.slice(0, 90) }); continue; }
+      const j = await res.json(); const part = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0];
+      out.push({ model, ok: !!(part && part.inlineData), ms: Math.round(performance.now() - t0), message: part && part.inlineData ? '' : 'sem áudio' });
+    } catch (e) { out.push({ model, ok: false, message: String(e.message || e).slice(0, 90) }); }
+  }
+  return out;
+}
 let player = null; let ttsCtl = null;
 export let voiceNote = ''; // aviso para a interface (ex.: limite gratuito atingido)
 
@@ -73,16 +97,14 @@ const cacheReq = (model, text) => new Request(`${location.origin}/__tts/${model}
 
 async function geminiAudio(text, signal) {
   let cache = null; try { cache = await caches.open('fr-tts-v1'); } catch (e) { /* sem Cache API */ }
-  for (const model of TTS_MODELS) {
+  const models = [...new Set([...ttsModels(), ...TTS_DEFAULT])];
+  for (const model of models) { // frase já gerada por qualquer modelo conhecido vem do cache, sem rede
     if (cache) { const hit = await cache.match(cacheReq(model, text)); if (hit) return hit.blob(); }
   }
   let lastErr;
-  for (const model of TTS_MODELS) {
+  for (const model of ttsModels()) {
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey() },
-        body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } } }),
-      });
+      const res = await ttsFetch(model, text, signal);
       if (!res.ok) { const e = new Error(String(res.status)); e.status = res.status; throw e; }
       const j = await res.json(); const part = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0];
       const inl = part && part.inlineData; if (!inl) throw new Error('sem áudio');

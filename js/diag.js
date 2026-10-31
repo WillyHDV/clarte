@@ -14,6 +14,7 @@ export function diagHtml() {
       <button class="btn" data-t="mic">${I('mic')} Testar o microfone (3 s)</button>
       <button class="btn" data-t="transc">${I('send')} Testar a transcrição (4 s)</button>
       <button class="btn" data-t="ia">${I('chat')} Testar a Clara</button>
+      <button class="btn" data-t="vozes">${I('volume')} Comparar vozes (4 pedidos)</button>
       <button class="btn primary" data-t="tudo">${I('activity')} Rodar tudo</button>
     </div>
     <p id="dstat" class="dstat" role="status" aria-live="polite" hidden></p>
@@ -42,6 +43,8 @@ export function initDiag(root, { cur }) {
     try { const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null; const e = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; add(p ? 'ok' : 'warn', 'Armazenamento protegido', `${p ? 'sim' : 'não'}${e ? ` · uso ${(e.usage / 1024).toFixed(0)} KB` : ''}${p ? '' : ' · faça um backup em Ajustes'}`); } catch (e) { add('warn', 'Armazenamento', 'não consegui verificar'); }
     add(V.hasFrenchVoice() ? 'ok' : 'warn', 'Voz francesa do aparelho', V.hasFrenchVoice() ? V.frenchVoiceName() : 'nenhuma (o app usa a voz natural do Gemini)');
     const c = cur(); add(c.key ? 'ok' : 'fail', 'Chave de IA', c.key ? `${T.PROVIDERS[c.p].label}, modelo ${c.model}` : 'não configurada');
+    const lembrado = T.stickyInfo(c.p);
+    if (lembrado) add('warn', 'Modelo de reserva em uso', `${lembrado.model} no lugar de ${lembrado.from}, até ${new Date(lembrado.until).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (o principal falhou há pouco)`);
     add(V.canRecord ? 'ok' : 'fail', 'Gravação de áudio', V.canRecord ? 'disponível' : 'indisponível neste navegador');
     try { const el = JSON.parse(localStorage.getItem('fr_errlog') || '[]'); add(el.length ? 'warn' : 'ok', 'Erros recentes do app', el.length ? el.slice(-3).map((x) => x.m + ' (' + x.f + ')').join(' | ') : 'nenhum'); } catch (e) { /* ignore */ }
     add('ok', 'Aparelho', `${screen.width}×${screen.height}, ${navigator.userAgent.replace(/^Mozilla\/5.0 /, '').slice(0, 60)}`);
@@ -78,7 +81,8 @@ export function initDiag(root, { cur }) {
     const t0 = performance.now();
     try {
       const text = await T.transcribe({ provider: tp, apiKey: (s.keys || {})[tp], model: (s.models || {})[tp] || T.PROVIDERS[tp].model, blob: r.blob });
-      const used = tp === 'gemini' && T.transcribe.lastModel && T.transcribe.lastModel !== ((s.models || {})[tp] || T.PROVIDERS[tp].model) ? ` · modelo de reserva ${T.transcribe.lastModel}` : '';
+      const escolhido = (s.models || {})[tp] || T.PROVIDERS[tp].model; const falhas = tp === 'gemini' ? T.transcribe.lastSkipped || [] : [];
+      const used = tp === 'gemini' && T.transcribe.lastModel && T.transcribe.lastModel !== escolhido ? ` · a reserva ${T.transcribe.lastModel} respondeu (${falhas.length ? `falharam: ${T.skippedText(falhas)}` : 'reserva lembrada de uma falha recente'})` : '';
       add(text ? (used ? 'warn' : 'ok') : 'warn', `Transcrição (${T.PROVIDERS[tp].label})`, `${ms(t0)}${used} · ${text ? '“' + text + '”' : 'não entendi nada: fale uma frase em francês'}`);
     } catch (e) { add('fail', 'Transcrição', why(e)); }
   }
@@ -96,13 +100,29 @@ export function initDiag(root, { cur }) {
   async function ia() {
     const c = cur(); if (!c.key) { add('fail', 'Clara (IA)', 'sem chave'); return; } const t0 = performance.now();
     try {
-      const { text, model } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode: 'duvidas', messages: [{ role: 'user', content: 'Responda apenas: ok' }] });
+      const { text, model, skipped } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode: 'duvidas', messages: [{ role: 'user', content: 'Responda apenas: ok' }] });
       const reserva = model && model !== c.model;
-      add(reserva ? 'warn' : 'ok', 'Clara (IA)', `${ms(t0)}${reserva ? ` · o modelo ${c.model} falhou e a reserva ${model} respondeu` : ''} · resposta: ${text.trim().slice(0, 40)}`);
+      add(reserva ? 'warn' : 'ok', 'Clara (IA)', `${ms(t0)}${reserva ? ` · a reserva ${model} respondeu (${skipped && skipped.length ? `falharam: ${T.skippedText(skipped)}` : 'reserva lembrada de uma falha recente'})` : ''} · resposta: ${text.trim().slice(0, 40)}`);
     } catch (e) { add('fail', 'Clara (IA)', why(e)); }
   }
 
-  const run = { voz, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
+  // mede a velocidade de cada modelo de voz com a mesma frase e oferece usar o mais rápido
+  async function vozes() {
+    if (!(s.keys || {}).gemini) { add('fail', 'Comparar vozes', 'precisa da chave do Gemini'); return; }
+    say('Medindo as vozes… (4 pedidos, uns 30 s)');
+    const r = await V.ttsBenchmark('Bonjour ! Je m’appelle Clara. Comment allez-vous aujourd’hui ?'); say('');
+    const ok = r.filter((x) => x.ok).sort((a, b) => a.ms - b.ms);
+    for (const x of r) add(x.ok ? 'ok' : 'warn', `Voz ${x.model}`, x.ok ? `${(x.ms / 1000).toFixed(1)} s` : `${x.status ? 'HTTP ' + x.status + ' · ' : ''}${x.message || 'falhou'}`);
+    if (!ok.length) { add('fail', 'Comparar vozes', 'nenhum modelo de voz respondeu'); return; }
+    const atual = V.ttsModels()[0];
+    add(ok[0].model === atual ? 'ok' : 'warn', 'Mais rápida agora', `${ok[0].model} (${(ok[0].ms / 1000).toFixed(1)} s). Uma medida só: repita para confirmar.${ok[0].model === atual ? ' Já é a voz principal.' : ''}`);
+    if (ok[0].model !== atual) {
+      res.lastElementChild.insertAdjacentHTML('beforeend', `<button class="btn sm" data-voz="${esc(ok[0].model)}">Usar ${esc(ok[0].model)} como voz principal</button>`);
+      res.lastElementChild.querySelector('[data-voz]').onclick = (e) => { S.setSetting('ttsModel', e.currentTarget.dataset.voz); toast('Voz principal trocada. Volte em Ajustes → Voz para desfazer.'); e.currentTarget.remove(); };
+    }
+  }
+
+  const run = { voz, vozes, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
   let busy = false;
   root.querySelectorAll('[data-t]').forEach((b) => { b.onclick = async () => { if (busy) return; busy = true; root.querySelectorAll('[data-t]').forEach((x) => { x.disabled = true; }); try { await run[b.dataset.t](); } finally { busy = false; root.querySelectorAll('[data-t]').forEach((x) => { x.disabled = false; }); } }; });
   root.querySelector('#dcopy').onclick = async () => { const txt = `Clarté diagnóstico (${new Date().toLocaleString('pt-BR')})\n` + lines.join('\n'); try { await navigator.clipboard.writeText(txt); toast('Relatório copiado.'); } catch (e) { prompt('Copie o relatório:', txt); } };

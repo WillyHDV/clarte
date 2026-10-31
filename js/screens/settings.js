@@ -1,5 +1,5 @@
 // Ajustes: provedor e chave da IA, voz, microfone, dados (backup), instalação e sobre.
-import { canListen, canSpeak, engineInfo, frenchVoiceName } from '../speech.js';
+import { canListen, canSpeak, engineInfo, frenchVoiceName, TTS_CANDIDATES } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast } from '../ui.js';
@@ -39,6 +39,10 @@ export function settingsPage() {
         <option value="auto" ${(s.voiceEngine || 'auto') === 'auto' ? 'selected' : ''}>Automática (recomendado)</option>
         <option value="browser" ${s.voiceEngine === 'browser' ? 'selected' : ''}>Voz do aparelho</option>
         <option value="gemini" ${s.voiceEngine === 'gemini' ? 'selected' : ''}>Voz natural online (Gemini)</option></select></label>
+      <label>Modelo da voz natural<select id="sttsm" class="inp">
+        <option value="auto" ${!TTS_CANDIDATES.includes(s.ttsModel) ? 'selected' : ''}>Automático (recomendado)</option>
+        ${TTS_CANDIDATES.map((m) => `<option value="${m}" ${s.ttsModel === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+      <small>Para saber qual modelo é mais rápido no seu aparelho, use Diagnóstico → Comparar vozes.</small>
       <button class="btn" id="stest">🔊 Testar voz</button>
       <div id="vstatus"></div>
       <small>${canListen ? '' : 'Reconhecimento de fala indisponível: use o Chrome ou o Edge.'}</small>
@@ -112,6 +116,7 @@ export function settingsPage() {
   };
   paintVoice(); setTimeout(paintVoice, 700);
   on('smic', 'change', (e) => S.setSetting('micMode', e.target.value));
+  on('sttsm', 'change', (e) => { S.setSetting('ttsModel', e.target.value); toast('Modelo da voz salvo.'); });
   on('sengine', 'change', (e) => { S.setSetting('voiceEngine', e.target.value); paintVoice(); });
   on('stest', 'click', () => speak('Bonjour ! Je m’appelle Clara. Comment allez-vous ?', { rate: rate() }));
   on('sinstall', 'click', async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; settingsPage(); });

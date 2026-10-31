@@ -172,7 +172,7 @@ test('folha de revisão: todas as seções e botão de imprimir', async () => {
 
 test('diagnóstico: botões e informações do aparelho', async () => {
   await goto('#/diag'); await tick(100);
-  assert.equal($$('[data-t]').length, 5);
+  assert.equal($$('[data-t]').length, 6);
   assert.ok($$('#dres li').length >= 8, 'linhas de informação');
   assert.match($('#dres').textContent, /Versão do app/);
   noBroken('diagnóstico');
@@ -356,4 +356,60 @@ test('Ajustes: lembretes no calendário baixam só as avaliações futuras', asy
     // datas ajustadas valem no arquivo
     S.setSetting('evalDates', { eval2: '2026-12-09' }); d = await gerar(DIA(11, 1)); t = await d.blob.text(); assert.match(t, /DTSTART;VALUE=DATE:20261209/);
   } finally { proto.click = click0; URL.createObjectURL = criar0; S.setSetting('evalDates', {}); await inicioEm(DIA(11, 1)); }
+});
+
+// ---- diagnóstico: vozes e reserva de modelo; Ajustes: modelo da voz ----
+test('Diagnóstico → Comparar vozes: mostra os tempos e oferece trocar para a mais rápida', async () => {
+  S.resetAll(); S.setKey('gemini', 'AIzaTESTE');
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const m = /models\/([^:]+):/.exec(String(url))[1];
+    await new Promise((r) => setTimeout(r, m === 'gemini-3.8-flash-lite-tts' ? 5 : 60)); // a leve responde bem mais rápido
+    if (m === 'gemini-3.1-flash-tts-preview') return new Response(JSON.stringify({ error: { message: 'model overloaded' } }), { status: 503 });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: 'AAAA' } }] } }] }), { status: 200 });
+  };
+  try {
+    await goto('#/history'); await goto('#/diag'); await tick(60); $('[data-t="vozes"]').click();
+    for (let n = 0; n < 60 && !/Mais rápida agora/.test($('#dres').textContent); n++) await tick(50);
+    const t = $('#dres').textContent;
+    assert.match(t, /Voz gemini-3\.8-flash-tts.*s/); assert.match(t, /Voz gemini-3\.8-flash-lite-tts/); assert.match(t, /Voz gemini-3\.1-flash-tts-preview.*HTTP 503 · model overloaded/);
+    assert.match(t, /Mais rápida agora.*gemini-3\.8-flash-lite-tts/);
+    const usar = $('[data-voz]'); assert.ok(usar, 'botão para usar a mais rápida'); assert.equal(usar.dataset.voz, 'gemini-3.8-flash-lite-tts');
+    usar.click(); await tick();
+    assert.equal(S.get().settings.ttsModel, 'gemini-3.8-flash-lite-tts'); assert.ok(!$('[data-voz]'), 'o botão some depois de usar');
+    assert.equal($('[data-t="vozes"]').disabled, false, 'os botões voltam a funcionar');
+  } finally { globalThis.fetch = realFetch; S.setSetting('ttsModel', 'auto'); }
+});
+
+test('Diagnóstico → Comparar vozes sem chave pede a chave, sem fazer pedidos', async () => {
+  S.resetAll(); let pedidos = 0; const realFetch = globalThis.fetch; globalThis.fetch = async () => { pedidos++; return new Response('{}', { status: 500 }); };
+  try { await goto('#/history'); await goto('#/diag'); await tick(60); $('[data-t="vozes"]').click(); await tick(80); assert.match($('#dres').textContent, /Comparar vozes.*precisa da chave/); assert.equal(pedidos, 0); } finally { globalThis.fetch = realFetch; }
+});
+
+test('Ajustes: modelo da voz natural lista os candidatos e salva a escolha', async () => {
+  S.resetAll(); await goto('#/history'); await goto('#/settings');
+  const opcoes = $$('#sttsm option').map((o) => o.value); assert.deepEqual(opcoes, ['auto', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts']);
+  assert.equal($('#sttsm').value, 'auto');
+  $('#sttsm').value = 'gemini-3.8-flash-lite-tts'; $('#sttsm').dispatchEvent(new w.Event('change')); await tick(); assert.equal(S.get().settings.ttsModel, 'gemini-3.8-flash-lite-tts');
+  await goto('#/history'); await goto('#/settings'); assert.equal($('#sttsm').value, 'gemini-3.8-flash-lite-tts', 'a escolha volta marcada ao reabrir');
+  S.setSetting('ttsModel', 'auto');
+});
+
+test('Diagnóstico → Testar a Clara: quando uma reserva responde, mostra por que o principal falhou', async () => {
+  S.resetAll(); S.setKey('gemini', 'AIzaTESTE'); localStorage.removeItem('fr_model_pref');
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const m = /models\/([^:]+):/.exec(String(url))[1];
+    if (m === 'gemini-3.1-flash-lite') return new Response(JSON.stringify({ error: { message: 'The model is overloaded' } }), { status: 503 });
+    return new Response(`data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] })}\n\n`, { status: 200 });
+  };
+  try {
+    await goto('#/history'); await goto('#/diag'); await tick(60); $('[data-t="ia"]').click();
+    for (let n = 0; n < 40 && !/Clara \(IA\)/.test($('#dres').textContent); n++) await tick(50);
+    const t = $('#dres').textContent; assert.match(t, /a reserva gemini-3\.5-flash-lite respondeu \(falharam: gemini-3\.1-flash-lite \(HTTP 503 · The model is overloaded\)\)/);
+    assert.ok($$('#dres li.warn').some((li) => /Clara \(IA\)/.test(li.textContent)), 'marcado como aviso');
+    // ao reabrir o Diagnóstico, a reserva lembrada aparece nas informações do aparelho
+    await goto('#/history'); await goto('#/diag'); await tick(120);
+    assert.match($('#dres').textContent, /Modelo de reserva em uso.*gemini-3\.5-flash-lite no lugar de gemini-3\.1-flash-lite/);
+  } finally { globalThis.fetch = realFetch; localStorage.removeItem('fr_model_pref'); }
 });
