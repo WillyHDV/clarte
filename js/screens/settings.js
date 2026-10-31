@@ -38,6 +38,10 @@ export function settingsPage() {
       <label>Microfone na conversa por voz<select id="smic" class="inp">
         <option value="rec" ${s.micMode !== 'web' ? 'selected' : ''}>Gravar e transcrever (recomendado)</option>
         <option value="web" ${s.micMode === 'web' ? 'selected' : ''}>Reconhecimento de voz do navegador</option></select></label>
+      <label>Tamanho do texto na ligação<select id="sctext" class="inp">
+        <option value="p" ${s.callText === 'p' ? 'selected' : ''}>Pequeno</option>
+        <option value="m" ${!['p', 'g'].includes(s.callText) ? 'selected' : ''}>Médio (padrão)</option>
+        <option value="g" ${s.callText === 'g' ? 'selected' : ''}>Grande</option></select></label>
       <label>Voz do professor<select id="sengine" class="inp">
         <option value="auto" ${(s.voiceEngine || 'auto') === 'auto' ? 'selected' : ''}>Automática (recomendado)</option>
         <option value="browser" ${s.voiceEngine === 'browser' ? 'selected' : ''}>Voz do aparelho</option>
@@ -133,6 +137,7 @@ export function settingsPage() {
   };
   paintVoice(); setTimeout(paintVoice, 700);
   on('smic', 'change', (e) => S.setSetting('micMode', e.target.value));
+  on('sctext', 'change', (e) => S.setSetting('callText', e.target.value));
   on('sttsm', 'change', (e) => { S.setSetting('ttsModel', e.target.value); toast('Modelo da voz salvo.'); });
   on('sengine', 'change', (e) => { S.setSetting('voiceEngine', e.target.value); paintVoice(); });
   on('vstatus', 'click', async (e) => {

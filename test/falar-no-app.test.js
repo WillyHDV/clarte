@@ -78,3 +78,31 @@ test('com chave: a ligação e o microfone do chat aparecem na tela da Clara', a
   await goto('#/tutor/free');
   assert.ok($('#callbtn')); assert.ok($('#tmic')); assert.doesNotMatch($('#app').textContent, /precisa do Chrome/);
 });
+
+test('chamada: sem frases prontas, esfera ao lado da fala, histórico em bolhas e tamanho do texto vindo de Ajustes', async () => {
+  await goto('#/'); // sai da tela da Clara antes: ao sair ela grava a própria conversa por cima
+  localStorage.setItem('fr_chat_v2', JSON.stringify({ free: [
+    { role: 'assistant', content: 'Bonjour ! Comment tu t’appelles ?\n---\nNota só para ler.' },
+    { role: 'user', content: 'Je m’appelle Willy.' },
+    { role: 'assistant', content: 'Enchantée, Willy !\n>> Je m’appelle Willy.' },
+  ] }));
+  S.setSetting('callText', 'g');
+  await goto('#/tutor/free');
+  $('#callbtn').click(); await tick(120);
+  const chamada = $('.call'); assert.ok(chamada, 'a chamada abriu');
+  assert.equal(chamada.dataset.ts, 'g', 'tamanho do texto de Ajustes');
+  assert.equal(chamada.querySelector('.call-chips'), null, 'sem frases prontas'); assert.equal(chamada.querySelector('[data-q]'), null);
+  assert.ok(chamada.querySelector('.speakrow #cav.orb') && chamada.querySelector('.speakrow #cclara'), 'esfera e fala na mesma linha');
+  assert.equal(chamada.querySelector('#chist').hidden, true);
+  chamada.querySelector('#chistbtn').click();
+  assert.equal(chamada.querySelector('#chist').hidden, false);
+  const bolhas = [...chamada.querySelectorAll('#chistlist .hb')].map((b) => [b.className.replace('hb ', ''), b.textContent]);
+  assert.deepEqual(bolhas, [['cl', 'Bonjour ! Comment tu t’appelles ?'], ['me', 'Je m’appelle Willy.'], ['cl', 'Enchantée, Willy !']], 'só a parte falada, sem a nota nem a frase para repetir');
+  chamada.querySelector('#chistclose').click(); assert.equal(chamada.querySelector('#chist').hidden, true);
+  chamada.querySelector('#cend').click(); await tick(); assert.equal($('.call'), null, 'encerrou');
+});
+
+test('Ajustes: o tamanho do texto da ligação é salvo (padrão: médio)', async () => {
+  S.setSetting('callText', 'm'); await goto('#/'); await goto('#/settings');
+  assert.equal($('#sctext').value, 'm'); $('#sctext').value = 'p'; $('#sctext').dispatchEvent(new w.Event('change')); assert.equal(S.get().settings.callText, 'p');
+});

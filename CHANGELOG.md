@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## v24 — 31/10/2026
+
+Nova tela da ligação com a Clara, a primeira parte dos cenários (a tela agora tem espaço para a missão e as frases-guia).
+
+- **Layout**: a esfera animada encolheu de 230 para uns 74 px e fica ao lado da fala da Clara, sem perder as cores nem a pulsação com a sua voz. Nada estoura mais a tela: a frase para repetir, a correção e o que você disse ficam à vista, com sobra de espaço.
+- **Sem frases prontas**: saíram os três atalhos ("Répétez, s'il vous plaît", "Je ne comprends pas", "Je ne sais pas").
+- **Histórico**: um botão no topo abre a conversa em bolhas (só a parte falada), para rever o que foi dito sem sair da ligação.
+- **Tamanho do texto**: Ajustes → Voz → "Tamanho do texto na ligação" (pequeno, médio, grande). O padrão continua como era.
+- **Telas pequenas**: abaixo de 640 px de altura a esfera, o botão do microfone e o texto diminuem.
+- **Testes**: 252 → 254.
+
 ## v23 — 31/10/2026
 
 Voz sem silêncio: o limite gratuito da voz natural do Gemini acabava e o app ficava mudo.

@@ -141,31 +141,33 @@ async function tutorPage() {
     el.innerHTML = `
       <div class="call-glow"></div>
       <header class="call-top">
-        <button class="cbtn ghost" id="cend" aria-label="Encerrar">${I('x')}</button>
+        <div class="ct-l"><button class="cbtn ghost" id="cend" aria-label="Encerrar">${I('x')}</button></div>
         <div class="call-who"><b>Clara</b><small id="cstatus">Conectando…</small></div>
-        <button class="cbtn ghost" id="chide" aria-label="Esconder o texto">${I('eye')}</button>
+        <div class="ct-r"><button class="cbtn ghost" id="chistbtn" aria-label="Ver a conversa">${I('chat')}</button><button class="cbtn ghost" id="chide" aria-label="Esconder o texto">${I('eye')}</button></div>
       </header>
       <section class="stage">
-        <div class="orb" id="cav" data-state="think"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
-        <p class="clara" id="cclara"></p>
+        <div class="speakrow">
+          <div class="orb" id="cav" data-state="think"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
+          <p class="clara" id="cclara"></p>
+        </div>
         <div class="ctarget" id="ctarget" hidden></div>
         <div class="cnote" id="cnote" hidden></div>
         <p class="you" id="cyou"></p>
         <div class="call-err" id="cerr" hidden></div>
       </section>
       <footer class="call-bar">
-        <div class="call-chips">
-          <button class="chip" data-q="rep">Répétez, s'il vous plaît</button>
-          <button class="chip" data-q="Je ne comprends pas.">Je ne comprends pas</button>
-          <button class="chip" data-q="Je ne sais pas.">Je ne sais pas</button>
-        </div>
         <div class="ctl">
           <button class="cbtn" id="cslow" aria-label="Falar mais devagar"></button>
           <button class="cbig" id="cmic" aria-label="Falar"></button>
           <button class="cbtn" id="cpause" aria-label="Pausar"></button>
         </div>
         <div class="ctl2"><button class="pill" id="credo" hidden>${I('redo')} Refazer</button>${isExam ? `<button class="pill warn" id="cfin">${I('check')} Terminar e avaliar</button>` : ''}</div>
-      </footer>`;
+      </footer>
+      <aside class="chist" id="chist" hidden>
+        <div class="chist-top"><b>Conversa</b><button class="cbtn ghost" id="chistclose" aria-label="Fechar a conversa">${I('x')}</button></div>
+        <div class="chist-list" id="chistlist"></div>
+      </aside>`;
+    el.dataset.ts = ['p', 'g'].includes(st().settings.callText) ? st().settings.callText : 'm'; // tamanho do texto (Ajustes)
     document.body.appendChild(el); document.body.classList.add('incall');
     const $ = (id) => el.querySelector('#' + id);
     // micMode 'web' (reserva escolhida no PC/Chrome) só vale onde o navegador tem reconhecimento; no app Android a gravação é o único caminho
@@ -292,7 +294,7 @@ async function tutorPage() {
       S.recordSkill('resposta', plain ? 0 : 1);
       if (!plain) S.recordSkill('fluidez', Math.min(1, t.trim().split(/\s+/).length / 7));
       getMsgs().push(m); saveChats(chats);
-      $('cyou').textContent = `“${t}”`; clara();
+      $('cyou').textContent = `“${t}”`; if ($('cyou').scrollIntoView) $('cyou').scrollIntoView({ block: 'nearest' }); clara();
     }
 
     async function clara() {
@@ -361,23 +363,21 @@ async function tutorPage() {
     document.addEventListener('keydown', onKey);
 
     $('cend').onclick = () => end(false);
+    // a conversa até aqui, em bolhas (só a parte falada de cada resposta)
+    const drawHist = () => {
+      const itens = getMsgs().filter((m) => !m.hidden && m.content !== '[FIN]').map((m) => {
+        if (m.role === 'assistant' && /Nota geral/i.test(m.content)) return '<div class="hb cl">Avaliação pronta: veja no chat.</div>';
+        const t = m.role === 'assistant' ? parts(m.content).spoken : m.content;
+        return t ? `<div class="hb ${m.role === 'assistant' ? 'cl' : 'me'}">${esc(t)}</div>` : '';
+      }).join('');
+      $('chistlist').innerHTML = itens || '<p class="pt">A conversa ainda não começou.</p>';
+      $('chistlist').scrollTop = $('chistlist').scrollHeight;
+    };
+    $('chistbtn').onclick = () => { const h = $('chist'); h.hidden = !h.hidden; if (!h.hidden) drawHist(); };
+    $('chistclose').onclick = () => { $('chist').hidden = true; };
     $('chide').onclick = () => { hideText = !hideText; el.classList.toggle('hidetext', hideText); $('chide').innerHTML = I(hideText ? 'eyeoff' : 'eye'); };
     $('cslow').onclick = () => { S.setSetting('slow', !st().settings.slow); slowLabel(); };
     $('credo').onclick = () => { stopRec(); listenTurn(); };
-    // frases do curso para pedir ajuda (item "régler des problèmes de communication" da prova)
-    el.querySelectorAll('.call-chips [data-q]').forEach((b) => {
-      b.onclick = async () => {
-        if (paused || !alive || phase === 'think') return;
-        const q = b.dataset.q; stopRec(); if (speaker) speaker.stop();
-        if (q === 'rep') {
-          const last = [...getMsgs()].reverse().find((x) => x.role === 'assistant'); if (!last) return;
-          const p = parts(last.content); setPhase('speak', 'Clara repete devagar…');
-          speaker = V.createSpeaker(() => 0.65); const sp = speaker; p.spoken.split(/(?<=[.!?…])\s+/).forEach((s) => sp.push(s.replace(/[*_`#]/g, '')));
-          await sp.done(); if (alive && !paused && sp === speaker) { await sleep(250); listenTurn(); } return;
-        }
-        userSaid(q, true);
-      };
-    });
     $('cmic').onclick = () => {
       blocked = false;
       if (phase === 'listen') { if (recorder) { sendRecording(); return; } if (cr) { cr.finish(); return; } }
