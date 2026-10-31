@@ -43,7 +43,11 @@ Publique a pasta `publicar/` (gerada a partir de `app/`), abra o endereço no Ch
 
 ## Seus dados e atualizações
 
-- **Backup:** Ajustes → Seus dados → Exportar gera um arquivo `.json` com progresso, erros e conversas (a chave de IA só entra se você marcar). Importar restaura em outro aparelho ou depois de limpar os dados do site.
+- **Evolução:** na tela inicial, "Ver evolução" mostra os números da semana e três gráficos (prontidão, exercícios por dia, notas das simulações), cada um com leitura ao tocar e uma tabela equivalente. O histórico diário fica só neste aparelho.
+- **Lembretes no calendário:** Ajustes → Avaliações → "Lembretes no calendário" baixa um arquivo `.ics` com as avaliações futuras (alerta na véspera às 9h e no dia às 7h). As datas podem ser ajustadas ali mesmo.
+- **Atalhos do ícone:** com o app instalado no Android, segurar o ícone mostra "Falar com a Clara", "Treino inteligente", "Reforçar" e "Simular a prova oral".
+- **Privacidade e créditos:** Ajustes → Sobre → "Privacidade e créditos" explica o que fica no aparelho e o que sai dele. Um teste garante que o código só fala com os provedores de IA listados lá.
+- **Backup:** Ajustes → Seus dados → Exportar gera um arquivo `.json` com progresso, histórico, erros e conversas (a chave de IA só entra se você marcar). Importar restaura em outro aparelho ou depois de limpar os dados do site.
 - **Atualização:** o app confere sozinho se há versão nova e mostra o aviso "Nova versão disponível". A versão fica em `js/version.js`: aumente-a (e o `CACHE` do `sw.js`) a cada publicação.
 - **Diagnóstico:** Ajustes → Diagnóstico testa voz, microfone, transcrição, IA e armazenamento, e copia um relatório.
 - **Folha de revisão:** página de resumo da Évaluation 1 para imprimir ou salvar em PDF (Ajustes ou início → Reta final).
@@ -51,10 +55,23 @@ Publique a pasta `publicar/` (gerada a partir de `app/`), abra o endereço no Ch
 ## Segurança da chave de IA
 
 A chave fica só no navegador de cada aparelho. Para limitar o estrago caso ela vaze, restrinja-a ao endereço do app no Google Cloud (APIs e serviços → Credenciais → sua chave → Restrições de aplicativo → Sites → `https://willyhdv.github.io/*`).
+
+## Desenvolvimento
+
+- **Branches:** `main` é o que está publicado (GitHub Pages) e só recebe versões testadas. O trabalho novo acontece em `dev`.
+- **Verificação:** `npm install` uma vez e depois `npm run check` (ESLint + testes). O mesmo roda no GitHub a cada envio (`.github/workflows/ci.yml`). Só precisa de Node 20 ou mais novo; o app em si não tem etapa de build.
+- **Testes** (`test/`): geradores e correção de exercícios, progresso e revisão espaçada, backup, migração e validação dos dados salvos, pacotes de conteúdo (validador próprio), reserva de modelos da IA, telas (o app inteiro roda no jsdom: início, unidades, treinos até o fim, Clara, ajustes, folha, diagnóstico) e checagens de publicação (versão × cache do service worker, arquivos offline, imports, chaves de API no código, material do curso fora do repositório).
+- **Publicar uma versão:** aumente `VERSION` em `js/version.js` e o `CACHE` em `sw.js` (o teste confere se andam juntos), rode `npm run check`, faça merge em `main` e confira o app no ar.
+
 ## Estrutura
 
-- `js/data.js` — conteúdo das aulas (vocabulário, verbos, profissões, frases)
-- `js/exercises.js` — geradores de exercícios e correção
+- `content/` — pacotes de conteúdo (aulas, vocabulário, verbos, profissões, frases); veja `content/README.md`
+- `js/app.js` — ponto de entrada: roteador (`#/...`), cliques globais e inicialização
+- `js/screens/` — uma tela por arquivo: `home` (início), `lesson` (unidade), `practice` (treino), `tutor` (Clara: chat, prova oral e ligação por voz), `settings` (ajustes), `history` (evolução: números da semana e gráficos), `tools` (folha e diagnóstico)
+- `js/core.js` — o que as telas compartilham (elemento raiz, fala, navegação, limpeza ao sair, provedor de IA); `js/progress.js` — domínio, trilha e plano do dia; `js/update.js` — aviso de versão nova
+- `js/data.js` — entrega o pacote ativo com os nomes usados pelo app; `js/exercises.js` — geradores de exercícios e correção
+- `js/store.js` — progresso, revisão e backup; `js/speech.js` — voz e microfone; `js/tutor.js` — professora de IA (prompts + chamadas aos provedores gratuitos)
+- `js/chart.js` — gráficos SVG sem biblioteca (linha e colunas, uma série por gráfico, cores do tema); as telas só montam os dados
 - `js/ui.js` — ícones, escape de HTML e avisos; `js/folha.js` e `js/diag.js` — folha de revisão e diagnóstico; `js/version.js` — versão
-- `js/app.js` — telas; `js/store.js` — progresso e revisão; `js/speech.js` — voz
-- `js/tutor.js` — professora de IA (prompts + chamadas aos provedores gratuitos)
+- Regra de dependência: as telas importam `core`, `progress` e os módulos de base, e só `app.js` conhece todas elas. A única exceção é `tutor`, que reaproveita a lista de acentos de `practice`.
+

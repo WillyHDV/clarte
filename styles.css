@@ -333,3 +333,42 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--brand); }
   .folha li span, .folha small, .brand { color: #333; }
   .folha .ftbl th { background: #eee; } .folha a { color: #000; }
 }
+/* ---- privacidade e créditos ---- */
+.about h3 { margin-top: 0; }
+.about ul { margin: 8px 0; padding-left: 20px; display: grid; gap: 8px; }
+.about p { margin: 8px 0; }
+.about code { word-break: break-all; font-size: .85em; background: var(--card-2); border-radius: 6px; padding: 1px 5px; }
+
+/* ---- associar pares ---- */
+.match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mcol { display: grid; gap: 8px; align-content: start; }
+.mbtn { text-align: left; border: 2px solid var(--line); background: var(--card-2); border-radius: 16px; padding: 10px 12px; min-height: 52px; font-size: .95rem; font-weight: 550; overflow-wrap: anywhere; transition: transform .1s, border-color .15s, background .15s; }
+.mbtn:active { transform: scale(.985); }
+.mbtn.sel { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 11%, var(--card)); }
+.mbtn.done { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.mbtn.bad { border-color: var(--bad); background: var(--bad-bg); }
+
+/* ---- Evolução: cartões de números e gráficos (cores e fontes do tema; cada gráfico tem uma série só) ---- */
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.tile { display: grid; gap: 2px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: var(--shadow); }
+.tile small { font-size: .8rem; }
+.tile b { font-size: 1.7rem; line-height: 1.15; letter-spacing: -.02em; }
+.tile span { color: var(--muted); font-size: .8rem; }
+.chart { margin: 0 0 14px; }
+.chart figcaption h3 { margin: 0 0 2px; color: var(--ink); }
+.chart figcaption small { display: block; margin-bottom: 10px; }
+.chart-svg { display: block; width: 100%; height: auto; touch-action: pan-y; border-radius: 8px; }
+.chart-svg:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.chart-svg [hidden] { display: none; }
+.ch-grid { stroke: var(--line); stroke-width: 1; }
+.ch-tick, .ch-note { fill: var(--muted); font-size: 11px; font-family: inherit; font-variant-numeric: tabular-nums; }
+.ch-line { fill: none; stroke: var(--brand); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ch-area { fill: var(--brand); fill-opacity: .1; stroke: none; }
+.ch-dot, .ch-focus { fill: var(--brand); stroke: var(--card); stroke-width: 2; }
+.ch-bar { fill: var(--brand); }
+.ch-goal, .ch-cursor { stroke: var(--muted); stroke-width: 1; }
+.ch-value { fill: var(--ink); font-size: 12px; font-weight: 700; font-family: inherit; }
+.readout { min-height: 1.5em; margin-top: 8px; font-size: .9rem; }
+.tview summary { margin-top: 8px; color: var(--muted); font-size: .85rem; cursor: pointer; }
+.tview table { width: 100%; margin-top: 6px; border-collapse: collapse; font-size: .85rem; }
+.tview th, .tview td { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }

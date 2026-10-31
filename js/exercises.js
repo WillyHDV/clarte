@@ -28,6 +28,8 @@ export function check(ex, input) {
     return { ok: [].concat(ex.answer).some((a) => norm(a) === got) };
   }
   if (ex.kind === 'speak') return speakScore(ex.answer, input);
+  // associar pares: input = índices dos pares em que você errou ao menos uma vez; só vale sem nenhum erro
+  if (ex.kind === 'match') { const wrong = [...new Set(input)].sort((a, b) => a - b); return { ok: wrong.length === 0, wrong }; }
   // type / listen-type
   const got = norm(input);
   const answers = [].concat(ex.answer);
@@ -315,7 +317,41 @@ function genNegation() {
   return mk('negation', 'speak', { items: negItems(s), q: 'Diga em voz alta:', answer: neg(s), shown: neg(s) + '.', audio: neg(s), explain: '' });
 }
 
-const GEN = { alphabet: genAlphabet, comm: genComm, presenter: genPresenter, saluer: genSaluer, verbes: genVerbes, metiers: genMetiers, questions: genQuestions, negation: genNegation };
+// ---------- associar pares ----------
+// 4 pares {l, r, item}: l e r aparecem em colunas embaralhadas; item é o item de domínio de cada par (cada acerto ou erro conta só para ele).
+const PAIRS = 4; const MATCH_RATE = 0.2;
+const distinctBy = (arr, key) => { const seen = new Set(); return arr.filter((x) => { const k = key(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
+function matchPairs(unit) {
+  if (unit === 'comm' || unit === 'presenter' || unit === 'saluer') {
+    const keys = { comm: ['comm'], presenter: ['presenter'], saluer: ['saluer', 'congé'] }[unit];
+    return distinctBy(allPhrases(keys), (p) => p.pt).filter((p) => p.pt.length <= 48).map((p) => ({ l: p.fr, r: p.pt, item: `phrase:${p.fr}` }));
+  }
+  if (unit === 'verbes') {
+    const verb = pick(Object.keys(VERBS));
+    // pronomes com a mesma forma (je e il/elle em -er) deixariam o par ambíguo: fica o primeiro de cada forma
+    return distinctBy(PRONOUNS.map((p, i) => ({ l: p, r: VERBS[verb].forms[i], item: `verb:${verb}:${i}` })), (x) => x.r);
+  }
+  if (unit === 'metiers') {
+    if (rnd(2)) return distinctBy(JOBS.filter((j) => j.m !== j.f), (j) => j.f).map((j) => ({ l: j.m, r: j.f, item: `job:${j.m}` }));
+    return distinctBy(NATS.filter((n) => n.m !== n.f), (n) => n.f).map((n) => ({ l: n.m, r: n.f, item: `nat:${n.m}` }));
+  }
+  if (unit === 'alphabet') return distinctBy(Object.keys(LETTERS).map((c) => ({ l: c, r: LETTERS[c], item: `letter:${c}` })), (x) => x.r);
+  if (unit === 'questions') return distinctBy(QWORDS, (x) => x.w).map((x) => ({ l: x.w, r: x.pt, item: `q:mot:${x.w}` }));
+  return [];
+}
+const MATCH_Q = { comm: 'Associe cada frase à tradução:', presenter: 'Associe cada frase à tradução:', saluer: 'Associe cada frase à tradução:', verbes: 'Associe cada pronome à forma do verbo:', metiers: 'Associe o masculino ao feminino:', alphabet: 'Associe cada letra ao nome dela:', questions: 'Associe cada palavra à tradução:' };
+function genMatch(unit) {
+  const pool = matchPairs(unit); if (pool.length < PAIRS) return null;
+  const pairs = sample(pool, PAIRS);
+  const q = unit === 'metiers' && pairs[0].item.startsWith('nat:') ? 'Associe o masculino ao feminino das nacionalidades:' : MATCH_Q[unit];
+  return mk(unit, 'match', { items: pairs.map((p) => p.item), q, sub: 'Toque em um item de cada coluna.', pairs, answer: pairs.map((p) => `${p.l} = ${p.r}`).sort().join(' · ') });
+}
+// uma parte dos exercícios de cada unidade vira "associar pares" (negation ainda não tem pares)
+const withMatch = (unit, base) => () => (Math.random() < MATCH_RATE ? genMatch(unit) || base() : base());
+const GEN = {
+  alphabet: withMatch('alphabet', genAlphabet), comm: withMatch('comm', genComm), presenter: withMatch('presenter', genPresenter), saluer: withMatch('saluer', genSaluer),
+  verbes: withMatch('verbes', genVerbes), metiers: withMatch('metiers', genMetiers), questions: withMatch('questions', genQuestions), negation: genNegation,
+};
 
 // ---------- itens de domínio ----------
 // Cada unidade tem uma lista fixa de itens (o "universo"); cada exercício diz quais itens treina.

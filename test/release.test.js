@@ -1,0 +1,126 @@
+// Verificações de publicação: coisas que já quebraram (ou poderiam quebrar) o app no ar sem aparecer em nenhum exercício.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { posix } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { VERSION, BUILD_DATE } from '../js/version.js';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const read = (p) => readFileSync(join(root, p), 'utf8');
+// todos os .js do app (js/ e content/), com barras normais
+const walk = (dir) => readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith('.js') ? [`${dir}/${e.name}`] : []));
+const jsFiles = [...walk('js'), ...walk('content')];
+// arquivos alcançados por import a partir de uma entrada (estático ou dinâmico)
+function reach(entry) {
+  const seen = new Set();
+  const visit = (f) => { if (seen.has(f)) return; seen.add(f); if (!existsSync(join(root, f))) return; for (const m of read(f).matchAll(/(?:from|import)\s*\(?\s*'(\.[^']+)'/g)) visit(posix.join(posix.dirname(f), m[1])); };
+  visit(entry); return seen;
+}
+
+test('a versão do app e o cache do service worker andam juntos', () => {
+  assert.match(VERSION, /^\d+$/);
+  assert.match(BUILD_DATE, /^\d{4}-\d{2}-\d{2}$/);
+  const cache = /const CACHE = 'fr-v(\d+)'/.exec(read('sw.js'));
+  assert.ok(cache, 'sw.js sem CACHE no formato fr-vN');
+  assert.equal(cache[1], VERSION, `js/version.js diz v${VERSION}, mas sw.js usa fr-v${cache[1]}: sem isso o celular pode ficar com arquivos velhos`);
+});
+
+test('todo arquivo da lista offline do service worker existe', () => {
+  const list = /const ASSETS = \[([^\]]+)\]/.exec(read('sw.js'));
+  const assets = [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  for (const a of assets) assert.ok(existsSync(join(root, a === './' ? 'index.html' : a)), `ASSETS cita ${a}, que não existe`);
+});
+
+test('todo arquivo que o app importa existe e está na lista offline (senão falha sem internet)', () => {
+  const graph = reach('js/app.js'); const sw = read('sw.js');
+  assert.ok(graph.size > 10, 'não consegui seguir os imports a partir de js/app.js');
+  for (const f of graph) { assert.ok(existsSync(join(root, f)), `um módulo importa ${f}, que não existe`); assert.ok(sw.includes(`'${f}'`), `${f} é importado pelo app mas não está em ASSETS de sw.js`); }
+});
+
+test('a lista offline não guarda módulos que ninguém importa', () => {
+  const graph = reach('js/app.js'); const list = /const ASSETS = \[([^\]]+)\]/.exec(read('sw.js'));
+  for (const a of [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]).filter((x) => x.endsWith('.js'))) assert.ok(graph.has(a), `ASSETS lista ${a}, mas o app não o importa`);
+});
+
+test('todos os arquivos JS têm sintaxe válida', () => {
+  for (const f of [...jsFiles, 'sw.js']) execFileSync(process.execPath, ['--check', join(root, f)], { stdio: 'pipe' });
+});
+
+test('index.html e manifest apontam para arquivos existentes', () => {
+  const html = read('index.html');
+  for (const m of html.matchAll(/(?:href|src)="(?!https?:|#|data:)([^"?#]+)/g)) assert.ok(existsSync(join(root, m[1])), `index.html cita ${m[1]}`);
+  const man = JSON.parse(read('manifest.webmanifest'));
+  assert.ok(man.name && man.start_url && man.icons.length, 'manifest incompleto');
+  for (const i of man.icons) assert.ok(existsSync(join(root, i.src)), `ícone ${i.src} não existe`);
+});
+
+test('nenhuma chave de API no código versionado', () => {
+  const files = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter((f) => f && !/\.(png|jpg|ico|woff2?)$/.test(f));
+  const re = /AIza[0-9A-Za-z_-]{30,}|gsk_[0-9A-Za-z]{30,}|\bsk-[0-9A-Za-z]{30,}/;
+  for (const f of files) if (existsSync(join(root, f))) assert.ok(!re.test(read(f)), `possível chave de API em ${f}`);
+});
+
+test('material do curso e livros não vão para o repositório', () => {
+  const files = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n');
+  const bad = files.filter((f) => /\.(pdf|epub|mp4|mov|mkv)$/i.test(f) || /^fontes\//.test(f));
+  assert.deepEqual(bad, []);
+});
+
+test('arquitetura: telas não importam umas às outras; a base não conhece as telas', () => {
+  const imports = (f) => [...read(f).matchAll(/from '(\.[^']+)'/g)].map((m) => posix.join(posix.dirname(f), m[1]));
+  const tolerado = new Set(['js/screens/tutor.js>js/screens/practice.js']); // só a lista de acentos (ACC)
+  for (const f of jsFiles.filter((x) => x.startsWith('js/screens/'))) {
+    for (const alvo of imports(f)) {
+      if (alvo.startsWith('js/screens/')) assert.ok(tolerado.has(`${f}>${alvo}`), `${f} importa outra tela (${alvo}): leve o que é comum para js/core.js ou js/progress.js`);
+      assert.notEqual(alvo, 'js/app.js', `${f} importa app.js`);
+    }
+  }
+  for (const f of ['js/core.js', 'js/progress.js', 'js/update.js', 'js/data.js', 'js/exercises.js', 'js/store.js', 'js/tutor.js', 'js/speech.js']) {
+    for (const alvo of imports(f)) assert.ok(!alvo.startsWith('js/screens/') && alvo !== 'js/app.js', `${f} (base) importa ${alvo}`);
+  }
+  assert.ok(jsFiles.some((f) => f.startsWith('js/screens/')), 'não achei js/screens/');
+});
+
+test('manifest: identidade, categoria e ícone maskable', () => {
+  const man = JSON.parse(read('manifest.webmanifest'));
+  assert.equal(man.id, './'); assert.ok(man.categories.includes('education')); assert.equal(man.display, 'standalone'); assert.equal(man.lang, 'pt-BR');
+  assert.ok(man.icons.some((i) => i.purpose === 'maskable' && i.sizes === '512x512'), 'ícone maskable');
+  assert.ok(man.icons.some((i) => i.sizes === '192x192'), 'ícone 192');
+});
+
+test('manifest: atalhos do ícone apontam para rotas que existem', () => {
+  const man = JSON.parse(read('manifest.webmanifest')); const app = read('js/app.js');
+  const rotas = new Set([...app.matchAll(/page === '(\w+)'/g)].map((m) => m[1]));
+  assert.ok(rotas.has('tutor') && rotas.has('practice'), 'não consegui ler as rotas de app.js');
+  assert.ok(man.shortcuts.length >= 3 && man.shortcuts.length <= 4, 'o Android mostra até 4 atalhos');
+  for (const s of man.shortcuts) {
+    assert.ok(s.name && s.short_name && s.name.length <= 30, `nome do atalho: ${s.name}`);
+    const m = /^\.\/index\.html#\/(\w+)(?:\/|$)/.exec(s.url); assert.ok(m, `url do atalho fora do padrão: ${s.url}`);
+    assert.ok(rotas.has(m[1]), `o atalho "${s.name}" leva a #/${m[1]}, que não é uma rota`);
+    for (const i of s.icons) assert.ok(existsSync(join(root, i.src)), `ícone do atalho ${i.src}`);
+  }
+  assert.equal(new Set(man.shortcuts.map((s) => s.url)).size, man.shortcuts.length, 'atalhos repetidos');
+});
+
+test('privacidade: o app só fala com os provedores de IA (a tela "Privacidade" depende disso)', () => {
+  // seu-usuario.github.io é só o exemplo que aparece no campo de endereço, não uma chamada de rede
+  const permitidos = new Set(['generativelanguage.googleapis.com', 'api.groq.com', 'api.mistral.ai', 'www.w3.org', 'seu-usuario.github.io']);
+  const arquivos = [...jsFiles, 'index.html', 'styles.css', 'sw.js', 'manifest.webmanifest'];
+  const achados = [];
+  for (const f of arquivos) for (const m of read(f).matchAll(/https?:\/\/([a-zA-Z0-9.-]+)/g)) if (!permitidos.has(m[1])) achados.push(`${f}: ${m[0]}`);
+  assert.deepEqual(achados, [], 'endereço novo no código: atualize js/screens/about.js (o que sai do aparelho) e este teste');
+  assert.ok(!/<script[^>]+src="https?:|<link[^>]+href="https?:/.test(read('index.html')), 'index.html não carrega nada de fora');
+  assert.ok(!/@import|url\(\s*['"]?https?:/.test(read('styles.css')), 'styles.css não carrega nada de fora');
+});
+
+test('tudo o que o app usa está versionado no Git (arquivo ignorado não chega ao site)', () => {
+  const rastreados = new Set(execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean));
+  const list = /const ASSETS = \[([^\]]+)\]/.exec(read('sw.js'));
+  const usados = [...list[1].matchAll(/'([^']+)'/g)].map((m) => (m[1] === './' ? 'index.html' : m[1]));
+  usados.push('sw.js', ...jsFiles);
+  const faltando = [...new Set(usados)].filter((f) => !rastreados.has(f));
+  assert.deepEqual(faltando, [], 'arquivos usados pelo app que o Git não está rastreando (veja o .gitignore e faça git add)');
+});

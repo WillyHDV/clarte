@@ -1,0 +1,20 @@
+name: Verificação
+
+# Roda a cada envio e a cada pull request: estilo/erros de código (ESLint) e testes (Node, sem dependências extras).
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test

@@ -1,5 +1,6 @@
 // Folha de revisão: resumo de uma página (2 colunas) com tudo o que cai na Évaluation 1, gerado a partir do mesmo conteúdo do app.
-import { EXAM_DATE, LETTERS, ACCENTS, PHRASES, VERBS, PRONOUNS, JOBS, NATS, TUVOUS } from './data.js';
+import { evaluations } from './progress.js';
+import { LETTERS, ACCENTS, PHRASES, VERBS, PRONOUNS, JOBS, NATS, TUVOUS } from './data.js';
 import { esc, I } from './ui.js';
 
 const vowel = (w) => /^[aeiouyhàâäéèêëîïôöùûüœ]/i.test(w);
@@ -8,11 +9,12 @@ const list = (arr) => `<ul>${arr.map((x) => `<li>${x}</li>`).join('')}</ul>`;
 const phr = (arr) => list(arr.map((p) => `<b>${esc(p.fr)}</b> <span>${esc(p.pt)}</span>`));
 
 export function folhaHtml() {
-  const d = new Date(EXAM_DATE + 'T12:00:00').toLocaleDateString('pt-BR');
+  const ev = evaluations().find((e) => e.sheet) || evaluations()[0];
+  const d = new Date(ev.date + 'T12:00:00').toLocaleDateString('pt-BR');
   return `
   <article class="folha">
     <header class="fhead">
-      <div><div class="brand">Clarté</div><h1>Folha de revisão</h1><small>Évaluation 1 · ${d} · Français basique 1</small></div>
+      <div><div class="brand">Clarté</div><h1>Folha de revisão</h1><small>${esc(ev.title)} · ${d} · Français basique 1</small></div>
       <button class="btn primary noprint" id="fprint">${I('printer')} Imprimir / salvar PDF</button>
     </header>
 

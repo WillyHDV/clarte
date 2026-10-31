@@ -1,18 +1,56 @@
 // Estado salvo no aparelho (localStorage): progresso, erros para revisão e configurações.
 const KEY = 'fr_app_v1';
 export const CHAT_KEY = 'fr_chat_v2';
-export const SCHEMA = 2; // versão do formato dos dados (para migrar no futuro sem perder progresso)
+export const SCHEMA = 3; // versão do formato dos dados (para migrar no futuro sem perder progresso)
 const DAY = 86400000;
 const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
-  v: SCHEMA, exams: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20 },
+  v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {} },
 });
+// ---------- versões do formato ----------
+// MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
+const MIGRATIONS = {
+  1: (s) => s, // v1 → v2: só ganhou exams e lastBackup, que entram com os valores padrão em normalize()
+  2: (s) => s, // v2 → v3: ganhou history (histórico diário), que começa vazio
+};
+const kind = (x) => (Array.isArray(x) ? 'array' : x === null ? 'null' : typeof x);
+const isObj = (x) => kind(x) === 'object';
+// Aceita qualquer coisa que veio do disco ou de um backup e devolve um estado válido na versão atual:
+// migra versões antigas, completa campos que faltam e descarta campos com tipo errado (ex.: mastery: null).
+export function normalize(raw) {
+  let s = isObj(raw) ? { ...raw } : {};
+  let v = Number.isInteger(s.v) && s.v >= 1 ? s.v : 1;
+  for (; v < SCHEMA; v++) { if (MIGRATIONS[v]) s = MIGRATIONS[v](s); s.v = v + 1; }
+  const base = blank(); const out = { ...base, ...s };
+  for (const k of Object.keys(base)) if (kind(out[k]) !== kind(base[k])) out[k] = base[k];
+  for (const k of ['today', 'plan', 'voiceToday']) out[k] = { ...base[k], ...out[k] };
+  if (!isObj(out.plan.done)) out.plan.done = {};
+  // histórico diário: só registros com data real, números válidos e em ordem (os demais são descartados)
+  out.history = out.history.filter((h) => isObj(h) && /^\d{4}-\d{2}-\d{2}$/.test(h.d))
+    .map((h) => ({ d: h.d, n: Math.max(0, +h.n || 0), ok: Math.max(0, +h.ok || 0), r: Number.isFinite(h.r) ? h.r : null }))
+    .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0)).slice(-400);
+  out.settings = { ...base.settings, ...(isObj(s.settings) ? s.settings : {}) };
+  for (const k of ['keys', 'models', 'evalDates']) if (!isObj(out.settings[k])) out.settings[k] = {};
+  return out;
+}
+
 let state = blank();
 try {
   const raw = localStorage.getItem(KEY);
-  if (raw) { const s = JSON.parse(raw); state = { ...blank(), ...s, settings: { ...blank().settings, ...(s.settings || {}) } }; }
+  if (raw) {
+    try {
+      const velho = JSON.parse(raw); const de = isObj(velho) && Number.isInteger(velho.v) && velho.v >= 1 ? velho.v : 1;
+      // mudança de formato: guarda uma cópia do progresso na versão antiga (uma vez só por versão) antes de migrar,
+      // para dar para voltar atrás se uma atualização der errado; fica em fr_app_v1_antes_v<N>
+      if (de < SCHEMA) { const k = `${KEY}_antes_v${de}`; try { if (localStorage.getItem(k) === null) localStorage.setItem(k, raw); } catch (e2) { /* sem espaço */ } }
+      state = normalize(velho);
+    } catch (e) {
+      // dado ilegível: guarda uma cópia antes que o próximo save() sobrescreva (dá para recuperar à mão)
+      try { localStorage.setItem(KEY + '_corrompido', raw); } catch (e2) { /* sem espaço */ }
+    }
+  }
 } catch (e) { /* sem armazenamento: segue em memória */ }
 
 export const get = () => state;
@@ -32,8 +70,21 @@ export function recordSession(unit, correct, total) {
   touchDay();
   const u = (state.units[unit] ||= { sessions: 0, best: 0, correct: 0, total: 0 });
   u.sessions++; u.correct += correct; u.total += total; u.best = Math.max(u.best, Math.round((100 * correct) / total));
+  logDay({ n: total, ok: correct });
   state.xp += correct * 10 + (correct === total ? 20 : 0);
   state.today.n += total;
+  save();
+}
+// ---------- histórico diário (alimenta os gráficos de Evolução) ----------
+// Um registro por dia: n = exercícios feitos, ok = acertos, r = prontidão (%) na última vez que foi calculada (null = não medida).
+const MAX_HISTORY = 400;
+export function logDay({ n = 0, ok = 0, r } = {}) {
+  const t = dayStr(); let h = state.history[state.history.length - 1];
+  if (!h || h.d !== t) {
+    h = { d: t, n: 0, ok: 0, r: null }; state.history.push(h);
+    if (state.history.length > MAX_HISTORY) state.history.splice(0, state.history.length - MAX_HISTORY);
+  }
+  h.n += n; h.ok += ok; if (typeof r === 'number' && Number.isFinite(r)) h.r = Math.round(r);
   save();
 }
 export function noteResult(ex, ok, fromReview) {
@@ -55,7 +106,7 @@ export function strength(id, now = Date.now()) {
   return m.s * Math.pow(2, -((now - m.t) / DAY) / m.h);
 }
 export function recordItems(items, ok, kind, now = Date.now()) {
-  const recog = kind === 'choice' || kind === 'listen-choice';
+  const recog = kind === 'choice' || kind === 'listen-choice' || kind === 'match'; // reconhecer rende menos que produzir
   for (const id of items || []) {
     const cur = strength(id, now) || 0; const m = state.mastery[id] || { s: 0, h: 0, t: now, n: 0, c: 0 };
     m.n++;
@@ -126,9 +177,9 @@ export function validateBackup(obj) {
 export function importData(obj) {
   const err = validateBackup(obj); if (err) throw new Error(err);
   const keep = state.settings.keys || {}; const s = obj.state;
-  state = { ...blank(), ...s, v: SCHEMA, settings: { ...blank().settings, ...(s.settings || {}) } };
+  state = normalize({ ...s, v: Number.isInteger(s.v) ? s.v : obj.schema });
   // as chaves atuais do aparelho vencem, a menos que o backup traga chaves
-  state.settings.keys = (s.settings && s.settings.keys && Object.keys(s.settings.keys).length) ? s.settings.keys : keep;
+  state.settings.keys = (isObj(s.settings) && isObj(s.settings.keys) && Object.keys(s.settings.keys).length) ? s.settings.keys : keep;
   save();
   try { if (obj.chats && typeof obj.chats === 'object') localStorage.setItem(CHAT_KEY, JSON.stringify(obj.chats)); } catch (e) { /* ignore */ }
 }
