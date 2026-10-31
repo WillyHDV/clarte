@@ -115,3 +115,12 @@ test('privacidade: o app só fala com os provedores de IA (a tela "Privacidade" 
   assert.ok(!/<script[^>]+src="https?:|<link[^>]+href="https?:/.test(read('index.html')), 'index.html não carrega nada de fora');
   assert.ok(!/@import|url\(\s*['"]?https?:/.test(read('styles.css')), 'styles.css não carrega nada de fora');
 });
+
+test('tudo o que o app usa está versionado no Git (arquivo ignorado não chega ao site)', () => {
+  const rastreados = new Set(execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean));
+  const list = /const ASSETS = \[([^\]]+)\]/.exec(read('sw.js'));
+  const usados = [...list[1].matchAll(/'([^']+)'/g)].map((m) => (m[1] === './' ? 'index.html' : m[1]));
+  usados.push('sw.js', ...jsFiles);
+  const faltando = [...new Set(usados)].filter((f) => !rastreados.has(f));
+  assert.deepEqual(faltando, [], 'arquivos usados pelo app que o Git não está rastreando (veja o .gitignore e faça git add)');
+});

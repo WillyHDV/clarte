@@ -226,3 +226,33 @@ test('associar pares rende como reconhecimento (igual à escolha), menos que dig
   S.recordItems(['p1'], true, 'match', T0); S.recordItems(['p2'], true, 'choice', T0); S.recordItems(['p3'], true, 'type', T0);
   assert.equal(S.strength('p1', T0), S.strength('p2', T0)); assert.ok(S.strength('p1', T0) < S.strength('p3', T0));
 });
+
+// ---- cópia de segurança antes de migrar o formato ----
+test('atualização de formato: guarda uma cópia do progresso antigo, uma vez só', async () => {
+  const antigo = JSON.stringify({ v: 2, xp: 77, mastery: {}, settings: { keys: { gemini: 'chave-antiga' } } });
+  localStorage.setItem('fr_app_v1', antigo);
+  const novo = await import(`../js/store.js?migra=${Date.now()}`);
+  assert.equal(novo.get().xp, 77); assert.equal(novo.get().v, novo.SCHEMA); assert.deepEqual(novo.get().history, []);
+  assert.equal(localStorage.getItem('fr_app_v1_antes_v2'), antigo, 'cópia idêntica ao que estava salvo');
+  // o app grava o estado novo; na próxima abertura (já na versão atual) a cópia não é refeita nem sobrescrita
+  novo.save(); localStorage.setItem('fr_app_v1_antes_v2', 'cópia original');
+  const depois = await import(`../js/store.js?migra2=${Date.now()}`);
+  assert.equal(depois.get().xp, 77); assert.equal(localStorage.getItem('fr_app_v1_antes_v2'), 'cópia original');
+});
+
+test('sem mudança de formato, ou sem dados, nenhuma cópia é criada', async () => {
+  localStorage.setItem('fr_app_v1', JSON.stringify({ v: 3, xp: 5 }));
+  await import(`../js/store.js?atual=${Date.now()}`);
+  assert.equal(localStorage.getItem('fr_app_v1_antes_v3'), null); assert.equal(localStorage.getItem('fr_app_v1_antes_v2'), null);
+  localStorage.clear(); await import(`../js/store.js?vazio=${Date.now()}`);
+  assert.equal(localStorage.getItem('fr_app_v1_antes_v1'), null);
+});
+
+test('dados antigos sem versão (v1) também ganham cópia, e dados ilegíveis só a cópia de corrompido', async () => {
+  localStorage.setItem('fr_app_v1', JSON.stringify({ xp: 9 }));
+  await import(`../js/store.js?semversao=${Date.now()}`);
+  assert.equal(JSON.parse(localStorage.getItem('fr_app_v1_antes_v1')).xp, 9);
+  localStorage.clear(); localStorage.setItem('fr_app_v1', '{quebrado');
+  await import(`../js/store.js?ilegivel=${Date.now()}`);
+  assert.equal(localStorage.getItem('fr_app_v1_corrompido'), '{quebrado'); assert.equal(localStorage.getItem('fr_app_v1_antes_v1'), null);
+});

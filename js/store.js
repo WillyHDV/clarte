@@ -40,7 +40,13 @@ let state = blank();
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) {
-    try { state = normalize(JSON.parse(raw)); } catch (e) {
+    try {
+      const velho = JSON.parse(raw); const de = isObj(velho) && Number.isInteger(velho.v) && velho.v >= 1 ? velho.v : 1;
+      // mudança de formato: guarda uma cópia do progresso na versão antiga (uma vez só por versão) antes de migrar,
+      // para dar para voltar atrás se uma atualização der errado; fica em fr_app_v1_antes_v<N>
+      if (de < SCHEMA) { const k = `${KEY}_antes_v${de}`; try { if (localStorage.getItem(k) === null) localStorage.setItem(k, raw); } catch (e2) { /* sem espaço */ } }
+      state = normalize(velho);
+    } catch (e) {
       // dado ilegível: guarda uma cópia antes que o próximo save() sobrescreva (dá para recuperar à mão)
       try { localStorage.setItem(KEY + '_corrompido', raw); } catch (e2) { /* sem espaço */ }
     }
