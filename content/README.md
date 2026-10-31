@@ -18,6 +18,7 @@ Um pacote é **só dados**: módulos JavaScript que exportam listas e objetos, s
 | `verbs.js` | pronomes e verbos (6 formas cada) |
 | `people.js` | nacionalidades, idiomas, cidades, profissões |
 | `questions.js` | frases afirmativas e palavras interrogativas |
+| `scenarios.js` | cenários da Clara (missões de conversa por voz): situação, papel da Clara, objetivos com frase-guia e dica, roteiro e abertura; o formato está comentado no próprio arquivo |
 
 `js/data.js` entrega o pacote ativo com os nomes que o app já usa (`UNITS`, `PHRASES`, `VERBS`…). Para trocar de pacote, é só mudar o import dele.
 

@@ -75,6 +75,38 @@ MODES.examVoice = `${MODES.exam}
 
 Important : tout ce que tu écris avant l'évaluation finale est lu à voix haute. Fais des phrases courtes, sans emoji, sans markdown, sans parenthèses.`;
 
+// Instruções de um cenário: a Clara interpreta um papel, conduz a conversa para os objetivos e marca (##OK) o que o aluno cumpriu.
+export function scenarioSystem(sc, nivel) {
+  const lista = sc.objetivos.map((o) => `- ${o.id} : ${o.texto}`).join('\n');
+  const reg = sc.registro === 'tu' ? "Tutoie l'élève (« tu »)." : sc.registro === 'vous' ? "Vouvoie l'élève (« vous »)." : 'Le registre change pendant le scénario (voir le déroulement).';
+  const correction = nivel >= 3
+    ? "NIVEAU 3 (mode examen) : ne corrige RIEN et ne donne AUCUNE aide pendant la conversation. Réagis très brièvement (« Très bien. », « D'accord. ») puis continue. Si l'élève ne comprend pas, reformule plus simplement UNE fois. N'écris jamais de ligne --- ni >>."
+    : `NIVEAU ${nivel} : corrige UNE seule erreur à la fois, la plus importante, avec chaleur. D'abord un indice très court SANS donner la réponse, et laisse-le s'auto-corriger ; s'il se trompe encore ou dit « Je ne sais pas », donne la phrase modèle (« On dit : … Répète, s'il te plaît. ») et ajoute à la fin une ligne >> suivie de la phrase exacte à répéter. Si tu as corrigé, ajoute une ligne contenant exactement --- puis une courte note EN PORTUGAIS (1 ou 2 phrases) : l'erreur et la règle. Cette note n'est jamais lue.`;
+  return `${BASE}
+
+MODE : SCÉNARIO PAR LA VOIX (jeu de rôle, comme un appel téléphonique). Tout ce que tu écris avant les lignes spéciales (---, >>, ##) est lu à voix haute.
+RÔLE : tu joues ${sc.papel}. Reste dans ce rôle pendant toute la conversation.
+SITUATION (en portugais, pour ton information) : ${sc.situacao}
+${reg}
+DÉROULEMENT : ${sc.roteiro}
+
+OBJECTIFS de l'élève (il doit les accomplir LUI-MÊME ; tu ne les fais pas à sa place) :
+${lista}
+
+Partie parlée : 1 à 3 phrases très courtes (12 mots maximum chacune), rythme lent, et en général UNE seule question à la fin (sauf si le déroulement dit autre chose). Pas d'emoji, pas de markdown, pas de parenthèses, pas de liste, aucun mot en portugais. Le texte de l'élève vient d'une reconnaissance vocale : ignore la ponctuation, les majuscules et les homophones. Si l'élève répond par un seul mot, accepte-le. Si l'élève dit « Je ne comprends pas », reformule avec des mots plus simples.
+${correction}
+
+MARQUEURS (obligatoires, jamais lus) : tout à la fin de CHAQUE réponse, sur une ligne séparée, écris ##OK: suivi des identifiants (séparés par des virgules) des objectifs que l'élève vient d'accomplir DANS SON DERNIER MESSAGE, de façon compréhensible pour un niveau A1 (une petite erreur de grammaire n'empêche pas l'objectif). S'il n'en a accompli aucun, écris seulement ##OK: sans rien après. Ne marque jamais un objectif que l'élève n'a pas dit lui-même, ni un objectif déjà marqué. Exemple : ##OK:nome,cidade
+Quand TOUS les objectifs sont accomplis, termine par une courte phrase de conclusion dans ton rôle, puis ajoute une ligne ##FIN juste après la ligne ##OK.
+
+ÉVALUATION : quand l'élève écrit « [FIN] », sors du rôle et écris l'évaluation EN PORTUGAIS avec exactement cette structure :
+**Missão:** cumprida, parcial ou não cumprida (en une phrase)
+**Objetivos:** une ligne par objectif, qui commence par ✓ (accompli) ou ✗ (non accompli), puis le texte de l'objectif et une phrase très courte de commentaire
+**Erro mais importante:** « você disse → correto » et la règle en une phrase (ou « nenhum »)
+**Repita em voz alta:** UNE phrase en français pour s'entraîner
+Puis, sur la toute dernière ligne : ##FINAL: suivi des identifiants de TOUS les objectifs accomplis pendant l'ensemble de la conversation.`;
+}
+
 export const opening = {
   free: 'Bonjour ! Je m’appelle Clara et je suis ta professeure de français. Je suis contente de te parler ! Comment tu t’appelles ?',
   exam: null,
@@ -160,27 +192,27 @@ async function withFallback(provider, chosen, signal, fn, wasDelivered = () => f
 
 // messages: [{role:'user'|'assistant', content}] → devolve { text, model }
 // context (opcional): texto extra anexado às instruções, ex. os pontos fracos do aluno
-export function chat({ provider, apiKey, model, mode, messages, onText, signal, context }) {
+export function chat({ provider, apiKey, model, mode, messages, onText, signal, context, system }) {
   let delivered = false;
   const track = (d) => { delivered = true; onText && onText(d); };
-  return withFallback(provider, model, signal, (m, ms) => chatOnce({ provider, apiKey, model: m, mode, messages, onText: track, signal, ms, context }), () => delivered);
+  return withFallback(provider, model, signal, (m, ms) => chatOnce({ provider, apiKey, model: m, mode, messages, onText: track, signal, ms, context, system }), () => delivered);
 }
 
-async function chatOnce({ provider, apiKey, model, mode, messages, onText, signal: outer, ms, context }) {
+async function chatOnce({ provider, apiKey, model, mode, messages, onText, signal: outer, ms, context, system }) {
   // limite de tempo: se o modelo não começar a responder, aborta com uma mensagem clara
   const ctl = new AbortController(); let timedOut = false;
   if (outer) { if (outer.aborted) ctl.abort(); else outer.addEventListener('abort', () => ctl.abort()); }
   const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, ms);
   const signal = ctl.signal;
   const gotText = (d) => { clearTimeout(timer); onText && onText(d); };
-  try { return await run({ provider, apiKey, model, mode, messages, gotText, signal, context }); } catch (e) {
+  try { return await run({ provider, apiKey, model, mode, messages, gotText, signal, context, system }); } catch (e) {
     if (timedOut) throw new HttpError(408, 'timeout');
     throw e;
   } finally { clearTimeout(timer); }
 }
 
-async function run({ provider, apiKey, model, mode, messages, gotText, signal, context }) {
-  const p = PROVIDERS[provider]; const system = context ? `${MODES[mode]}\n\n${context}` : MODES[mode]; let text = '';
+async function run({ provider, apiKey, model, mode, messages, gotText, signal, context, system: proprio }) {
+  const p = PROVIDERS[provider]; const base = proprio || MODES[mode]; const system = context ? `${base}\n\n${context}` : base; let text = '';
   const onText = gotText;
   if (p.kind === 'gemini') {
     const res = await fetch(`${p.base}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {

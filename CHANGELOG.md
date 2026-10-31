@@ -1,5 +1,18 @@
 # Histórico de versões
 
+## v25 — 31/10/2026
+
+Cenários da Clara: missões de conversa por voz com objetivos.
+
+- **Aba Cenários** (na tela da Clara): 8 missões — primeiro encontro (vous), cadastro na recepção (soletrar o nome), conhecendo um colega (tu), não entendi, entrevistar a Clara (est-ce que, où, comment, pourquoi), verdadeiro ou falso (ne … pas), despedida (tu e vous) e mini-prova oral.
+- **A Clara interpreta o papel** (diretora, recepcionista, colega, guia, atendente, examinadora…) e conduz a conversa. Ela abre falando a primeira frase na hora, sem esperar a IA.
+- **Objetivos marcados ao vivo**: uma barra de missão no topo da ligação mostra "2 de 5" e a lista, que se marca conforme você cumpre cada objetivo falando. A IA marca em linhas invisíveis (nunca faladas nem mostradas), e a avaliação final confere o que a marcação ao vivo perdeu.
+- **Três níveis de ajuda**: com frases (as 2 próximas frases que você pode dizer, tocando para ouvir), com dicas (só o começo da frase) e modo prova (nada na tela e sem correção até o fim). O app sugere o próximo nível quando você vence um. A mini-prova é sempre modo prova.
+- **Fim da missão**: ao cumprir todos os objetivos, ao esgotar os turnos ou no botão "Terminar e ver o resultado". Aparece o resultado (cumprida, parcial ou não cumprida), a lista de objetivos, o erro mais importante e uma frase para repetir, com "Repetir a missão".
+- **Progresso**: tentativas, melhor resultado e maior nível vencido por cenário, e pontos (5 por objetivo, mais 20 se a missão for cumprida). Entra no backup.
+- **Dados**: os cenários são conteúdo do curso (`content/fb1/scenarios.js`, validado nos testes); para a Évaluation 2 basta acrescentar cenários.
+- **Testes**: 254 → 268, incluindo missões completas de ponta a ponta com a IA e o microfone simulados.
+
 ## v24 — 31/10/2026
 
 Nova tela da ligação com a Clara, a primeira parte dos cenários (a tela agora tem espaço para a missão e as frases-guia).

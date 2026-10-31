@@ -23,3 +23,4 @@ export const QUARTIERS = pack.quartiers;
 export const JOBS = pack.jobs;
 export const STATEMENTS = pack.statements;
 export const QWORDS = pack.qwords;
+export const SCENARIOS = pack.scenarios;

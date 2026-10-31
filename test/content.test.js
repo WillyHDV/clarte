@@ -15,7 +15,7 @@ test('o pacote é só dados: sobrevive a JSON sem perder nada', () => {
 });
 
 test('data.js entrega cada parte do pacote com os nomes que o app usa', () => {
-  const map = { EVALUATIONS: 'evaluations', UNITS: 'units', LESSONS: 'lessons', LETTERS: 'letters', ACCENTS: 'accents', NAMES: 'names', PHRASES: 'phrases', PROFILES: 'profiles', VIDEO_TV: 'videoTv', TUVOUS: 'tuvous', SITUATIONS: 'situations', PRONOUNS: 'pronouns', VERBS: 'verbs', NATS: 'nats', LANGS: 'langs', CITIES: 'cities', QUARTIERS: 'quartiers', JOBS: 'jobs', STATEMENTS: 'statements', QWORDS: 'qwords' };
+  const map = { EVALUATIONS: 'evaluations', UNITS: 'units', LESSONS: 'lessons', LETTERS: 'letters', ACCENTS: 'accents', NAMES: 'names', PHRASES: 'phrases', PROFILES: 'profiles', VIDEO_TV: 'videoTv', TUVOUS: 'tuvous', SITUATIONS: 'situations', PRONOUNS: 'pronouns', VERBS: 'verbs', NATS: 'nats', LANGS: 'langs', CITIES: 'cities', QUARTIERS: 'quartiers', JOBS: 'jobs', STATEMENTS: 'statements', QWORDS: 'qwords', SCENARIOS: 'scenarios' };
   for (const [name, key] of Object.entries(map)) assert.equal(D[name], pack[key], `${name} deveria ser pack.${key}`);
   const meta = new Set(['schema', 'id', 'title', 'version']);
   const unused = Object.keys(pack).filter((k) => !meta.has(k) && !Object.values(map).includes(k));

@@ -95,5 +95,25 @@ export function validatePack(pack) {
   rows('statements', ['s', 'v', 'r']);
   rows('qwords', ['w', 'q', 'ans', 'pt'], [], (p, at) => { need(/___/.test(p.q), `${at}.q: precisa ter ___ no lugar da palavra`); need(String(p.ans).toLowerCase() === String(p.w).toLowerCase(), `${at}.ans: deve ser a mesma palavra de w`); });
 
+  // cenários da Clara
+  const scIds = new Set();
+  list('scenarios').forEach((x, i) => {
+    const at = `scenarios[${i}]`;
+    need(/^[a-z][a-z0-9]*$/.test(x.id || '') && !scIds.has(x.id), `${at}.id: só letras minúsculas e números, sem repetir`); scIds.add(x.id);
+    for (const f of ['icon', 'title', 'sub', 'situacao']) need(str(x[f]), `${at}.${f}: texto obrigatório`);
+    for (const f of ['papel', 'roteiro', 'abertura']) need(clean(x[f]), `${at}.${f}: texto com espaço sobrando ou valor quebrado`);
+    need(ids.has(x.unit), `${at}.unit: precisa ser o id de uma unidade (${x.unit})`);
+    need(['tu', 'vous', 'misto'].includes(x.registro), `${at}.registro: use "tu", "vous" ou "misto"`);
+    need(Number.isInteger(x.maxTurnos) && x.maxTurnos >= 4 && x.maxTurnos <= 20, `${at}.maxTurnos: inteiro de 4 a 20`);
+    need(x.nivelFixo === undefined || [1, 2, 3].includes(x.nivelFixo), `${at}.nivelFixo: 1, 2 ou 3`);
+    need(Array.isArray(x.objetivos) && x.objetivos.length >= 3 && x.objetivos.length <= 10, `${at}.objetivos: de 3 a 10 objetivos`);
+    const oids = new Set();
+    (x.objetivos || []).forEach((o, j) => {
+      const ao = `${at}.objetivos[${j}]`;
+      need(/^[a-z][a-z0-9]*$/.test(o.id || '') && !oids.has(o.id), `${ao}.id: só letras minúsculas e números, sem repetir`); oids.add(o.id);
+      need(str(o.texto), `${ao}.texto: obrigatório`); need(clean(o.dica), `${ao}.dica: texto limpo (começo da frase)`); need(clean(o.frase), `${ao}.frase: texto limpo (frase completa)`);
+    });
+  });
+
   return bad;
 }

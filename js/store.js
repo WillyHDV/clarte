@@ -8,6 +8,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm' },
+  scenarios: {},
 });
 // ---------- versões do formato ----------
 // MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
@@ -173,6 +174,13 @@ export function exportData({ includeKeys = false, mark = true } = {}) {
   const quando = new Date().toISOString();
   if (mark) { state.lastBackup = quando; save(); }
   return { app: 'clarte', schema: SCHEMA, exportedAt: quando, state: { ...s, lastBackup: mark ? quando : state.lastBackup }, chats };
+}
+// Resultado de uma missão (cenário da Clara): quantos objetivos, em qual nível; vencer um nível guarda o maior já vencido.
+export function recordScenario(id, { nivel, done, total }) {
+  const s = (state.scenarios[id] = { runs: 0, best: 0, levelDone: 0, nivel: 1, last: '', ...(isObj(state.scenarios[id]) ? state.scenarios[id] : {}) });
+  s.runs++; s.best = Math.max(s.best, done); s.nivel = nivel; s.last = new Date().toISOString();
+  if (done >= total) s.levelDone = Math.max(s.levelDone, nivel);
+  state.xp += done * 5 + (done >= total ? 20 : 0); save(); return s;
 }
 export function markBackup() { state.lastBackup = new Date().toISOString(); save(); }
 // já há algum progresso a perder? (um app recém-instalado ou zerado devolve false e não deve sobrescrever um backup antigo)

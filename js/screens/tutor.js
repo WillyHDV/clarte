@@ -8,6 +8,8 @@ import { esc, I, toast } from '../ui.js';
 import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats } from '../core.js';
 import { readiness, CRITERIA, planDone } from '../progress.js';
 import { ACC } from './practice.js';
+import * as SC from '../scenarios.js';
+import { SCENARIOS } from '../data.js';
 
 // pontos fracos para a Clara puxar na conversa (só nos modos de conversa; na prova ela fica neutra, como numa prova de verdade)
 function weakContext() {
@@ -26,12 +28,13 @@ function recordExam(text) {
   S.addExam({ score: +m[1].replace(',', '.'), crit });
 }
 let tutorMode = 'free';
+let scRun = null; // missão (cenário) em andamento: { def, nivel, done:Set, turns }
 
-export function openTutor(arg) { if (arg === 'exam' || arg === 'free') tutorMode = arg; return tutorPage(); }
+export function openTutor(arg) { if (arg === 'exam' || arg === 'free' || arg === 'cenarios') tutorMode = arg; return tutorPage(); }
 
 async function tutorPage() {
   const chats = loadChats(); let busy = false; let ctrl = null; let rec = null; let callEnd = null;
-  const labels = { free: '💬 Conversa', exam: '🎓 Prova oral', duvidas: '❓ Dúvidas' };
+  const labels = { free: '💬 Conversa', exam: '🎓 Prova', cenarios: '🎭 Cenários', duvidas: '❓ Dúvidas' };
   if (!cur().key) {
     const c = cur();
     $app.innerHTML = `<header class="top"><h1>👩‍🏫 Professora Clara</h1></header>
@@ -43,8 +46,8 @@ async function tutorPage() {
     document.getElementById('savekey').onclick = () => { const v = document.getElementById('key').value.trim(); if (v) { S.setKey(c.p, v); tutorPage(); } };
     return;
   }
-  const getMsgs = () => (chats[tutorMode] ||= []);
-  const apiMsgs = () => [{ role: 'user', content: tutorMode === 'exam' ? "[DÉBUT DE L'EXAMEN]" : '(début de la session)' }, ...getMsgs().filter((m) => !m.hidden).map((m) => ({ role: m.role, content: m.api || m.content }))];
+  const getMsgs = () => (chats[scRun ? `sc:${scRun.def.id}` : tutorMode] ||= []);
+  const apiMsgs = () => [{ role: 'user', content: scRun ? '(début du scénario)' : tutorMode === 'exam' ? "[DÉBUT DE L'EXAMEN]" : '(début de la session)' }, ...getMsgs().filter((m) => !m.hidden).map((m) => ({ role: m.role, content: m.api || m.content }))];
   const split = (t) => { const i = t.search(/\n\s*---\s*\n?/); return i < 0 ? [t.trim(), ''] : [t.slice(0, i).trim(), t.slice(i).replace(/^\s*---\s*/, '').trim()]; };
   const md = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
   const speakable = (t) => tutorMode !== 'duvidas' && !/Nota geral/i.test(t);
@@ -60,6 +63,7 @@ async function tutorPage() {
     return `<div class="card sumcard"><h3>Resumo da ligação</h3><p>Você falou <b>${x.turns} ${x.turns > 1 ? 'vezes' : 'vez'}</b>.</p>${rep}${notes}</div>`;
   }
   function draw() {
+    if (tutorMode === 'cenarios') return drawScenarios();
     const msgs = getMsgs();
     $app.innerHTML = `
       <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1><button class="icon" id="newc" title="Nova conversa" aria-label="Nova conversa">${I('trash')}</button></header>
@@ -95,7 +99,8 @@ async function tutorPage() {
     };
   }
   function ensureOpening() {
-    if (tutorMode !== 'exam' && !getMsgs().length) { chats[tutorMode] = [{ role: 'assistant', content: T.opening[tutorMode] }]; saveChats(chats); }
+    const abertura = T.opening[tutorMode];
+    if (abertura && !getMsgs().length) { chats[tutorMode] = [{ role: 'assistant', content: abertura }]; saveChats(chats); }
   }
   function submit(text, hideUser) {
     text = text.trim(); if (!text || busy) return;
@@ -129,9 +134,9 @@ async function tutorPage() {
     }
   }
   // ---------- conversa por voz: a Clara fala, você grava a resposta e toca em Enviar ----------
-  function startCall() {
+  function startCall(sc = null) {
     if (busy || callEnd) return;
-    const isExam = tutorMode === 'exam'; const mode = isExam ? 'examVoice' : 'voice';
+    const isExam = !sc && tutorMode === 'exam'; const mode = sc ? 'scenario' : isExam ? 'examVoice' : 'voice';
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     let alive = true; let paused = false; let phase = 'think'; let target = ''; let cr = null; let listenId = 0; let blocked = false;
     let speaker = null; let abortCtl = null; let wake = null; let evalMode = false; let hideText = false;
@@ -142,9 +147,10 @@ async function tutorPage() {
       <div class="call-glow"></div>
       <header class="call-top">
         <div class="ct-l"><button class="cbtn ghost" id="cend" aria-label="Encerrar">${I('x')}</button></div>
-        <div class="call-who"><b>Clara</b><small id="cstatus">Conectando…</small></div>
+        <div class="call-who"><b>${sc ? esc(sc.def.title) : 'Clara'}</b><small id="cstatus">Conectando…</small></div>
         <div class="ct-r"><button class="cbtn ghost" id="chistbtn" aria-label="Ver a conversa">${I('chat')}</button><button class="cbtn ghost" id="chide" aria-label="Esconder o texto">${I('eye')}</button></div>
       </header>
+      <section class="mission" id="cmission" hidden></section>
       <section class="stage">
         <div class="speakrow">
           <div class="orb" id="cav" data-state="think"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
@@ -156,12 +162,13 @@ async function tutorPage() {
         <div class="call-err" id="cerr" hidden></div>
       </section>
       <footer class="call-bar">
+        <div class="hints" id="chints" hidden></div>
         <div class="ctl">
           <button class="cbtn" id="cslow" aria-label="Falar mais devagar"></button>
           <button class="cbig" id="cmic" aria-label="Falar"></button>
           <button class="cbtn" id="cpause" aria-label="Pausar"></button>
         </div>
-        <div class="ctl2"><button class="pill" id="credo" hidden>${I('redo')} Refazer</button>${isExam ? `<button class="pill warn" id="cfin">${I('check')} Terminar e avaliar</button>` : ''}</div>
+        <div class="ctl2"><button class="pill" id="credo" hidden>${I('redo')} Refazer</button>${isExam || sc ? `<button class="pill warn" id="cfin">${I('check')} ${sc ? 'Terminar e ver o resultado' : 'Terminar e avaliar'}</button>` : ''}</div>
       </footer>
       <aside class="chist" id="chist" hidden>
         <div class="chist-top"><b>Conversa</b><button class="cbtn ghost" id="chistclose" aria-label="Fechar a conversa">${I('x')}</button></div>
@@ -170,6 +177,22 @@ async function tutorPage() {
     el.dataset.ts = ['p', 'g'].includes(st().settings.callText) ? st().settings.callText : 'm'; // tamanho do texto (Ajustes)
     document.body.appendChild(el); document.body.classList.add('incall');
     const $ = (id) => el.querySelector('#' + id);
+    // barra da missão (objetivos marcados ao vivo) e frases-guia do nível escolhido
+    const drawMission = () => {
+      if (!sc) return; const d = sc.def; const m = $('cmission'); const hb = $('chints'); m.hidden = false;
+      if (sc.nivel >= 3) { m.innerHTML = `<div class="mrow"><b>Missão</b><span>Modo prova: sem ajuda</span></div>`; hb.hidden = true; return; }
+      const total = d.objetivos.length; const aberta = m.classList.contains('open');
+      m.innerHTML = `<button class="mhead" id="cmtoggle" aria-expanded="${aberta}"><b>Missão</b><span>${sc.done.size} de ${total}</span><span class="mseg">${d.objetivos.map((o) => `<i class="${sc.done.has(o.id) ? 'on' : ''}"></i>`).join('')}</span></button>
+        <ul class="mlist">${d.objetivos.map((o) => `<li class="${sc.done.has(o.id) ? 'ok' : ''}">${sc.done.has(o.id) ? '✓' : '○'} ${esc(o.texto)}</li>`).join('')}</ul>`;
+      $('cmtoggle').onclick = () => { m.classList.toggle('open'); $('cmtoggle').setAttribute('aria-expanded', String(m.classList.contains('open'))); };
+      const dicas = SC.dicas(d, sc.nivel, sc.done); hb.hidden = !dicas.length;
+      hb.innerHTML = dicas.map((x) => `<button class="hint" data-say="${esc(x.texto.replace(/…/g, ''))}">${esc(x.texto)}</button>`).join('');
+    };
+    // fim da missão: grava o resultado, fecha a ligação e mostra o resumo
+    function endScenario(text, mk) {
+      S.recordScenario(sc.def.id, { nivel: sc.nivel, done: sc.done.size, total: sc.def.objetivos.length });
+      const relatorio = SC.stripMarkers(text); end(false); showSummary(sc, relatorio);
+    }
     // micMode 'web' (reserva escolhida no PC/Chrome) só vale onde o navegador tem reconhecimento; no app Android a gravação é o único caminho
     const recOk = () => V.canRecord && (st().settings.micMode !== 'web' || !browserRec()) && !!T.transcribeProvider(st().settings);
     const micFace = (p) => (p === 'listen' ? `${I('send')}<span>Enviar</span>` : p === 'think' ? '<span class="dots3"><i></i><i></i><i></i></span>' : `${I('mic')}<span>Falar</span>`);
@@ -189,6 +212,7 @@ async function tutorPage() {
     const parts = (t) => {
       const sp = []; const note = []; let tgt = ''; let inNote = false;
       for (const ln of t.replace(/\r/g, '').split('\n')) {
+        if (/^\s*##/.test(ln)) continue;
         if (/^\s*>>/.test(ln)) { tgt = ln.replace(/^\s*>>\s*/, '').trim(); continue; }
         if (/^\s*---\s*$/.test(ln)) { inNote = true; continue; }
         (inNote ? note : sp).push(ln);
@@ -277,7 +301,7 @@ async function tutorPage() {
     function listenTurn() { return recOk() ? recordTurn() : webListen(); }
 
     function userSaid(t, plain) {
-      const m = { role: 'user', content: t };
+      const m = { role: 'user', content: t }; if (sc && !plain) sc.turns++;
       if (target && !plain) {
         const r = speakScore(target, t); const miss = r.words.filter((w, i) => !r.marks[i]);
         m.api = `${t}\n\n[Note de l'application : l'élève devait répéter « ${target} ». Reconnu : « ${t} ». Mots reconnus : ${r.marks.filter(Boolean).length}/${r.words.length}. Correspondance : ${Math.round(r.score * 100)} %.${miss.length ? ' Mots non reconnus : ' + miss.join(', ') + '.' : ''}]`;
@@ -311,7 +335,7 @@ async function tutorPage() {
         const c = cur(); let text = ''; let attempt = 0;
         for (;;) {
           try {
-            ({ text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, messages: apiMsgs(), signal: abortCtl.signal, context: isExam ? '' : weakContext(),
+            ({ text } = await T.chat({ provider: c.p, apiKey: c.key, model: c.model, mode, system: sc ? T.scenarioSystem(sc.def, sc.nivel) : undefined, messages: apiMsgs(), signal: abortCtl.signal, context: isExam || sc ? '' : weakContext(),
               onText: (d) => { if (!alive || sp !== speaker) return; acc += d; const p = parts(acc); if (!began && p.spoken) { began = true; if (!evalMode) setPhase('speak', 'Clara está falando…'); } show(p.spoken, evalMode ? p.spoken : '', ''); flush(p.spoken, false); } }));
             break;
           } catch (e) {
@@ -324,14 +348,19 @@ async function tutorPage() {
         }
         if (!alive || sp !== speaker) return;
         getMsgs().push({ role: 'assistant', content: text }); saveChats(chats);
-        const p = parts(text); const isEval = evalMode || /Nota geral/i.test(text);
+        const mk = sc ? SC.parseMarkers(text, sc.def.objetivos.map((o) => o.id)) : null;
+        // ##OK marca ao vivo; ##FINAL (avaliação final) confere e acrescenta o que a marcação ao vivo tenha perdido
+        if (mk) { const antes = sc.done.size; [...mk.ok, ...(mk.final || [])].forEach((id) => sc.done.add(id)); if (sc.done.size !== antes) drawMission(); }
+        const p = parts(text); const isEval = evalMode || (!sc && /Nota geral/i.test(text));
         if (p.note && !isEval) stats.notes.push(p.note);
+        if (isEval && sc) { sp.stop(); endScenario(text, mk); return; }
         if (isEval) { sp.stop(); planDone('exam'); recordExam(text); finish(true); return; }
         show(p.spoken, p.note, p.target); target = p.target; flush(p.spoken, true);
         if (!began) setPhase('speak', 'Clara está falando…');
         await sp.done();
         if (!alive || paused || sp !== speaker) return;
         if (sp.fallback) toast('Voz natural indisponível; usando a voz do aparelho.');
+        if (sc && (mk.fim || sc.done.size >= sc.def.objetivos.length || sc.turns >= sc.def.maxTurnos)) { autoFinish(); return; } // missão completa ou sem mais turnos
         await sleep(250); listenTurn();
       } catch (e) {
         if (!alive || e.name === 'AbortError' || sp !== speaker) return;
@@ -353,9 +382,9 @@ async function tutorPage() {
     function end(showEval) {
       if (!alive) return; alive = false; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); stopSpeaking();
       if (wake) { try { wake.release(); } catch (e) { /* ignore */ } }
-      document.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('incall'); callEnd = null;
+      document.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('incall'); callEnd = null; scRun = null;
       // resumo da ligação (conversa livre com pelo menos 2 falas suas); aparece no chat até a conversa continuar
-      if (!isExam && !showEval && stats.turns >= 2) chats.sum = { mode: tutorMode, n: getMsgs().length, turns: stats.turns, repeats: stats.repeats.slice(-6), notes: [...new Set(stats.notes)].slice(-4) };
+      if (!sc && !isExam && !showEval && stats.turns >= 2) chats.sum = { mode: tutorMode, n: getMsgs().length, turns: stats.turns, repeats: stats.repeats.slice(-6), notes: [...new Set(stats.notes)].slice(-4) };
       saveChats(chats); draw(); if (showEval) toast('Avaliação pronta, no chat.');
     }
     callEnd = end;
@@ -389,20 +418,69 @@ async function tutorPage() {
       if (!paused) { paused = true; stopRec(); if (speaker) speaker.stop(); if (abortCtl) abortCtl.abort(); setPhase('paused', 'Conversa pausada'); pauseFace(true); }
       else { paused = false; pauseFace(false); if (lastMsg() && lastMsg().role === 'user') clara(); else listenTurn(); }
     };
+    // pede a avaliação final (a IA responde ao "[FIN]")
+    const autoFinish = () => { evalMode = true; stopRec(); if (speaker) speaker.stop(); getMsgs().push({ role: 'user', content: '[FIN]' }); saveChats(chats); if (sc) setPhase('think', 'Preparando o seu resultado…'); clara(); };
     const fin = $('cfin');
-    if (fin) fin.onclick = () => {
-      if (!confirm('Terminar a prova e receber a avaliação?')) return;
-      evalMode = true; stopRec(); if (speaker) speaker.stop(); getMsgs().push({ role: 'user', content: '[FIN]' }); saveChats(chats); clara();
-    };
+    if (fin) fin.onclick = () => { if (!confirm(sc ? 'Terminar a missão e ver o resultado?' : 'Terminar a prova e receber a avaliação?')) return; autoFinish(); };
 
     (async () => {
       try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (e) { /* sem wake lock */ }
-      setPhase('think', 'Conectando…');
+      setPhase('think', 'Conectando…'); drawMission();
       const m = lastMsg();
       if (!m || m.role === 'user') clara();
       else if (/Nota geral/i.test(m.content)) { setPhase('idle', 'Esta prova já foi avaliada. Apague a conversa para recomeçar.'); }
       else sayLast();
     })();
+  }
+
+  // ---------- cenários: lista, ficha da missão e resultado ----------
+  function drawScenarios() {
+    const stats = S.get().scenarios || {};
+    const lista = SCENARIOS.map((d) => {
+      const x = stats[d.id] || {}; const total = d.objetivos.length;
+      const sel = x.levelDone ? `✅ nível ${x.levelDone}` : x.runs ? `${Math.min(x.best || 0, total)}/${total}` : 'novo';
+      return `<button class="unit" data-sc="${d.id}"><span class="ic">${d.icon}</span><span class="tx"><b>${esc(d.title)}</b><small>${esc(d.sub)}</small><small>${total} objetivos${x.runs ? ` · ${x.runs} ${x.runs > 1 ? 'tentativas' : 'tentativa'}` : ''}</small></span><span class="sc">${sel}</span></button>`;
+    }).join('');
+    $app.innerHTML = `
+      <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1></header>
+      <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <p class="pt">Missões curtas por voz: a Clara interpreta um papel (recepcionista, colega, guia…) e você cumpre os objetivos falando. Escolha quanta ajuda quer, de frases na tela até o modo prova.</p>
+      ${canTalk() ? '' : '<div class="card"><p class="pt">Para falar nos cenários, o app precisa gravar a sua voz e entender o que você diz: coloque uma chave do Gemini (ou do Groq) em Ajustes e permita o microfone.</p></div>'}
+      <div class="units">${lista}</div><div id="scsheet"></div>`;
+    document.querySelectorAll('.seg [data-m]').forEach((b) => { b.onclick = () => { if (busy) return; tutorMode = b.dataset.m; ensureOpening(); draw(); }; });
+    document.querySelectorAll('[data-sc]').forEach((b) => { b.onclick = () => openBriefing(SCENARIOS.find((d) => d.id === b.dataset.sc)); });
+  }
+  function openBriefing(d, nivelInicial) {
+    let nivel = nivelInicial || SC.nivelSugerido(d, S.get().scenarios); const box = document.getElementById('scsheet'); if (!box) return;
+    const pinta = () => {
+      const niveis = d.nivelFixo ? `<p class="pt"><b>Modo prova</b>: ${SC.NIVEIS[2].desc}</p>`
+        : `<h4>Quanta ajuda?</h4><div class="lvls">${SC.NIVEIS.map((n) => `<label class="lvl ${n.n === nivel ? 'on' : ''}"><input type="radio" name="nivel" value="${n.n}" ${n.n === nivel ? 'checked' : ''}><span><b>${n.nome}</b><small>${n.desc}</small></span></label>`).join('')}</div>`;
+      box.innerHTML = `<div class="scsheet"><div class="box"><h3>${d.icon} ${esc(d.title)}</h3><p>${esc(d.situacao)}</p>
+        <h4>Objetivos</h4><ul class="scobj">${d.objetivos.map((o) => `<li>${esc(o.texto)}</li>`).join('')}</ul>${niveis}
+        <div class="row">${canTalk() ? '<button class="btn primary" id="scgo">Começar a missão</button>' : ''}<button class="btn" id="scno">Agora não</button></div></div></div>`;
+      box.querySelectorAll('input[name="nivel"]').forEach((r) => { r.onchange = () => { nivel = +r.value; pinta(); }; });
+      box.querySelector('#scno').onclick = () => { box.innerHTML = ''; };
+      const go = box.querySelector('#scgo'); if (go) go.onclick = () => { box.innerHTML = ''; startScenario(d, nivel); };
+    };
+    pinta();
+  }
+  function startScenario(d, nivel) {
+    if (busy || callEnd) return;
+    scRun = { def: d, nivel: SC.nivelDe(d, nivel), done: new Set(), turns: 0 };
+    chats[`sc:${d.id}`] = [{ role: 'assistant', content: d.abertura }]; saveChats(chats); // a Clara abre a conversa, sem chamar a IA
+    startCall(scRun);
+  }
+  function showSummary(sc, relatorio) {
+    const d = sc.def; const total = d.objetivos.length; const n = sc.done.size; const v = SC.veredito(n, total);
+    const el = document.createElement('div'); el.className = 'call csum-wrap'; el.dataset.ts = 'm';
+    el.innerHTML = `<div class="csum"><h2>${v.titulo}</h2><p class="csub">${esc(d.title)} · ${SC.NIVEIS[sc.nivel - 1].nome} · ${n} de ${total}</p>
+      <ul class="mlist open">${d.objetivos.map((o) => `<li class="${sc.done.has(o.id) ? 'ok' : ''}">${sc.done.has(o.id) ? '✓' : '○'} ${esc(o.texto)}</li>`).join('')}</ul>
+      <div class="creport">${md(relatorio)}</div>
+      <div class="row"><button class="pill primary" id="csagain">Repetir a missão</button><button class="pill" id="csclose">Fechar</button></div></div>`;
+    document.body.appendChild(el); document.body.classList.add('incall');
+    const fechar = () => { el.remove(); document.body.classList.remove('incall'); };
+    el.querySelector('#csclose').onclick = fechar;
+    el.querySelector('#csagain').onclick = () => { fechar(); openBriefing(d, SC.nivelSugerido(d, S.get().scenarios)); };
   }
 
   ensureOpening(); draw();

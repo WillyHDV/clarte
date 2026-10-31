@@ -10,6 +10,7 @@ import { PRONOUNS, VERBS } from './verbs.js';
 import { NATS, LANGS, CITIES, QUARTIERS, JOBS } from './people.js';
 import { STATEMENTS, QWORDS } from './questions.js';
 import { LESSONS } from './lessons.js';
+import { SCENARIOS } from './scenarios.js';
 
 export default {
   schema: 1, // versão do formato do pacote
@@ -36,4 +37,5 @@ export default {
   jobs: JOBS,
   statements: STATEMENTS,
   qwords: QWORDS,
+  scenarios: SCENARIOS,
 };
