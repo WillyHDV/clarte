@@ -7,7 +7,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto' },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true },
 });
 // ---------- versões do formato ----------
 // MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
@@ -170,6 +170,8 @@ export function exportData({ includeKeys = false, mark = true } = {}) {
   return { app: 'clarte', schema: SCHEMA, exportedAt: quando, state: { ...s, lastBackup: mark ? quando : state.lastBackup }, chats };
 }
 export function markBackup() { state.lastBackup = new Date().toISOString(); save(); }
+// já há algum progresso a perder? (um app recém-instalado ou zerado devolve false e não deve sobrescrever um backup antigo)
+export const hasProgress = () => state.xp > 0 || state.mistakes.length > 0 || state.exams.length > 0 || Object.keys(state.mastery).length > 0;
 // dias desde o último backup (0 = hoje); null se nunca fez
 export function backupAgeDays(now = Date.now()) {
   const t = Date.parse(state.lastBackup); if (!Number.isFinite(t)) return null;

@@ -6,6 +6,7 @@ import { esc, I, toast } from '../ui.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { $app, st, rate, speak, cur, provOptions, CHAT_KEY, download } from '../core.js';
 import { checkUpdate } from '../update.js';
+import * as A from '../autobackup.js';
 import { buildIcs } from '../ics.js';
 import { evaluations, parseDay } from '../progress.js';
 
@@ -53,6 +54,10 @@ export function settingsPage() {
       <label class="chk-l"><input type="checkbox" id="sbkkeys"> Incluir minha chave de IA no arquivo (guarde com cuidado)</label>
       <div class="row"><button class="btn primary" id="sshare">${I('send')} Compartilhar backup</button><button class="btn" id="sexport">${I('download')} Baixar</button><button class="btn" id="simport">${I('upload')} Importar</button></div>
       <input type="file" id="sfile" accept="application/json,.json" hidden>
+      ${A.disponivel() ? `<hr><label class="chk-l"><input type="checkbox" id="sautoon" ${s.autoBackup !== false ? 'checked' : ''}> Backup automático em Documentos/Clarte (sobrevive à desinstalação, sem a chave de IA)</label>
+      <small id="sautost">${esc(A.statusText())}</small>
+      <div class="row"><button class="btn sm" id="sautonow">Fazer agora</button><button class="btn sm" id="sautorest">Restaurar do backup automático</button></div>
+      <small>Depois de reinstalar o app, o Android pode não deixar ele ler o arquivo sozinho. Nesse caso use Importar e escolha Documentos → Clarte → clarte-backup.json.</small>` : ''}
     </section>
     <section class="card"><h3>Sobre</h3>
       <p>Clarté <b>v${VERSION}</b> · ${BUILD_DATE}</p>
@@ -151,6 +156,22 @@ export function settingsPage() {
       S.importData(obj); toast('Progresso restaurado ✅'); settingsPage();
     } catch (er) { toast('Não consegui ler o arquivo: ' + (er.message || 'formato inválido')); }
     e.target.value = '';
+  });
+  // backup automático em Documentos/Clarte (só no app Android)
+  const sautost = (t) => { const el = document.getElementById('sautost'); if (el) el.textContent = t || A.statusText(); };
+  on('sautoon', 'change', async (e) => { S.setSetting('autoBackup', e.target.checked); sautost(); if (e.target.checked) { await A.autoBackup({ urgent: true }); sautost(); } });
+  on('sautonow', 'click', async () => {
+    const mais = await A.richerBackup({ fresh: true });
+    if (mais && !confirm(`Já existe um backup com mais pontos (${mais.obj.state.xp || 0}) do que este app tem (${st().xp}). Substituir pelo estado atual?`)) return;
+    sautost('Gravando…'); const r = await A.autoBackup({ force: true }); sautost();
+    toast(r.estado === 'ok' ? 'Backup gravado em Documentos/Clarte ✅' : 'Não consegui gravar: ' + (r.erro || r.estado));
+  });
+  on('sautorest', 'click', async () => {
+    const b = await A.findBackup();
+    if (!b) { toast('Não consegui ler um backup automático. Use Importar e escolha o arquivo em Documentos → Clarte.'); return; }
+    const quando = b.obj.exportedAt ? new Date(b.obj.exportedAt).toLocaleString('pt-BR') : 'data desconhecida';
+    if (!confirm(`Substituir o progresso deste app pelo do backup (${quando}, ${b.obj.state.xp || 0} pontos)? Isso não pode ser desfeito.`)) return;
+    A.restore(b); toast('Progresso restaurado ✅'); settingsPage();
   });
   on('sreset', 'click', () => { if (confirm('Apagar todo o progresso e os erros salvos?')) { S.resetAll(); try { localStorage.removeItem(CHAT_KEY); } catch (e) { /* ignore */ } settingsPage(); } });
 }

@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## v20 — 31/10/2026
+
+Backup automático no app Android: o progresso passa a ter uma cópia fora do app, que sobrevive à desinstalação.
+
+- **Backup automático em Documentos/Clarte** (só no app Android): o app grava `clarte-backup.json` sozinho ao abrir, a cada 5 minutos quando algo mudou e ao sair do app. O arquivo não leva a chave de IA e guarda também a cópia do dia anterior (`clarte-backup-anterior.json`).
+- **Proteções**: um app vazio nunca grava por cima de um backup; um backup com mais pontos nunca é trocado por um com menos (só o botão "Fazer agora" força, depois de perguntar); se o Android não deixar sobrescrever um arquivo de uma instalação anterior, o backup vai para um arquivo com data no nome.
+- **Restaurar**: depois de reinstalar, a tela inicial oferece restaurar quando acha um backup com mais pontos do que o app tem ("Agora não" dispensa aquele backup). Em Ajustes → Seus dados há o botão de restaurar, o de "Fazer agora" e a chave para ligar e desligar.
+- **Diagnóstico**: "Testar o app Android" também lista os arquivos de Documentos/Clarte e quais este app consegue ler (depois de reinstalar, o Android pode recusar a leitura; nesse caso use Importar e escolha o arquivo).
+- **Testes**: 195 → 216 (backup, proteções, telas do app).
+
 ## v19 — 31/10/2026
 
 Correção para o app Android, a partir do diagnóstico feito no celular (a ponte nativa e a gravação em Documentos/Clarte funcionaram).

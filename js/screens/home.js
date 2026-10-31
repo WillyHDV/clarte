@@ -1,7 +1,8 @@
 // Tela inicial: prontidão, plano de hoje, reta final e trilha de unidades.
 import { UNITS } from '../data.js';
 import * as S from '../store.js';
-import { esc, I } from '../ui.js';
+import { esc, I, toast } from '../ui.js';
+import * as A from '../autobackup.js';
 import { $app, st } from '../core.js';
 import { nextEvaluation, readiness, CRITERIA, unitPassed, currentUnit, ensurePlan } from '../progress.js';
 
@@ -30,6 +31,21 @@ function finalStretch(nx) {
   return `<section class="card quick"><h3>Reta final · ${esc(nx.ev.title)}</h3><p class="pt">${sim}</p>
     <div class="row"><button class="btn" data-go="#/tutor/exam">${I('phone')} Simular a prova oral</button>${nx.ev.sheet ? `<button class="btn" data-go="#/folha">${I('file')} Folha de revisão</button>` : ''}</div>
     ${S.backupDue() ? backupNudge(backupText()) : ''}</section>`;
+}
+// App Android reinstalado (ou dados perdidos): se o backup automático em Documentos/Clarte tem mais pontos que o app, oferece restaurar
+async function offerRestore() {
+  if (!A.disponivel()) return;
+  let b = null; try { b = await A.richerBackup(); } catch (e) { return; }
+  if (!b || A.dismissed(b) || !$app.querySelector('.hero') || document.getElementById('restore')) return;
+  const quando = b.obj.exportedAt ? new Date(b.obj.exportedAt).toLocaleString('pt-BR') : 'data desconhecida';
+  $app.querySelector('.hero').insertAdjacentHTML('beforebegin', `<section class="card" id="restore"><h3>${I('shield')} Encontrei um backup do seu progresso</h3>
+    <p class="pt">Está em Documentos/Clarte, de ${esc(quando)}, com <b>${b.obj.state.xp || 0} pontos</b>. Este app tem ${st().xp}. Quer restaurar?</p>
+    <div class="row"><button class="btn primary" id="rrestore">Restaurar o backup</button><button class="btn" id="rskip">Agora não</button></div></section>`);
+  document.getElementById('rrestore').onclick = () => {
+    if (!confirm(`Substituir o progresso deste app pelo do backup (${quando})?`)) return;
+    A.restore(b); toast('Progresso restaurado ✅'); home();
+  };
+  document.getElementById('rskip').onclick = () => { A.dismiss(b); document.getElementById('restore').remove(); };
 }
 export function home() {
   S.touchDay(); S.save();
@@ -65,4 +81,5 @@ export function home() {
       const tag = passed ? '✅ concluída' : idx === cidx ? '▶ você está aqui' : locked ? '🔒 depois' : '';
       return `<button class="unit ${locked ? 'locked' : ''} ${idx === cidx ? 'cur' : ''}" data-go="#/unit/${u.id}" ${locked ? `data-lock="${esc(cu.title)}"` : ''}><span class="ic">${u.icon}</span><span class="tx"><b>${u.n}. ${esc(u.title)}</b><small>${esc(u.sub)}</small><span class="bar"><i style="width:${m.pct}%"></i></span><small>${m.seen}/${m.total} itens vistos${tag ? ' · ' + tag : ''}</small></span><span class="sc">${m.pct}%</span></button>`;
     }).join('')}</div>`;
+  offerRestore();
 }

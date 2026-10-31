@@ -49,10 +49,12 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 É preciso o JDK 21 (`JAVA_HOME`) e o Android SDK (`ANDROID_HOME`). Se `adb devices` não listar o celular, confira o cabo e a depuração USB.
 
+## Backup automático
+
+O app grava o progresso sozinho em `Documentos/Clarte/clarte-backup.json` (e a cópia do dia anterior em `clarte-backup-anterior.json`), sem a chave de IA. Essa pasta sobrevive à desinstalação. Em Ajustes → Seus dados dá para desligar, gravar na hora e restaurar. Depois de reinstalar, o app oferece restaurar na tela inicial; se o Android não deixar o app novo ler o arquivo, use **Importar** e escolha Documentos → Clarte → `clarte-backup.json`.
+
 ## O que vem depois
 
-1. Backup automático em `Documentos/Clarte/` (depende do resultado do teste acima).
-2. Lembretes diários de estudo.
-3. Manter a tela ligada durante a ligação com a Clara.
-4. Exercícios "Falar" pela gravação do microfone.
-5. Voz e reconhecimento nativos do Android; depois, aos poucos, mais telas nativas.
+1. Lembretes diários de estudo.
+2. Manter a tela ligada durante a ligação com a Clara.
+3. Voz e reconhecimento nativos do Android; depois, aos poucos, mais telas nativas.

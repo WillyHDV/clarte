@@ -1,24 +1,9 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { isNative, hasPlugin, platform, selfTest, STORAGE_PLACES, BACKUP_DIR } from '../js/native.js';
+import { isNative, hasPlugin, platform, selfTest, STORAGE_PLACES, BACKUP_DIR, BACKUP_FILE, canBackup, readBackupFile, writeBackupFile, listBackupFiles } from '../js/native.js';
+import { fakeCapacitor } from './support/capacitor.js';
 
 afterEach(() => { delete globalThis.Capacitor; });
-
-// Capacitor de mentira: o que o app Android injeta na página. `quebra` lista os diretórios em que a gravação falha.
-function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], native = true, leitura } = {}) {
-  const arquivos = new Map(); const chamadas = [];
-  const key = (a) => `${a.directory}:${a.path}`;
-  const Filesystem = {
-    async writeFile(a) { chamadas.push(['write', a]); if (quebra.includes(a.directory)) throw new Error(`Permission denied (${a.directory})`); arquivos.set(key(a), a.data); return { uri: 'file:///x' }; },
-    async readFile(a) { chamadas.push(['read', a]); return { data: leitura !== undefined ? leitura : arquivos.get(key(a)) }; },
-    async deleteFile(a) { chamadas.push(['delete', a]); arquivos.delete(key(a)); },
-  };
-  globalThis.Capacitor = {
-    isNativePlatform: () => native, getPlatform: () => (native ? 'android' : 'web'), isPluginAvailable: (n) => plugins.includes(n),
-    Plugins: { Filesystem, Share: { canShare: async () => ({ value: true }) } },
-  };
-  return { arquivos, chamadas };
-}
 
 test('fora do app (site ou navegador) nada é nativo e o teste explica', async () => {
   assert.equal(isNative(), false); assert.equal(hasPlugin('Filesystem'), false); assert.equal(platform(), 'web');
@@ -66,6 +51,28 @@ test('sem o plugin de arquivos a ponte não chegou: erro claro e o teste para', 
   fakeCapacitor({ plugins: [] }); const r = await selfTest();
   assert.ok(r.filter((l) => /^Plugin/.test(l.nome)).every((l) => l.estado === 'fail' && /ponte nativa não chegou/.test(l.detalhe)));
   assert.ok(!r.some((l) => /^Gravar/.test(l.nome)));
+});
+
+test('arquivos de backup: grava em Documentos/Clarte, lê de volta e lista a pasta', async () => {
+  const { arquivos, chamadas } = fakeCapacitor(); assert.equal(canBackup(), true);
+  await writeBackupFile(BACKUP_FILE, '{"a":1}'); await writeBackupFile('clarte-backup-20261101-1000.json', '{}'); await writeBackupFile('outra-coisa.txt', 'x');
+  assert.equal(arquivos.get(`DOCUMENTS:${BACKUP_DIR}/${BACKUP_FILE}`), '{"a":1}');
+  assert.ok(chamadas.filter((c) => c[0] === 'write').every((c) => c[1].directory === 'DOCUMENTS' && c[1].encoding === 'utf8' && c[1].recursive === true));
+  assert.equal(await readBackupFile(BACKUP_FILE), '{"a":1}');
+  assert.deepEqual((await listBackupFiles()).sort(), ['clarte-backup-20261101-1000.json', BACKUP_FILE], 'só nomes de backup do Clarté');
+});
+
+test('arquivos de backup: arquivo ausente ou recusado vira null, e gravação que não confere falha', async () => {
+  fakeCapacitor({ inicial: { [`DOCUMENTS:${BACKUP_DIR}/${BACKUP_FILE}`]: 'x' }, negarLeitura: [BACKUP_FILE] });
+  assert.equal(await readBackupFile('nao-existe.json'), null); assert.equal(await readBackupFile(BACKUP_FILE), null, 'o Android recusou a leitura');
+  fakeCapacitor({ leitura: 'outro texto' }); await assert.rejects(writeBackupFile(BACKUP_FILE, 'texto'), /não confere/);
+  fakeCapacitor({ quebra: ['DOCUMENTS'] }); await assert.rejects(writeBackupFile(BACKUP_FILE, 'texto'), /Permission denied/);
+});
+
+test('fora do app não há backup em arquivo', async () => {
+  assert.equal(canBackup(), false); fakeCapacitor({ native: false }); assert.equal(canBackup(), false);
+  fakeCapacitor({ plugins: [] }); assert.equal(canBackup(), false);
+  fakeCapacitor({ quebra: [] }); delete globalThis.Capacitor.Plugins.Filesystem.readdir; assert.deepEqual(await listBackupFiles(), [], 'pasta ilegível não derruba nada');
 });
 
 test('Documentos é o primeiro lugar e o único marcado como durável', () => {

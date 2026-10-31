@@ -17,7 +17,7 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
   },
   {
-    files: ['test/screens.test.js', 'test/falar-no-app.test.js'], // roda o app dentro do jsdom: usa os globais do navegador
+    files: ['test/screens.test.js', 'test/falar-no-app.test.js', 'test/backup-no-app.test.js'], // roda o app dentro do jsdom: usa os globais do navegador
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
