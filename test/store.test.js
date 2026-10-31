@@ -130,3 +130,42 @@ test('backup antigo (esquema menor, sem campos novos) é aceito e completado', (
   assert.equal(S.get().settings.provider, 'groq'); assert.equal(S.get().settings.micMode, 'rec', 'campo novo ganha o valor padrão');
   assert.deepEqual(S.get().exams, []); assert.equal(S.get().v, S.SCHEMA);
 });
+
+test('normalize: estado de versão antiga ganha a versão e os campos novos', () => {
+  const s = S.normalize({ xp: 40, mastery: { a: { s: 1, h: 1, t: 1, n: 1, c: 1 } } });
+  assert.equal(s.v, S.SCHEMA); assert.equal(s.xp, 40); assert.ok(s.mastery.a);
+  assert.deepEqual(s.exams, []); assert.equal(s.lastBackup, ''); assert.equal(s.settings.micMode, 'rec');
+});
+
+test('normalize: descarta campos com tipo errado e completa objetos pela metade', () => {
+  const s = S.normalize({ mastery: null, mistakes: {}, exams: 'x', xp: '10', today: { n: 3 }, plan: { done: 5 }, settings: { keys: 'oops', goal: 30 } });
+  assert.deepEqual(s.mastery, {}); assert.deepEqual(s.mistakes, []); assert.deepEqual(s.exams, []); assert.equal(s.xp, 0);
+  assert.deepEqual(s.today, { date: '', n: 3 }); assert.deepEqual(s.plan.done, {});
+  assert.deepEqual(s.settings.keys, {}); assert.equal(s.settings.goal, 30);
+});
+
+test('normalize: lixo vira estado em branco e versão mais nova não é rebaixada', () => {
+  for (const lixo of [null, undefined, 5, 'texto', [], [1, 2]]) assert.equal(S.normalize(lixo).v, S.SCHEMA);
+  assert.equal(S.normalize({ v: S.SCHEMA + 3, xp: 7 }).v, S.SCHEMA + 3);
+  assert.equal(S.normalize({ v: 'x' }).v, S.SCHEMA);
+});
+
+test('normalize não altera o objeto recebido', () => {
+  const entrada = { xp: 1, settings: { goal: 5 } }; const copia = JSON.stringify(entrada);
+  S.normalize(entrada); assert.equal(JSON.stringify(entrada), copia);
+});
+
+test('dados salvos ilegíveis: o app abre em branco e guarda uma cópia do original', async () => {
+  localStorage.setItem('fr_app_v1', '{"xp": 12, quebrado');
+  const novo = await import(`../js/store.js?corrompido=${Date.now()}`);
+  assert.equal(novo.get().xp, 0);
+  assert.equal(localStorage.getItem('fr_app_v1_corrompido'), '{"xp": 12, quebrado');
+});
+
+test('dados salvos válidos, mas com campos ruins, não derrubam o app', async () => {
+  localStorage.setItem('fr_app_v1', JSON.stringify({ v: 1, xp: 90, mastery: null, mistakes: 'x', settings: null }));
+  const novo = await import(`../js/store.js?ruim=${Date.now()}`);
+  assert.equal(novo.get().xp, 90); assert.deepEqual(novo.get().mastery, {});
+  assert.doesNotThrow(() => { novo.recordItems(['a'], true, 'type'); novo.noteResult({ key: 'k' }, false); novo.dueMistakes(); });
+  assert.equal(novo.get().settings.provider, 'gemini');
+});

@@ -9,10 +9,37 @@ const blank = () => ({
   v: SCHEMA, exams: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20 },
 });
+// ---------- versões do formato ----------
+// MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
+const MIGRATIONS = {
+  1: (s) => s, // v1 → v2: só ganhou exams e lastBackup, que entram com os valores padrão em normalize()
+};
+const kind = (x) => (Array.isArray(x) ? 'array' : x === null ? 'null' : typeof x);
+const isObj = (x) => kind(x) === 'object';
+// Aceita qualquer coisa que veio do disco ou de um backup e devolve um estado válido na versão atual:
+// migra versões antigas, completa campos que faltam e descarta campos com tipo errado (ex.: mastery: null).
+export function normalize(raw) {
+  let s = isObj(raw) ? { ...raw } : {};
+  let v = Number.isInteger(s.v) && s.v >= 1 ? s.v : 1;
+  for (; v < SCHEMA; v++) { if (MIGRATIONS[v]) s = MIGRATIONS[v](s); s.v = v + 1; }
+  const base = blank(); const out = { ...base, ...s };
+  for (const k of Object.keys(base)) if (kind(out[k]) !== kind(base[k])) out[k] = base[k];
+  for (const k of ['today', 'plan', 'voiceToday']) out[k] = { ...base[k], ...out[k] };
+  if (!isObj(out.plan.done)) out.plan.done = {};
+  out.settings = { ...base.settings, ...(isObj(s.settings) ? s.settings : {}) };
+  for (const k of ['keys', 'models']) if (!isObj(out.settings[k])) out.settings[k] = {};
+  return out;
+}
+
 let state = blank();
 try {
   const raw = localStorage.getItem(KEY);
-  if (raw) { const s = JSON.parse(raw); state = { ...blank(), ...s, settings: { ...blank().settings, ...(s.settings || {}) } }; }
+  if (raw) {
+    try { state = normalize(JSON.parse(raw)); } catch (e) {
+      // dado ilegível: guarda uma cópia antes que o próximo save() sobrescreva (dá para recuperar à mão)
+      try { localStorage.setItem(KEY + '_corrompido', raw); } catch (e2) { /* sem espaço */ }
+    }
+  }
 } catch (e) { /* sem armazenamento: segue em memória */ }
 
 export const get = () => state;
@@ -126,9 +153,9 @@ export function validateBackup(obj) {
 export function importData(obj) {
   const err = validateBackup(obj); if (err) throw new Error(err);
   const keep = state.settings.keys || {}; const s = obj.state;
-  state = { ...blank(), ...s, v: SCHEMA, settings: { ...blank().settings, ...(s.settings || {}) } };
+  state = normalize({ ...s, v: Number.isInteger(s.v) ? s.v : obj.schema });
   // as chaves atuais do aparelho vencem, a menos que o backup traga chaves
-  state.settings.keys = (s.settings && s.settings.keys && Object.keys(s.settings.keys).length) ? s.settings.keys : keep;
+  state.settings.keys = (isObj(s.settings) && isObj(s.settings.keys) && Object.keys(s.settings.keys).length) ? s.settings.keys : keep;
   save();
   try { if (obj.chats && typeof obj.chats === 'object') localStorage.setItem(CHAT_KEY, JSON.stringify(obj.chats)); } catch (e) { /* ignore */ }
 }
