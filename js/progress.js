@@ -23,6 +23,17 @@ export function nextEvaluation(now = new Date()) {
   for (const ev of evaluations()) { const d = parseDay(ev.date); if (d && d >= today) return { ev, days: Math.round((d - today) / 86400000) }; }
   return null;
 }
+// últimos `days` dias (hoje por último), um item por dia; dia sem registro vem zerado e sem prontidão medida
+export function historySeries(days = 30, now = new Date()) {
+  const byDay = new Map(S.get().history.map((h) => [h.d, h]));
+  const out = [];
+  for (let k = days - 1; k >= 0; k--) {
+    const iso = new Date(now.getFullYear(), now.getMonth(), now.getDate() - k).toLocaleDateString('sv-SE'); // AAAA-MM-DD, igual ao store
+    const h = byDay.get(iso);
+    out.push({ d: iso, n: h ? h.n : 0, ok: h ? h.ok : 0, r: h && h.r !== null ? h.r : null });
+  }
+  return out;
+}
 export function daysToExam() { const n = nextEvaluation(); return n ? n.days : null; }
 export const strengthOf = (id) => { const s = S.strength(id); return s === null ? 0.3 : s; };
 export const unitMastery = (uid) => S.mastery(unitItems(uid));

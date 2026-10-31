@@ -10,6 +10,7 @@ import { unitPage } from './screens/lesson.js';
 import { practice } from './screens/practice.js';
 import { openTutor } from './screens/tutor.js';
 import { settingsPage } from './screens/settings.js';
+import { historyPage } from './screens/history.js';
 import { folhaPage, diagPage } from './screens/tools.js';
 
 // ---------- roteador ----------
@@ -24,7 +25,7 @@ async function route() {
   runCleanup();
   stopSpeaking();
   const [, page, arg, arg2] = (location.hash || '#/').slice(1).split('/');
-  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.p === (page || 'home') || (a.dataset.p === 'home' && ['unit', 'practice', 'step'].includes(page))));
+  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.p === (page || 'home') || (a.dataset.p === 'home' && ['unit', 'practice', 'step', 'history'].includes(page))));
   $app.scrollTo?.(0, 0); window.scrollTo(0, 0);
   document.body.classList.toggle('focus', page === 'practice' || page === 'step');
   if (page === 'unit') return unitPage(arg);
@@ -32,6 +33,7 @@ async function route() {
   if (page === 'step') return practice(arg, arg2);
   if (page === 'tutor') return openTutor(arg);
   if (page === 'settings') return settingsPage();
+  if (page === 'history') return historyPage();
   if (page === 'folha') return folhaPage();
   if (page === 'diag') return diagPage();
   return home();

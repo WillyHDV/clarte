@@ -203,3 +203,69 @@ test('Ajustes: mudar a data de uma avaliação muda a contagem; vazio e "voltar"
   $('#sevreset').click(); await tick();
   assert.deepEqual(S.get().settings.evalDates, {}); assert.equal($('[data-eval="eval2"]').value, '2026-12-02');
 });
+
+// ---- Evolução (histórico e gráficos) ----
+test('os treinos e a tela inicial gravam o histórico do dia', async () => {
+  S.resetAll(); mock.timers.setTime(DIA(11, 1).getTime());
+  await goto('#/settings'); await goto('#/');
+  assert.equal(S.get().history.at(-1).d, '2026-11-01'); assert.equal(typeof S.get().history.at(-1).r, 'number', 'início grava a prontidão do dia');
+  const fim = await drive('#/practice/comm');
+  const h = S.get().history.at(-1); const [, ok, tot] = /(\d+)\/(\d+) corretas/.exec(fim).map(Number);
+  assert.equal(h.n, Math.max(tot, 1)); assert.equal(h.ok, ok, 'o histórico bate com o resultado mostrado na tela final');
+});
+
+test('Evolução sem histórico mostra o convite, sem gráficos quebrados', async () => {
+  S.resetAll(); S.get().history = []; S.save(); await goto('#/settings'); await goto('#/history');
+  assert.match(text(), /Ainda não há histórico/); assert.equal($$('figure.chart').length, 0); assert.ok($('[data-go="#/practice/mix"]'));
+  assert.equal($$('.tile').length, 4); noBroken('evolução vazia');
+});
+
+function semear() {
+  S.resetAll(); const dias = [];
+  for (let k = 29; k >= 0; k--) { const d = new Date(2026, 10, 1 - k).toLocaleDateString('sv-SE'); dias.push({ d, n: k % 5 === 2 ? 0 : 10 + k, ok: k % 5 === 2 ? 0 : 7, r: k % 7 === 3 ? null : 20 + (29 - k) }); }
+  S.get().history = dias; S.get().streak = 4;
+  S.get().exams = [{ date: new Date(2026, 9, 28).toISOString(), score: 5.5, crit: {} }, { date: new Date(2026, 10, 1).toISOString(), score: 7.5, crit: {} }]; S.save();
+}
+
+test('Evolução com dados: cartões, três gráficos acessíveis e tabelas equivalentes', async () => {
+  semear(); mock.timers.setTime(DIA(11, 1).getTime()); await goto('#/settings'); await goto('#/history');
+  assert.equal($$('figure.chart').length, 3); assert.equal($$('svg.chart-svg').length, 3);
+  const cartoes = $$('.tile').map((t) => [...t.children].map((c) => c.textContent).join(' '));
+  assert.match(cartoes[0], /Dias seguidos 4/); assert.match(cartoes[3], /Simulações da prova 2 melhor nota 7,5\/10/);
+  for (const svg of $$('svg.chart-svg')) { assert.equal(svg.getAttribute('role'), 'img'); assert.ok(svg.getAttribute('aria-label').length > 20, 'descrição do gráfico'); assert.equal(svg.getAttribute('tabindex'), '0'); }
+  assert.match($$('svg.chart-svg')[0].getAttribute('aria-label'), /Prontidão para a avaliação: de 20% em 03\/10 para 49% em 01\/11/);
+  assert.match($$('svg.chart-svg')[2].getAttribute('aria-label'), /de 5,5 em 28\/10 para 7,5 em 01\/11/);
+  const tabelas = $$('figure.chart table'); assert.equal(tabelas.length, 3);
+  assert.equal(tabelas[0].querySelectorAll('tbody tr').length, 30); assert.equal(tabelas[2].querySelectorAll('tbody tr').length, 2);
+  assert.match(tabelas[1].textContent, /Exercícios.*Acertos/s);
+  assert.doesNotMatch(document.body.innerHTML, /NaN|undefined/); assert.ok($$('nav.tabs a.on').some((a) => a.dataset.p === 'home'), 'Trilha continua marcada');
+});
+
+test('Evolução: tocar mostra o dia, setas andam e Esc limpa', async () => {
+  semear(); await goto('#/settings'); await goto('#/history');
+  const fig = $$('figure.chart')[1]; const svg = fig.querySelector('svg'); const out = fig.querySelector('.readout'); const cursor = fig.querySelector('.ch-cursor');
+  svg.getBoundingClientRect = () => ({ left: 0, width: 340, top: 0, height: 190 });
+  assert.ok(cursor.hasAttribute('hidden'), 'começa sem cursor');
+  svg.dispatchEvent(new w.MouseEvent('pointerdown', { clientX: 328, bubbles: true }));
+  assert.match(out.textContent, /^01\/11 · \d+ exercícios, 7 acertos/); assert.ok(!cursor.hasAttribute('hidden'), 'o cursor aparece');
+  svg.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); assert.match(out.textContent, /^31\/10 ·/);
+  svg.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); svg.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  assert.match(out.textContent, /^01\/11 ·/, 'não passa do último dia');
+  svg.dispatchEvent(new w.MouseEvent('pointerdown', { clientX: 34, bubbles: true })); assert.match(out.textContent, /^03\/10 ·/);
+  svg.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); assert.ok(cursor.hasAttribute('hidden'));
+  // dia sem exercício
+  svg.dispatchEvent(new w.MouseEvent('pointerdown', { clientX: 34 + (294 / 30) * 3.5, bubbles: true }));
+  assert.match(out.textContent, /nenhum exercício|exercícios/);
+});
+
+test('Evolução: com uma só simulação, mostra a dica em vez de um gráfico de um ponto', async () => {
+  semear(); S.get().exams = [{ date: new Date(2026, 10, 1).toISOString(), score: 6, crit: {} }]; S.save();
+  await goto('#/settings'); await goto('#/history');
+  assert.equal($$('figure.chart').length, 2); assert.match(text(), /Faça mais uma simulação/);
+});
+
+test('início leva à Evolução e a Evolução volta ao início', async () => {
+  await goto('#/settings'); await goto('#/'); $('[data-go="#/history"]').click(); await tick();
+  assert.match(w.location.hash, /#\/history/); assert.ok($$('.tile').length === 4);
+  $('.top .back').click(); await tick(); assert.match(text(), /Prontidão para a avaliação/);
+});

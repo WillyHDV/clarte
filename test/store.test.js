@@ -175,3 +175,49 @@ test('normalize: datas de avaliação ajustadas precisam ser um objeto (e vêm v
   assert.deepEqual(S.normalize({ settings: { evalDates: 'x' } }).settings.evalDates, {});
   assert.deepEqual(S.normalize({ settings: { evalDates: { eval1: '2026-11-10' } } }).settings.evalDates, { eval1: '2026-11-10' });
 });
+
+// ---- histórico diário (gráficos de Evolução) ----
+test('logDay: acumula no mesmo dia e abre um registro novo a cada dia', async () => {
+  const { mock } = await import('node:test');
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 1, 10) });
+  try {
+    S.logDay({ n: 10, ok: 7 }); S.logDay({ n: 5, ok: 5, r: 41.6 }); S.logDay({ r: 44 });
+    assert.deepEqual(S.get().history, [{ d: '2026-11-01', n: 15, ok: 12, r: 44 }]);
+    mock.timers.setTime(new Date(2026, 10, 2, 9).getTime()); S.logDay({ n: 3, ok: 1 });
+    assert.deepEqual(S.get().history.at(-1), { d: '2026-11-02', n: 3, ok: 1, r: null }, 'prontidão não medida fica null, não zero');
+    assert.equal(S.get().history.length, 2);
+  } finally { mock.timers.reset(); }
+});
+
+test('logDay ignora prontidão inválida e guarda no máximo 400 dias', () => {
+  S.logDay({ r: NaN }); S.logDay({ r: 'x' }); assert.equal(S.get().history.at(-1).r, null);
+  S.get().history = Array.from({ length: 400 }, (_, i) => ({ d: new Date(2025, 0, 1 + i).toLocaleDateString('sv-SE'), n: 1, ok: 1, r: null }));
+  S.logDay({ n: 1, ok: 1 });
+  assert.equal(S.get().history.length, 400); assert.equal(S.get().history[0].d, '2025-01-02', 'o dia mais antigo sai');
+});
+
+test('recordSession alimenta o histórico do dia', () => {
+  S.recordSession('comm', 8, 10);
+  const h = S.get().history.at(-1); assert.equal(h.n, 10); assert.equal(h.ok, 8);
+});
+
+test('migração 2 → 3: estado sem histórico ganha history vazio e a versão nova', () => {
+  const s = S.normalize({ v: 2, xp: 30, exams: [{ score: 6 }] });
+  assert.equal(s.v, S.SCHEMA); assert.deepEqual(s.history, []); assert.equal(s.xp, 30); assert.equal(s.exams.length, 1);
+});
+
+test('normalize limpa o histórico: descarta lixo, corrige números, ordena', () => {
+  const s = S.normalize({ history: [
+    { d: '2026-11-03', n: 5, ok: 4, r: 50 }, { d: 'ontem', n: 1 }, null, 7, { d: '2026-11-01', n: '12', ok: -3, r: 'x' }, { d: '2026-11-02' },
+  ] });
+  assert.deepEqual(s.history, [
+    { d: '2026-11-01', n: 12, ok: 0, r: null }, { d: '2026-11-02', n: 0, ok: 0, r: null }, { d: '2026-11-03', n: 5, ok: 4, r: 50 },
+  ]);
+  assert.deepEqual(S.normalize({ history: 'x' }).history, []);
+});
+
+test('backup leva e traz o histórico', () => {
+  S.logDay({ n: 4, ok: 3, r: 20 });
+  const b = JSON.parse(JSON.stringify(S.exportData())); S.resetAll(); assert.deepEqual(S.get().history, []);
+  S.importData(b); assert.equal(S.get().history.at(-1).n, 4);
+});

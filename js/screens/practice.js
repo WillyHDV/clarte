@@ -5,7 +5,7 @@ import { listen, canListen, prefetch } from '../speech.js';
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
 import { $app, st, rate, speak, setCleanup } from '../core.js';
-import { strengthOf, unitMastery, STEPS, nextStep, planDone, markFocus } from '../progress.js';
+import { strengthOf, readiness, unitMastery, STEPS, nextStep, planDone, markFocus } from '../progress.js';
 
 // ---------- prática ----------
 export const ACC = ['é', 'è', 'ê', 'ë', 'à', 'â', 'î', 'ï', 'ô', 'û', 'ù', 'ç', 'œ', '’'];
@@ -30,7 +30,7 @@ export function practice(id, stepId) {
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false;
 
   function showEnd() {
-    S.recordSession(review ? 'review' : id, correct, Math.max(attempted, 1));
+    S.recordSession(review ? 'review' : id, correct, Math.max(attempted, 1)); S.logDay({ r: readiness().overall });
     const pct = Math.round((100 * correct) / Math.max(attempted, 1));
     // degrau da trilha: guarda o resultado e libera o próximo se passou
     let stepMsg = ''; let nextBtn = '';

@@ -43,7 +43,8 @@ Publique a pasta `publicar/` (gerada a partir de `app/`), abra o endereço no Ch
 
 ## Seus dados e atualizações
 
-- **Backup:** Ajustes → Seus dados → Exportar gera um arquivo `.json` com progresso, erros e conversas (a chave de IA só entra se você marcar). Importar restaura em outro aparelho ou depois de limpar os dados do site.
+- **Evolução:** na tela inicial, "Ver evolução" mostra os números da semana e três gráficos (prontidão, exercícios por dia, notas das simulações), cada um com leitura ao tocar e uma tabela equivalente. O histórico diário fica só neste aparelho.
+- **Backup:** Ajustes → Seus dados → Exportar gera um arquivo `.json` com progresso, histórico, erros e conversas (a chave de IA só entra se você marcar). Importar restaura em outro aparelho ou depois de limpar os dados do site.
 - **Atualização:** o app confere sozinho se há versão nova e mostra o aviso "Nova versão disponível". A versão fica em `js/version.js`: aumente-a (e o `CACHE` do `sw.js`) a cada publicação.
 - **Diagnóstico:** Ajustes → Diagnóstico testa voz, microfone, transcrição, IA e armazenamento, e copia um relatório.
 - **Folha de revisão:** página de resumo da Évaluation 1 para imprimir ou salvar em PDF (Ajustes ou início → Reta final).
@@ -63,10 +64,11 @@ A chave fica só no navegador de cada aparelho. Para limitar o estrago caso ela 
 
 - `content/` — pacotes de conteúdo (aulas, vocabulário, verbos, profissões, frases); veja `content/README.md`
 - `js/app.js` — ponto de entrada: roteador (`#/...`), cliques globais e inicialização
-- `js/screens/` — uma tela por arquivo: `home` (início), `lesson` (unidade), `practice` (treino), `tutor` (Clara: chat, prova oral e ligação por voz), `settings` (ajustes), `tools` (folha e diagnóstico)
+- `js/screens/` — uma tela por arquivo: `home` (início), `lesson` (unidade), `practice` (treino), `tutor` (Clara: chat, prova oral e ligação por voz), `settings` (ajustes), `history` (evolução: números da semana e gráficos), `tools` (folha e diagnóstico)
 - `js/core.js` — o que as telas compartilham (elemento raiz, fala, navegação, limpeza ao sair, provedor de IA); `js/progress.js` — domínio, trilha e plano do dia; `js/update.js` — aviso de versão nova
 - `js/data.js` — entrega o pacote ativo com os nomes usados pelo app; `js/exercises.js` — geradores de exercícios e correção
 - `js/store.js` — progresso, revisão e backup; `js/speech.js` — voz e microfone; `js/tutor.js` — professora de IA (prompts + chamadas aos provedores gratuitos)
+- `js/chart.js` — gráficos SVG sem biblioteca (linha e colunas, uma série por gráfico, cores do tema); as telas só montam os dados
 - `js/ui.js` — ícones, escape de HTML e avisos; `js/folha.js` e `js/diag.js` — folha de revisão e diagnóstico; `js/version.js` — versão
 - Regra de dependência: as telas importam `core`, `progress` e os módulos de base, e só `app.js` conhece todas elas. A única exceção é `tutor`, que reaproveita a lista de acentos de `practice`.
 

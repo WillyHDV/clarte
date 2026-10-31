@@ -58,3 +58,15 @@ test('plano do dia: a simulação da prova entra só nos 2 dias antes da avalia�
   assert.ok(planoEm(at(2026, 11, 30)).includes('exam'), '2 dias antes da avaliação 2');
   assert.ok(!planoEm(at(2027, 1, 10)).includes('exam'), 'sem avaliação à frente');
 });
+
+test('historySeries: sempre N dias, hoje por último, dias sem registro zerados', async () => {
+  const { historySeries } = await import('../js/progress.js');
+  mock.timers.enable({ apis: ['Date'], now: at(2026, 11, 5) });
+  S.get().history = [{ d: '2026-11-05', n: 9, ok: 6, r: 40 }, { d: '2026-11-03', n: 4, ok: 4, r: null }, { d: '2026-09-01', n: 99, ok: 1, r: 1 }];
+  const s = historySeries(5);
+  assert.deepEqual(s.map((x) => x.d), ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05']);
+  assert.deepEqual(s.map((x) => x.n), [0, 0, 4, 0, 9]); assert.deepEqual(s.map((x) => x.r), [null, null, null, null, 40]);
+  assert.equal(historySeries(30).length, 30); assert.ok(!historySeries(30).some((x) => x.n === 99), 'fora da janela não entra');
+  assert.equal(historySeries(3, at(2026, 3, 1)).at(-1).d, '2026-03-01');
+  assert.deepEqual(historySeries(2, at(2026, 3, 1)).map((x) => x.d), ['2026-02-28', '2026-03-01'], 'vira o mês');
+});

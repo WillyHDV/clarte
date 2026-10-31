@@ -32,7 +32,7 @@ function finalStretch(nx) {
 }
 export function home() {
   S.touchDay(); S.save();
-  const R = readiness();
+  const R = readiness(); S.logDay({ r: R.overall }); // um ponto por dia para o gráfico de Evolução
   const s = st(); const nx = nextEvaluation(); const due = R.weakCount + S.dueMistakes().length;
   const goal = s.settings.goal; const pct = Math.min(100, Math.round((100 * s.today.n) / goal));
   const examTxt = !nx ? 'Nenhuma avaliação marcada. Você pode cadastrar as datas em Ajustes.' : nx.days > 1 ? `${esc(nx.ev.title)} em <b>${nx.days} dias</b> (${dm(nx.ev.date)})` : nx.days === 1 ? `${esc(nx.ev.title)} é <b>amanhã</b>!` : `<b>Hoje</b> é a ${esc(nx.ev.title)}. Bonne chance !`;
@@ -55,6 +55,7 @@ export function home() {
       <h4>Os 6 critérios da prova oral</h4>
       ${criteriaHtml()}
       <small class="fine">Estimativa do app a partir dos seus exercícios e das conversas por voz, não é a nota da professora.</small>
+      <button class="btn sm" data-go="#/history">${I('activity')} Ver evolução</button>
     </section>
     <h2>Trilha da avaliação</h2>
     <div class="units">${R.per.map(({ u, m }, idx) => {
