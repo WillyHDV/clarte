@@ -33,6 +33,7 @@ export function aboutPage() {
       <ul>
         <li>As aulas e os exercícios são <b>resumos próprios</b> feitos a partir das aulas e dos materiais da professora, de “La phrase interrogative”, de “Contenus de la première évaluation” e de livros de apoio. Quando uma aula usa um livro de apoio, ela cita o livro e as páginas.</li>
         <li>O Clarté é um <b>projeto pessoal de estudo</b>, sem vínculo oficial com a escola, a professora ou as editoras. As notas e correções da Clara e do app são estimativas, não a avaliação oficial.</li>
+        <li>Os ícones são do conjunto <b>Tabler Icons</b> (licença MIT, © Paweł Kuna), já incluídos no app: não há download na hora de usar.</li>
         <li>A voz e as respostas da Clara são geradas por IA e podem errar: confira com a sua professora quando tiver dúvida.</li>
       </ul>
       <small>Pacote de conteúdo: ${PACK.title} (v${PACK.version}) · app v${VERSION} · ${BUILD_DATE}</small>

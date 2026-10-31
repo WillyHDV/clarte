@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## Em preparação — app novo (visual v2, ainda não publicado)
+
+Reforma completa do visual, só para celular, em fases na linha de trabalho `dev`. Plano e regras em `DESIGN.md`. Fase 1 (base) pronta:
+
+- **Sistema visual**: cores com contraste conferido por teste (mínimo 4,5 para 1, claro e escuro), escala de texto sem nada abaixo de 13 px, espaços e raios em escala, botões e linhas com área de toque de 48 px ou mais. A marca usada como texto ganhou um tom mais escuro (`--brand-text`).
+- **Ícones de linha** do conjunto Tabler no lugar do conjunto antigo, todos no mesmo estilo.
+- **Barra de baixo nova**: Trilha, Clara (no centro, grande, botão de ligar) e Praticar (com o contador de itens para reforçar). Fixa, sem cobrir o conteúdo.
+- **Perfil**: avatar no cabeçalho da Trilha (a inicial ou 8 desenhos), com nome, números do estudo e atalhos para Evolução, Ajustes e Backup.
+- **Praticar**: o Reforço em destaque e os outros treinos numa lista curta.
+- **Peças reutilizáveis**: linha de lista que abre algo, sanfona, interruptor e cartão do Reforço.
+- **Testes**: 268 → 282 (contraste, tamanho de texto, ícones, avatares, barra, Praticar e Perfil).
+
 ## v25 — 31/10/2026
 
 Cenários da Clara: missões de conversa por voz com objetivos.

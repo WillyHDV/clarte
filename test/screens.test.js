@@ -64,8 +64,9 @@ test('início: prontidão, plano do dia e as 8 unidades', () => {
   const t = text();
   assert.match(t, /Prontidão para a avaliação/);
   for (const u of UNITS) assert.ok(t.includes(u.title), `unidade ausente no início: ${u.title}`);
-  assert.equal($$('nav.tabs a').length, 4);
-  assert.ok($$('nav.tabs a.on').some((a) => a.dataset.p === 'home'));
+  assert.equal($$('nav.tabbar a').length, 3);
+  assert.deepEqual($$('nav.tabbar a').map((a) => a.dataset.p), ['home', 'tutor', 'praticar']);
+  assert.ok($$('nav.tabbar a.on').some((a) => a.dataset.p === 'home'));
   noBroken('início');
 });
 
@@ -180,7 +181,7 @@ test('diagnóstico: botões e informações do aparelho', async () => {
 
 test('rota desconhecida cai no início e nenhuma tela some o menu', async () => {
   await goto('#/nao-existe'); assert.match(text(), /Prontidão para a avaliação/);
-  assert.equal($$('nav.tabs a').length, 4);
+  assert.equal($$('nav.tabbar a').length, 3);
 });
 
 async function inicioEm(data) { mock.timers.setTime(data.getTime()); await goto('#/settings'); await goto('#/'); return text(); }
@@ -246,7 +247,7 @@ test('Evolução com dados: cartões, três gráficos acessíveis e tabelas equi
   const tabelas = $$('figure.chart table'); assert.equal(tabelas.length, 3);
   assert.equal(tabelas[0].querySelectorAll('tbody tr').length, 30); assert.equal(tabelas[2].querySelectorAll('tbody tr').length, 2);
   assert.match(tabelas[1].textContent, /Exercícios.*Acertos/s);
-  assert.doesNotMatch(document.body.innerHTML, /NaN|undefined/); assert.ok($$('nav.tabs a.on').some((a) => a.dataset.p === 'home'), 'Trilha continua marcada');
+  assert.doesNotMatch(document.body.innerHTML, /NaN|undefined/); assert.equal($$('nav.tabbar a.on').length, 0, 'Evolução fica no perfil: nenhuma aba marcada');
 });
 
 test('Evolução: tocar mostra o dia, setas andam e Esc limpa', async () => {
@@ -339,7 +340,7 @@ test('Privacidade e créditos: seções, link de Ajustes e volta', async () => {
   assert.match(w.location.hash, /#\/about/);
   for (const h of ['O que fica só no seu aparelho', 'O que sai do aparelho', 'Proteja a sua chave', 'Conteúdo e créditos']) assert.ok(text().includes(h), `seção ausente: ${h}`);
   assert.match(text(), /Google Gemini, Groq ou Mistral/); assert.match(text(), /Français basique 1 \(v1\)/); assert.match(text(), /sem vínculo oficial/);
-  assert.ok($$('nav.tabs a.on').some((a) => a.dataset.p === 'settings'), 'a aba Ajustes continua marcada');
+  assert.equal($$('nav.tabbar a.on').length, 0, 'Privacidade vem do perfil: nenhuma aba marcada');
   noBroken('privacidade'); $('.top .back').click(); await tick(); assert.match(w.location.hash, /#\/settings/);
 });
 
@@ -486,4 +487,36 @@ test('Diagnóstico dentro do app Android: mostra o modo e o botão confere os ar
     assert.ok($$('#dres li.warn').some((li) => /Documentos/.test(li.textContent)), 'Documentos sem permissão é aviso');
     assert.equal(botao.disabled, false, 'os botões voltam a funcionar');
   } finally { delete globalThis.Capacitor; }
+});
+
+test('barra de baixo: Trilha, Clara no centro e Praticar, com a aba da tela marcada', async () => {
+  await goto('#/'); const abas = $$('nav.tabbar .tab');
+  assert.deepEqual(abas.map((a) => a.querySelector('.rot').textContent), ['Trilha', 'Clara', 'Praticar']);
+  assert.ok(abas[1].classList.contains('tab-call') && abas[1].querySelector('.bubble svg'), 'a Clara é o botão de ligar, no centro');
+  for (const [hash, marcada] of [['#/', 'home'], ['#/tutor', 'tutor'], ['#/praticar', 'praticar'], ['#/unit/presenter', 'home'], ['#/practice/review', 'praticar']]) { await goto(hash); assert.deepEqual($$('nav.tabbar .tab.on').map((a) => a.dataset.p), [marcada], hash); }
+  for (const hash of ['#/perfil', '#/settings', '#/history']) { await goto(hash); assert.equal($$('nav.tabbar .tab.on').length, 0, `${hash} não marca aba`); }
+  await goto('#/'); assert.equal($('nav.tabbar [aria-current="page"]').dataset.p, 'home');
+});
+
+test('Praticar: Reforço em destaque, contador na barra e os outros treinos numa lista curta', async () => {
+  const N = await import('../js/nav.js'); await goto('#/praticar');
+  const n = N.reforcoPendentes(); const contador = $('nav.tabbar [data-p="praticar"] .badge');
+  assert.equal(contador ? contador.textContent : null, n ? (n > 99 ? '99+' : String(n)) : null, 'o contador da barra é o número de itens para reforçar');
+  assert.ok($('.reforco')); assert.match($('.reforco .anel').textContent, new RegExp(`^${n}$`));
+  assert.equal(!!$('#reforcar'), n > 0, 'o botão Reforçar agora só aparece se há o que reforçar');
+  const destinos = $$('.grupo .linha').map((b) => b.dataset.go); assert.ok(destinos.includes('#/practice/mix') && destinos.includes('#/practice/review'));
+  assert.ok($$('.grupo .linha').every((b) => b.tagName === 'BUTTON' && b.querySelector('svg.i')), 'toda linha tem ícone de linha e abre algo');
+  noBroken('praticar');
+});
+
+test('Perfil: dados, atalhos para Evolução e Ajustes, e troca de avatar que aparece na Trilha', async () => {
+  S.setSetting('avatar', 'initial'); await goto('#/perfil');
+  assert.match($('.perfil-topo').textContent, /Willy/); assert.equal($$('[data-av]').length, 9); assert.equal($('[data-av].on').dataset.av, 'initial');
+  assert.match($('.stats3').textContent, new RegExp(`${S.get().xp}`)); assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/history', '#/settings', '#/settings']);
+  $('[data-av="leaf"]').click(); await tick();
+  assert.equal(S.get().settings.avatar, 'leaf'); assert.equal($('[data-av].on').dataset.av, 'leaf'); assert.ok($('.perfil-topo .avatar svg.i'), 'o desenho aparece no perfil');
+  await goto('#/'); assert.ok($('.apphead .avatar-btn .avatar svg.i'), 'e no cabeçalho da Trilha'); assert.match($('.apphead .hello').textContent, /Salut, Willy/);
+  $('.apphead .avatar-btn').click(); await tick(); assert.equal(w.location.hash, '#/perfil', 'o avatar abre o perfil');
+  $('#pvoltar').click(); await tick(); assert.equal(w.location.hash, '#/'); S.setSetting('avatar', 'initial');
+  noBroken('perfil');
 });

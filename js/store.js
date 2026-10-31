@@ -7,7 +7,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm' },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial' },
   scenarios: {},
 });
 // ---------- versões do formato ----------
@@ -182,6 +182,8 @@ export function recordScenario(id, { nivel, done, total }) {
   if (done >= total) s.levelDone = Math.max(s.levelDone, nivel);
   state.xp += done * 5 + (done >= total ? 20 : 0); save(); return s;
 }
+// nome do aluno (Perfil); sem nome salvo, "Willy"
+export const studentName = () => { const n = state.settings.name; return typeof n === 'string' && n.trim() ? n.trim().slice(0, 24) : 'Willy'; };
 export function markBackup() { state.lastBackup = new Date().toISOString(); save(); }
 // já há algum progresso a perder? (um app recém-instalado ou zerado devolve false e não deve sobrescrever um backup antigo)
 export const hasProgress = () => state.xp > 0 || state.mistakes.length > 0 || state.exams.length > 0 || Object.keys(state.mastery).length > 0;

@@ -1,7 +1,7 @@
 // Tela inicial: prontidão, plano de hoje, reta final e trilha de unidades.
 import { UNITS } from '../data.js';
 import * as S from '../store.js';
-import { esc, I, toast } from '../ui.js';
+import { esc, I, toast, avatarHtml } from '../ui.js';
 import * as A from '../autobackup.js';
 import { $app, st } from '../core.js';
 import { nextEvaluation, readiness, CRITERIA, unitPassed, currentUnit, ensurePlan } from '../progress.js';
@@ -54,7 +54,7 @@ export function home() {
   const goal = s.settings.goal; const pct = Math.min(100, Math.round((100 * s.today.n) / goal));
   const examTxt = !nx ? 'Nenhuma avaliação marcada. Você pode cadastrar as datas em Ajustes.' : nx.days > 1 ? `${esc(nx.ev.title)} em <b>${nx.days} dias</b> (${dm(nx.ev.date)})` : nx.days === 1 ? `${esc(nx.ev.title)} é <b>amanhã</b>!` : `<b>Hoje</b> é a ${esc(nx.ev.title)}. Bonne chance !`;
   $app.innerHTML = `
-    <header class="top"><div><div class="brand">Clarté</div><h1>Salut, Willy ! 👋</h1></div><div class="stats"><span class="stat flame" title="Dias seguidos">${I('flame')} ${s.streak}</span><span class="stat star" title="Pontos">${I('star')} ${s.xp}</span></div></header>
+    <header class="apphead"><div class="hello"><small class="brand">Clarté</small><b>Salut, ${esc(S.studentName())} !</b></div><div class="stats"><span class="stat flame" title="Dias seguidos">${I('flame')} ${s.streak}</span><button class="avatar-btn" data-go="#/perfil" aria-label="Abrir o seu perfil">${avatarHtml(s.settings.avatar, S.studentName(), 40)}</button></div></header>
     <section class="card hero">
       <div class="exam">${examTxt}</div>
       <div class="goal"><div class="bar"><i style="width:${pct}%"></i></div><small>Meta de hoje: ${Math.min(s.today.n, goal)}/${goal} exercícios</small></div>

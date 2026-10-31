@@ -12,6 +12,9 @@ import { unitPage } from './screens/lesson.js';
 import { practice } from './screens/practice.js';
 import { openTutor } from './screens/tutor.js';
 import { settingsPage } from './screens/settings.js';
+import { praticar } from './screens/praticar.js';
+import { perfilPage } from './screens/perfil.js';
+import { montarBarra, marcarAba } from './nav.js';
 import { historyPage } from './screens/history.js';
 import { aboutPage } from './screens/about.js';
 import { folhaPage, diagPage } from './screens/tools.js';
@@ -28,7 +31,7 @@ async function route() {
   runCleanup();
   stopSpeaking();
   const [, page, arg, arg2] = (location.hash || '#/').slice(1).split('/');
-  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.p === (page || 'home') || (a.dataset.p === 'settings' && page === 'about') || (a.dataset.p === 'home' && ['unit', 'practice', 'step', 'history'].includes(page))));
+  marcarAba(page);
   $app.scrollTo?.(0, 0); window.scrollTo(0, 0);
   document.body.classList.toggle('focus', page === 'practice' || page === 'step');
   if (page === 'unit') return unitPage(arg);
@@ -36,12 +39,15 @@ async function route() {
   if (page === 'step') return practice(arg, arg2);
   if (page === 'tutor') return openTutor(arg);
   if (page === 'settings') return settingsPage();
+  if (page === 'praticar') return praticar();
+  if (page === 'perfil') return perfilPage();
   if (page === 'history') return historyPage();
   if (page === 'about') return aboutPage();
   if (page === 'folha') return folhaPage();
   if (page === 'diag') return diagPage();
   return home();
 }
+montarBarra();
 onRoute(route);
 window.addEventListener('hashchange', route);
 

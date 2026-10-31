@@ -279,3 +279,11 @@ test('exportData com mark:false não anota a data; markBackup anota', () => {
   S.markBackup(); assert.ok(S.get().lastBackup); assert.equal(S.backupAgeDays(), 0);
   const c = S.exportData(); assert.equal(c.state.lastBackup, S.get().lastBackup, 'o padrão continua anotando (Baixar)');
 });
+
+test('nome do aluno: usa o salvo, limpa os espaços e volta para "Willy" se estiver vazio ou for inválido', () => {
+  assert.equal(S.studentName(), 'Willy');
+  S.setSetting('name', '  Ana  '); assert.equal(S.studentName(), 'Ana');
+  S.setSetting('name', 'x'.repeat(40)); assert.equal(S.studentName().length, 24);
+  for (const ruim of ['', '   ', 123, null, {}]) { S.setSetting('name', ruim); assert.equal(S.studentName(), 'Willy', String(ruim)); }
+  assert.equal(S.get().settings.avatar, 'initial', 'avatar padrão');
+});
