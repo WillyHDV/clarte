@@ -276,8 +276,8 @@ function practice(id, stepId) {
   else if (cfg) list = buildSession(id, cfg.n, strengthOf, cfg.kinds ? { kinds: cfg.kinds } : {});
   else list = buildSession(id, 10, strengthOf);
   if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/" aria-label="Voltar">${I('back')}</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
-  const total = list.length; let i = 0; let correct = 0; let attempted = 0; let wrongList = [];
-  let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false; let skipped = false;
+  const total = list.length; let i = 0; let correct = 0; let attempted = 0; const wrongList = [];
+  let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false;
 
   function showEnd() {
     S.recordSession(review ? 'review' : id, correct, Math.max(attempted, 1));
@@ -315,7 +315,7 @@ function practice(id, stepId) {
 
   function render() {
     if (i >= list.length) return showEnd();
-    ex = list[i]; sel = null; heard = ''; answered = false; skipped = false; rec = null;
+    ex = list[i]; sel = null; heard = ''; answered = false; rec = null;
     const k = ex.kind; const listen = k.startsWith('listen');
     placed = []; bank = k === 'tiles' ? ex.tiles.map((t, n) => ({ t, n })) : [];
     let body = '';
@@ -380,7 +380,7 @@ function practice(id, stepId) {
   }
 
   function verify() {
-    if (ex.kind === 'speak' && !canListen) { skipped = true; answered = true; return feedback({ ok: true }, true); }
+    if (ex.kind === 'speak' && !canListen) { answered = true; return feedback({ ok: true }, true); }
     let input;
     if (ex.kind === 'choice' || ex.kind === 'listen-choice') input = sel;
     else if (ex.kind === 'tiles') input = placed.map((t) => t.t);

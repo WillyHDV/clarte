@@ -143,7 +143,7 @@ export function chat({ provider, apiKey, model, mode, messages, onText, signal, 
 async function chatOnce({ provider, apiKey, model, mode, messages, onText, signal: outer, ms, context }) {
   // limite de tempo: se o modelo não começar a responder, aborta com uma mensagem clara
   const ctl = new AbortController(); let timedOut = false;
-  if (outer) outer.addEventListener('abort', () => ctl.abort());
+  if (outer) { if (outer.aborted) ctl.abort(); else outer.addEventListener('abort', () => ctl.abort()); }
   const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, ms);
   const signal = ctl.signal;
   const gotText = (d) => { clearTimeout(timer); onText && onText(d); };
@@ -254,7 +254,7 @@ export async function transcribe({ provider, apiKey, model, blob, signal: outer 
 // executa fn(signal) com limite de tempo (vira erro 408) e cancelamento externo
 async function timed(outer, ms, fn) {
   const ctl = new AbortController(); let timedOut = false;
-  if (outer) outer.addEventListener('abort', () => ctl.abort());
+  if (outer) { if (outer.aborted) ctl.abort(); else outer.addEventListener('abort', () => ctl.abort()); }
   const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, ms);
   try { return await fn(ctl.signal); } catch (e) { if (timedOut) throw new HttpError(408, 'timeout'); throw e; } finally { clearTimeout(timer); }
 }
