@@ -1,5 +1,5 @@
 // Ajustes: provedor e chave da IA, voz, microfone, dados (backup), instalação e sobre.
-import { canTalk, canRecord, canSpeak, engineInfo, frenchVoiceName, TTS_CANDIDATES } from '../speech.js';
+import { canTalk, canRecord, canSpeak, engineInfo, frenchVoiceName, nativeVoiceInfo, openVoiceInstall, recheckNativeVoice, deviceVoiceTest, TTS_CANDIDATES } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast } from '../ui.js';
@@ -121,16 +121,32 @@ export function settingsPage() {
   });
   on('sevreset', 'click', () => { S.setSetting('evalDates', {}); toast('Datas do curso restauradas.'); settingsPage(); });
   const paintVoice = () => {
-    const el = document.getElementById('vstatus'); if (!el) return; const ei = engineInfo(); const hasKey = !!((st().settings.keys || {}).gemini);
-    el.innerHTML = !canSpeak ? '<small>Este navegador não tem síntese de voz.</small>'
-      : ei.engine === 'gemini' ? '<small>🎧 Usando a <b>voz natural do Gemini</b> (grátis). Frases novas levam 3–6 s para carregar; depois ficam guardadas no aparelho.</small>'
-      : ei.hasFr ? `<small>✅ Voz francesa do aparelho: <b>${esc(frenchVoiceName())}</b>.</small>`
-      : `<small style="color:var(--bad)">⚠️ Este aparelho <b>não tem voz francesa</b>: o áudio sai com sotaque brasileiro. ${hasKey ? 'Escolha “Voz natural online (Gemini)”.' : 'Opções: abrir o app no <b>Microsoft Edge</b> (PC), instalar a voz francesa no Android, ou salvar uma chave do Gemini (aba Clara) para usar a voz natural.'}</small>`;
+    const el = document.getElementById('vstatus'); if (!el) return; const ei = engineInfo(); const hasKey = !!((st().settings.keys || {}).gemini); const nv = nativeVoiceInfo();
+    const quando = ei.pausa ? (ei.pausa.motivo === 'dia' ? 'à meia-noite do horário do Pacífico (por volta das 4h–5h da manhã aqui)' : `em ${Math.max(1, Math.ceil((ei.pausa.ate - Date.now()) / 60000))} min`) : '';
+    const pausa = ei.pausa ? `<small>⏸️ A <b>voz natural do Gemini</b> está em pausa: o limite gratuito acabou${ei.pausa.detalhe ? ' (' + esc(ei.pausa.detalhe) + ')' : ''}. Ela volta ${quando}. Enquanto isso o app usa a voz do aparelho.</small>` : '';
+    const antigo = N.isNative() && !nv.plugin ? '<small>Este app foi instalado antes da voz do Android (sem limite de uso). Para ativá-la, reinstale o app pelo Android Studio (▶ Run): o progresso é mantido.</small>' : '';
+    const botoes = nv.plugin ? '<div class="row"><button class="btn sm" id="sinstvoz">Instalar ou atualizar a voz francesa</button><button class="btn sm" id="stestapar">🔈 Testar a voz do aparelho</button></div>' : '';
+    el.innerHTML = (!canSpeak && !nv.plugin ? '<small>Este navegador não tem síntese de voz.</small>'
+      : ei.engine === 'gemini' ? '<small>🎧 Usando a <b>voz natural do Gemini</b> (grátis, mas o limite é pequeno: cerca de 10 frases por dia por modelo; depois o app volta sozinho para a voz do aparelho). Frases novas levam 3–6 s para carregar; depois ficam guardadas no aparelho.</small>' + (ei.hasFr ? '' : `<small style="color:var(--bad)">⚠️ Este aparelho <b>não tem voz francesa</b> instalada. Com ela o app não depende do limite do Gemini. ${nv.plugin ? 'Toque em “Instalar ou atualizar a voz francesa”.' : ''}</small>`)
+      : ei.hasFr ? `<small>✅ Voz francesa do aparelho: <b>${esc(frenchVoiceName())}</b>. Sem limite de uso e funciona sem internet.</small>`
+      : `<small style="color:var(--bad)">⚠️ Este aparelho <b>não tem voz francesa</b>: o áudio sai com sotaque brasileiro. ${nv.plugin ? 'Toque em “Instalar ou atualizar a voz francesa”.' : hasKey ? 'Escolha “Voz natural online (Gemini)”.' : 'Opções: abrir o app no <b>Microsoft Edge</b> (PC), instalar a voz francesa no Android, ou salvar uma chave do Gemini (aba Clara) para usar a voz natural.'}</small>`) + pausa + antigo + botoes;
   };
   paintVoice(); setTimeout(paintVoice, 700);
   on('smic', 'change', (e) => S.setSetting('micMode', e.target.value));
   on('sttsm', 'change', (e) => { S.setSetting('ttsModel', e.target.value); toast('Modelo da voz salvo.'); });
   on('sengine', 'change', (e) => { S.setSetting('voiceEngine', e.target.value); paintVoice(); });
+  on('vstatus', 'click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'sinstvoz') {
+      if (!(await openVoiceInstall())) { toast('Não consegui abrir a instalação de voz. Veja Configurações do Android → Saída de texto para voz.'); return; }
+      const aoVoltar = async () => { if (document.hidden) return; document.removeEventListener('visibilitychange', aoVoltar); await recheckNativeVoice(); paintVoice(); };
+      document.addEventListener('visibilitychange', aoVoltar);
+    }
+    if (b.id === 'stestapar') {
+      b.disabled = true; const r = await deviceVoiceTest(); b.disabled = false;
+      toast(r.ok ? `Voz do aparelho ok (${r.via}). Se você ouviu a frase, está tudo certo.` : `Não saiu som (${r.via}${r.erro ? ': ' + r.erro : ''}). Instale a voz francesa.`);
+    }
+  });
   on('stest', 'click', () => speak('Bonjour ! Je m’appelle Clara. Comment allez-vous ?', { rate: rate() }));
   on('sinstall', 'click', async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; settingsPage(); });
   on('supd', 'click', () => checkUpdate(true));

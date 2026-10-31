@@ -2,8 +2,8 @@
 // quebra: diretórios em que toda gravação falha · leitura: texto fixo devolvido por qualquer leitura
 // negarEscrita / negarLeitura: nomes de arquivo (só o nome) que o Android recusa, como acontece com arquivos de uma instalação anterior
 // inicial: { 'DOCUMENTS:Clarte/arquivo.json': 'texto' } já existentes
-// permissao: estado da permissão de notificações ('granted' | 'prompt' | 'denied'); pedir: o que o usuário responde ao pedido; falhaAgendar: o agendamento recusa
-export function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], native = true, leitura, negarEscrita = [], negarLeitura = [], inicial = {}, permissao = 'granted', pedir = 'granted', falhaAgendar = false } = {}) {
+// tts: voz do Android (plugin TextToSpeech): { suportado, vozes, falha, duracao } · permissao: estado da permissão de notificações ('granted' | 'prompt' | 'denied'); pedir: o que o usuário responde ao pedido; falhaAgendar: o agendamento recusa
+export function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], native = true, leitura, negarEscrita = [], negarLeitura = [], inicial = {}, permissao = 'granted', pedir = 'granted', falhaAgendar = false, tts = {} } = {}) {
   const arquivos = new Map(Object.entries(inicial)); const chamadas = [];
   const key = (a) => `${a.directory}:${a.path}`;
   const nome = (a) => String(a.path).split('/').pop();
@@ -36,9 +36,18 @@ export function fakeCapacitor({ plugins = ['Filesystem', 'Share'], quebra = [], 
     async cancel({ notifications }) { for (const n of notifications) pendentes.delete(n.id); },
     async getPending() { return { notifications: [...pendentes.values()].map((n) => ({ id: n.id })) }; },
   };
+  const falas = []; const voz = { parou: 0, instalou: 0 };
+  const ttsCfg = { suportado: true, vozes: [{ lang: 'pt-BR', name: 'pt-br-x-abc-local', localService: true, default: true }, { lang: 'fr-FR', name: 'fr-fr-x-vlf-local', localService: true, default: false }], falha: false, duracao: 0, ...tts };
+  const TextToSpeech = {
+    async isLanguageSupported() { return { supported: ttsCfg.suportado }; },
+    async getSupportedVoices() { return { voices: ttsCfg.vozes }; },
+    async speak(o) { falas.push(o); if (ttsCfg.falha) throw new Error('Failed to read text.'); if (ttsCfg.duracao) await new Promise((r) => setTimeout(r, ttsCfg.duracao)); },
+    async stop() { voz.parou++; },
+    async openInstall() { voz.instalou++; },
+  };
   globalThis.Capacitor = {
     isNativePlatform: () => native, getPlatform: () => (native ? 'android' : 'web'), isPluginAvailable: (n) => plugins.includes(n),
-    Plugins: { Filesystem, Share: { canShare: async () => ({ value: true }) }, LocalNotifications },
+    Plugins: { Filesystem, Share: { canShare: async () => ({ value: true }) }, LocalNotifications, TextToSpeech },
   };
-  return { arquivos, chamadas, pendentes, canais, agendamentos };
+  return { arquivos, chamadas, pendentes, canais, agendamentos, falas, voz };
 }

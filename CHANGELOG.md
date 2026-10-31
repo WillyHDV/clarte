@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## v23 — 31/10/2026
+
+Voz sem silêncio: o limite gratuito da voz natural do Gemini acabava e o app ficava mudo.
+
+- **Causa**: o plano gratuito da voz do Gemini é pequeno (cerca de 10 pedidos por dia por modelo, e cada frase da Clara é um pedido). Ao acabar, o app caía na voz do WebView, que no Android não achava a voz francesa que o celular tem, e ficava sem som.
+- **Voz do Android** (app): novo plugin de voz nativa. O app fala pelo mecanismo do aparelho (Samsung ou Google), sem limite de uso, sem internet e sem passar pelo WebView. Com a voz francesa do aparelho, a voz natural do Gemini deixa de ser usada sozinha. **Precisa reinstalar o app (▶ Run no Android Studio).**
+- **Pausa inteligente do limite**: ao esgotar a cota, o app tenta os outros modelos (cada um tem a sua cota), pausa a voz natural até o limite voltar (meia-noite do horário do Pacífico, ou o tempo que o Google pedir) e usa a voz do aparelho, sem tentar e atrasar a cada frase. Um aviso por pausa, não por frase.
+- **Ajustes → Voz**: mostra a voz do aparelho, a pausa e quando ela volta, e tem os botões "Instalar ou atualizar a voz francesa" (abre a tela do Android) e "Testar a voz do aparelho".
+- **Diagnóstico**: novo botão "Testar a voz do aparelho", linhas "Vozes visíveis" e "Voz natural (Gemini)" com o limite.
+- **Testes**: 237 → 252.
+
 ## v22 — 31/10/2026
 
 Correção do "Falar" no app Android, a partir do diagnóstico da v21.

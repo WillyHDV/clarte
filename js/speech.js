@@ -10,6 +10,7 @@ const loadVoices = () => { voices = synth ? synth.getVoices() : []; };
 if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
 
 export const canSpeak = !!synth;
+let nativeVoz = null; let nativeInit = null; let nativeErro = ''; // voz do Android (plugin TextToSpeech), preenchida por initNativeVoice()
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canListen = !!Rec;
 
@@ -18,10 +19,12 @@ function frVoice() {
   const fr = frVoices();
   return fr.find((v) => /fr[-_]FR/i.test(v.lang) && /natural|online/i.test(v.name)) || fr.find((v) => /fr[-_]FR/i.test(v.lang) && /google/i.test(v.name)) || fr.find((v) => /fr[-_]FR/i.test(v.lang)) || fr[0] || null;
 }
-export const hasFrenchVoice = () => !!frVoice();
-export const frenchVoiceName = () => { const v = frVoice(); return v ? v.name : ''; };
+export const hasFrenchVoice = () => !!frVoice() || !!(nativeVoz && nativeVoz.ok);
+export const webVoiceCount = () => voices.length;
+export const frenchVoiceName = () => { const v = frVoice(); return v ? v.name : nativeVoz && nativeVoz.ok ? nativeVoz.nome : ''; };
 
-function voicesReady() {
+async function voicesReady() {
+  await initNativeVoice();
   return new Promise((res) => {
     if (!synth) return res();
     loadVoices(); if (voices.length) return res();
@@ -35,16 +38,22 @@ const geminiKey = () => (S.get().settings.keys || {}).gemini || '';
 
 // Qual voz será usada agora? ('browser' = voz do aparelho, 'gemini' = voz natural online)
 export function engineInfo() {
+  initNativeVoice();
   const mode = S.get().settings.voiceEngine || 'auto';
-  const hasFr = hasFrenchVoice(); const key = !!geminiKey();
-  if (mode === 'gemini' && key) return { engine: 'gemini', hasFr, mode };
-  if (mode === 'browser') return { engine: 'browser', hasFr, mode };
-  if (!hasFr && key) return { engine: 'gemini', hasFr, mode };
-  return { engine: 'browser', hasFr, mode };
+  const hasFr = hasFrenchVoice(); const key = !!geminiKey(); const pausa = key ? lerPausa() : null; // pausa: limite gratuito do Gemini atingido
+  const gemini = { engine: pausa ? 'browser' : 'gemini', hasFr, mode, pausa };
+  if (mode === 'gemini' && key) return gemini;
+  if (mode === 'browser') return { engine: 'browser', hasFr, mode, pausa };
+  if (!hasFr && key) return gemini;
+  return { engine: 'browser', hasFr, mode, pausa };
 }
 
 // ---------- voz do aparelho ----------
 function browserSpeak(text, rate, cancel = true) {
+  if (nativeVoz && nativeVoz.ok && nativeTts()) return nativeSpeak(text, rate, cancel).then((ok) => (ok || !synth ? undefined : webSpeak(text, rate, cancel)));
+  return webSpeak(text, rate, cancel);
+}
+function webSpeak(text, rate, cancel = true) {
   return new Promise((resolve) => {
     if (!synth) return resolve();
     if (cancel) synth.cancel();
@@ -58,7 +67,71 @@ function browserSpeak(text, rate, cancel = true) {
   });
 }
 
+// ---------- voz do Android (app): o plugin TextToSpeech fala pelo mecanismo do aparelho (Samsung, Google), sem passar pelo WebView ----------
+const nativeTts = () => (N.isNative() && N.hasPlugin('TextToSpeech') ? globalThis.Capacitor.Plugins.TextToSpeech : null);
+const msgErro = (e) => String((e && (e.message || e.errorMessage)) || e).replace(/\s+/g, ' ').slice(0, 120);
+export function initNativeVoice() { // consulta uma vez; sem o plugin devolve null e tenta de novo na próxima chamada
+  if (nativeInit) return nativeInit;
+  const p = nativeTts(); if (!p) return Promise.resolve(null);
+  nativeInit = (async () => {
+    try {
+      const sup = await p.isLanguageSupported({ lang: 'fr-FR' });
+      let voices = []; try { voices = ((await p.getSupportedVoices()) || {}).voices || []; } catch (e) { /* basta o idioma */ }
+      let i = voices.findIndex((v) => /^fr[-_]FR/i.test(v.lang) && v.localService !== false); if (i < 0) i = voices.findIndex((v) => /^fr[-_]/i.test(v.lang));
+      nativeVoz = { ok: !!(sup && sup.supported), voice: i, nome: i >= 0 ? voices[i].name : 'voz francesa do Android', n: voices.length };
+    } catch (e) { nativeVoz = { ok: false, voice: -1, nome: '', n: 0, erro: msgErro(e) }; }
+    return nativeVoz;
+  })();
+  return nativeInit;
+}
+// depois de instalar a voz pela tela do Android, consulta de novo
+export function recheckNativeVoice() { nativeVoz = null; nativeInit = null; return initNativeVoice(); }
+export const nativeVoiceInfo = () => ({ plugin: !!nativeTts(), ...(nativeVoz || {}) });
+// abre a tela do Android para instalar/atualizar os dados de voz
+export async function openVoiceInstall() { const p = nativeTts(); if (!p) return false; try { await p.openInstall(); return true; } catch (e) { return false; } }
+async function nativeSpeak(text, rate, cancel) {
+  try {
+    await nativeTts().speak({ text, lang: 'fr-FR', rate: Math.min(2, Math.max(0.3, rate)), pitch: 1, volume: 1, voice: nativeVoz.voice, queueStrategy: cancel ? 0 : 1 });
+    nativeErro = ''; return true;
+  } catch (e) { nativeErro = msgErro(e); return false; }
+}
+// Fala uma frase com a voz do aparelho e diz por onde saiu e quanto levou (uma frase de verdade passa de 0,7 s).
+export async function deviceVoiceTest(text = 'Bonjour ! Ceci est un test de la voix du téléphone.') {
+  await voicesReady();
+  const via = nativeVoz && nativeVoz.ok ? 'android' : synth ? 'webview' : 'nenhuma';
+  if (via === 'nenhuma') return { ok: false, via, erro: 'sem síntese de voz neste aparelho' };
+  nativeErro = ''; const t0 = performance.now(); await browserSpeak(clean(text), 0.9); const ms = Math.round(performance.now() - t0);
+  return { ok: ms > 700 && !nativeErro, via, ms, erro: nativeErro };
+}
+
 // ---------- voz natural (Gemini TTS) ----------
+// O plano gratuito da voz do Gemini é bem pequeno (cerca de 10 pedidos por dia, por modelo). Ao esgotar, o app pausa a voz natural
+// (sem ficar tentando e atrasando cada frase) e usa a voz do aparelho até o limite voltar.
+const PAUSA = 'fr_tts_pausa';
+export function lerPausa() {
+  try { const p = JSON.parse(localStorage.getItem(PAUSA)); return p && p.ate > Date.now() ? p : null; } catch (e) { return null; }
+}
+export const geminiPausa = () => lerPausa();
+// o limite diário zera à meia-noite do Pacífico (a hora de Los Angeles)
+export function proximaMeiaNoitePacifico(agora = Date.now()) {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(agora));
+  const g = (t) => +p.find((x) => x.type === t).value;
+  return agora - (agora % 1000) + 86400000 - ((g('hour') * 60 + g('minute')) * 60 + g('second')) * 1000; // meia-noite exata, sem os milissegundos de agora
+}
+// quando este erro 429 deixa de valer: dia (meia-noite do Pacífico), minuto (o tempo que o Google pediu) ou indefinido (30 min)
+export function pausaDe(e, agora = Date.now()) {
+  const d = String(e.detail || '');
+  const q = /limit: (\d+)/.exec(d); const m = /model: ([\w.-]+)/.exec(d); const detalhe = q ? `limite ${q[1]}${m ? ' (' + m[1] + ')' : ''}` : '';
+  if (/PerDay|per day/i.test(d)) return { ate: proximaMeiaNoitePacifico(agora), motivo: 'dia', detalhe };
+  const r = /"retryDelay":\s*"(\d+(?:\.\d+)?)s"/.exec(d) || /retry in (\d+(?:\.\d+)?)s/i.exec(d);
+  if (r) return { ate: agora + (Math.ceil(+r[1]) + 5) * 1000, motivo: 'minuto', detalhe };
+  return { ate: agora + 30 * 60000, motivo: 'indefinido', detalhe };
+}
+function pausarGemini(erros) {
+  const p = erros.map((e) => pausaDe(e)).sort((a, b) => a.ate - b.ate)[0]; // volta quando o primeiro modelo voltar
+  try { localStorage.setItem(PAUSA, JSON.stringify(p)); } catch (e) { /* sem armazenamento */ }
+}
+export function limparPausa() { avisadoAte = 0; try { localStorage.removeItem(PAUSA); } catch (e) { /* ignore */ } }
 const TTS_DEFAULT = ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'];
 // modelos de voz que o Diagnóstico sabe comparar; o escolhido em Ajustes → Voz passa à frente dos padrões
 export const TTS_CANDIDATES = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
@@ -85,6 +158,7 @@ export async function ttsBenchmark(text, models = TTS_CANDIDATES) {
   return out;
 }
 let player = null; let ttsCtl = null;
+let avisadoAte = 0;
 export let voiceNote = ''; // aviso para a interface (ex.: limite gratuito atingido)
 
 const b64ToBytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -103,19 +177,21 @@ async function geminiAudio(text, signal) {
   for (const model of models) { // frase já gerada por qualquer modelo conhecido vem do cache, sem rede
     if (cache) { const hit = await cache.match(cacheReq(model, text)); if (hit) return hit.blob(); }
   }
-  let lastErr;
-  for (const model of ttsModels()) {
+  if (lerPausa()) { const e = new Error('429'); e.status = 429; e.pausado = true; throw e; } // limite já atingido: nem tenta (o cache acima continua valendo)
+  let lastErr; const lista = ttsModels(); const cotas = [];
+  for (const model of lista) {
     try {
       const res = await ttsFetch(model, text, signal);
-      if (!res.ok) { const e = new Error(String(res.status)); e.status = res.status; throw e; }
+      if (!res.ok) { let detail = ''; try { detail = (await res.text()).slice(0, 1500); } catch (x) { /* sem corpo */ } const e = new Error(String(res.status)); e.status = res.status; e.detail = detail; throw e; }
       const j = await res.json(); const part = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts[0];
       const inl = part && part.inlineData; if (!inl) throw new Error('sem áudio');
       const bytes = b64ToBytes(inl.data);
       const blob = /wav/i.test(inl.mimeType) ? new Blob([bytes], { type: 'audio/wav' }) : pcmToWav(bytes, +(/rate=(\d+)/.exec(inl.mimeType) || [0, 24000])[1]);
       if (cache) { try { await cache.put(cacheReq(model, text), new Response(blob, { headers: { 'content-type': 'audio/wav' } })); } catch (e) { /* ignore */ } }
       return blob;
-    } catch (e) { if (e.name === 'AbortError') throw e; lastErr = e; if (e.status === 429) break; }
+    } catch (e) { if (e.name === 'AbortError') throw e; lastErr = e; if (e.status === 429) cotas.push(e); }
   }
+  if (cotas.length && cotas.length === lista.length) pausarGemini(cotas); // todos os modelos no limite
   throw lastErr || new Error('falha');
 }
 
@@ -170,18 +246,23 @@ export async function speak(text, { rate = 0.9 } = {}) {
   const t = clean(text); if (!t) return;
   await voicesReady();
   voiceNote = '';
-  if (engineInfo().engine === 'gemini') {
+  const ei = engineInfo();
+  if (ei.engine === 'gemini') {
     try { return await geminiSpeak(t, rate); } catch (e) {
       if (e.name === 'AbortError') return;
-      voiceNote = e.status === 429 ? 'Limite gratuito da voz natural atingido por agora; usando a voz do aparelho.' : 'Voz natural indisponível; usando a voz do aparelho.';
+      voiceNote = e.status === 429 ? 'Limite gratuito da voz natural atingido; usando a voz do aparelho até ele voltar.' : 'Voz natural indisponível; usando a voz do aparelho.';
+      const p = lerPausa(); if (p) avisadoAte = p.ate; // já avisou desta pausa
     }
-  } else if (!hasFrenchVoice() && !voiceNote) {
+  } else if (ei.pausa && (ei.mode === 'gemini' || !ei.hasFr)) {
+    if (avisadoAte !== ei.pausa.ate) { avisadoAte = ei.pausa.ate; voiceNote = 'Voz natural em pausa (limite gratuito); usando a voz do aparelho.'; } // um aviso por pausa, não a cada frase
+  } else if (!ei.hasFr && !voiceNote) {
     voiceNote = 'Seu aparelho não tem voz francesa: o áudio sai com sotaque brasileiro. Veja Ajustes → Voz.';
   }
   return browserSpeak(t, rate);
 }
 export function stopSpeaking() {
   if (synth) synth.cancel();
+  if (nativeVoz && nativeTts()) nativeTts().stop().catch(() => {});
   if (ttsCtl) { ttsCtl.abort(); ttsCtl = null; }
   if (player) { const p = player; player = null; p.pause(); }
 }

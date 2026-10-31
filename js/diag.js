@@ -14,6 +14,7 @@ export function diagHtml() {
   <section class="card"><p class="pt">Rode os testes um por um e, se algo falhar, copie o relatório e me envie. Os testes de voz, transcrição e IA usam sua chave gratuita (1 pedido cada).</p>
     <div class="diag-btns">
       <button class="btn" data-t="voz">${I('volume')} Testar a voz</button>
+      ${N.isNative() ? `<button class="btn" data-t="vozapar">${I('volume')} Testar a voz do aparelho</button>` : ''}
       <button class="btn" data-t="mic">${I('mic')} Testar o microfone (3 s)</button>
       <button class="btn" data-t="transc">${I('send')} Testar a transcrição (4 s)</button>
       <button class="btn" data-t="ia">${I('chat')} Testar a Clara</button>
@@ -49,13 +50,21 @@ export function initDiag(root, { cur }) {
     try { const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null; const e = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; const uso = e ? ` · uso ${(e.usage / 1024).toFixed(0)} KB` : ''; if (N.isNative()) add('warn', 'Armazenamento do app', `o Android apaga estes dados se o app for desinstalado${uso} · faça um backup em Ajustes`); else add(p ? 'ok' : 'warn', 'Armazenamento protegido', `${p ? 'sim' : 'não'}${uso}${p ? '' : ' · faça um backup em Ajustes'}`); } catch (e) { add('warn', 'Armazenamento', 'não consegui verificar'); }
     // "Falar" nos exercícios e na ligação: pelo reconhecimento do navegador ou, sem ele (app Android), gravando e transcrevendo pela IA
     add(V.canTalk() ? 'ok' : 'warn', 'Falar (exercícios e Clara)', V.browserRec() ? 'reconhecimento do navegador' : V.canDictate() ? `gravação + transcrição pela IA${V.canListen ? ' (no app, é preferida ao reconhecimento do navegador)' : ''}` : V.canRecord ? 'falta uma chave do Gemini ou do Groq' : 'indisponível neste navegador');
-    add(V.hasFrenchVoice() ? 'ok' : 'warn', 'Voz francesa do aparelho', V.hasFrenchVoice() ? V.frenchVoiceName() : 'nenhuma (o app usa a voz natural do Gemini)');
+    const nv = V.nativeVoiceInfo();
+    add(V.hasFrenchVoice() ? 'ok' : 'warn', 'Voz francesa do aparelho', V.hasFrenchVoice() ? `${V.frenchVoiceName()} (via ${nv.ok ? 'Android' : 'WebView'})` : 'nenhuma (o app usa a voz natural do Gemini)');
+    if (nv.plugin) add(nv.ok ? 'ok' : 'warn', 'Vozes visíveis', `Android: ${nv.n || 0} · WebView: ${V.webVoiceCount()}${nv.erro ? ' · ' + nv.erro : ''}`);
+    const pz = V.geminiPausa();
+    if ((S.get().settings.keys || {}).gemini) add(pz ? 'warn' : 'ok', 'Voz natural (Gemini)', pz ? `em pausa: limite gratuito${pz.detalhe ? ' (' + pz.detalhe + ')' : ''}, volta às ${new Date(pz.ate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'sem limite atingido agora (o plano gratuito é pequeno: cerca de 10 frases por dia por modelo)');
     const c = cur(); add(c.key ? 'ok' : 'fail', 'Chave de IA', c.key ? `${T.PROVIDERS[c.p].label}, modelo ${c.model}` : 'não configurada');
     const lembrado = T.stickyInfo(c.p);
     if (lembrado) add('warn', 'Modelo de reserva em uso', `${lembrado.model} no lugar de ${lembrado.from}, até ${new Date(lembrado.until).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (o principal falhou há pouco)`);
     add(V.canRecord ? 'ok' : 'fail', 'Gravação de áudio', V.canRecord ? 'disponível' : 'indisponível neste navegador');
     try { const el = JSON.parse(localStorage.getItem('fr_errlog') || '[]'); add(el.length ? 'warn' : 'ok', 'Erros recentes do app', el.length ? el.slice(-3).map((x) => x.m + ' (' + x.f + ')').join(' | ') : 'nenhum'); } catch (e) { /* ignore */ }
     add('ok', 'Aparelho', `${screen.width}×${screen.height}, ${navigator.userAgent.replace(/^Mozilla\/5.0 /, '').slice(0, 60)}`);
+  }
+  async function vozapar() {
+    const r = await V.deviceVoiceTest(); const nv = V.nativeVoiceInfo();
+    add(r.ok ? 'ok' : 'fail', 'Voz do aparelho', `via ${r.via}${r.ms ? ' · ' + r.ms + ' ms' : ''}${r.erro ? ' · ' + r.erro : ''} · ${r.ok ? 'se você ouviu a frase, está tudo certo' : 'não saiu som: instale a voz francesa (Ajustes → Voz)'}${nv.plugin ? '' : ' · plugin de voz do Android ausente: reinstale o app'}`);
   }
   async function voz() {
     const t0 = performance.now(); const e = V.engineInfo();
@@ -133,7 +142,7 @@ export function initDiag(root, { cur }) {
   // recursos do app Android: a ponte nativa chegou ao site? onde dá para gravar backups?
   async function nativo() { for (const l of [...await N.selfTest(), ...await A.diagnose(), ...await R.diagnose()]) add(l.estado, l.nome, l.detalhe); }
 
-  const run = { voz, vozes, nativo, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
+  const run = { voz, vozapar, vozes, nativo, mic, transc, ia, tudo: async () => { await voz(); await wait(500); await micETransc(); await wait(500); await ia(); } };
   let busy = false;
   root.querySelectorAll('[data-t]').forEach((b) => { b.onclick = async () => { if (busy) return; busy = true; root.querySelectorAll('[data-t]').forEach((x) => { x.disabled = true; }); try { await run[b.dataset.t](); } finally { busy = false; root.querySelectorAll('[data-t]').forEach((x) => { x.disabled = false; }); } }; });
   root.querySelector('#dcopy').onclick = async () => { const txt = `Clarté diagnóstico (${new Date().toLocaleString('pt-BR')})\n` + lines.join('\n'); try { await navigator.clipboard.writeText(txt); toast('Relatório copiado.'); } catch (e) { prompt('Copie o relatório:', txt); } };

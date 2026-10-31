@@ -49,6 +49,10 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 É preciso o JDK 21 (`JAVA_HOME`) e o Android SDK (`ANDROID_HOME`). Se `adb devices` não listar o celular, confira o cabo e a depuração USB.
 
+## Voz do Android
+
+O app fala pelo mecanismo de voz do próprio celular (plugin TextToSpeech), sem limite de uso e sem internet. Se Ajustes → Voz disser que não há voz francesa, toque em "Instalar ou atualizar a voz francesa". A voz natural do Gemini é opcional: o plano gratuito dá cerca de 10 frases por dia por modelo, e o app a pausa sozinho quando acaba.
+
 ## Lembrete diário
 
 Em Ajustes → Lembrete diário dá para ligar, escolher a hora e enviar um teste. O app agenda os próximos 7 dias e cancela o de hoje se você já estudou. Na primeira vez o Android 13+ pergunta se pode mostrar notificações. Se o Ajustes disser que o app foi instalado antes dos lembretes, aperte ▶ Run de novo no Android Studio.

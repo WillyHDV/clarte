@@ -22,7 +22,7 @@ const problems = [];
 process.on('unhandledRejection', (e) => problems.push(`promessa sem tratamento: ${e && e.message}`));
 w.addEventListener('error', (e) => problems.push(`erro na tela: ${e.message}`));
 
-const PLUGINS = ['Filesystem', 'Share', 'LocalNotifications'];
+const PLUGINS = ['Filesystem', 'Share', 'LocalNotifications', 'TextToSpeech'];
 const $ = (sel) => document.querySelector(sel);
 const tick = (ms = 25) => new Promise((r) => setTimeout(r, ms));
 async function goto(hash) { w.location.hash = hash; await tick(60); }
@@ -74,4 +74,19 @@ test('app instalado antes do plugin: explica como atualizar e não mostra contro
 test('no site (sem app Android) o bloco não existe', async () => {
   S.resetAll(); R.esquecer(); delete globalThis.Capacitor; await abrirAjustes();
   assert.equal($('#srem'), null); assert.doesNotMatch(document.body.textContent, /Lembrete diário/);
+});
+
+test('Ajustes → Voz no app: mostra a voz francesa do Android, instala/atualiza e testa pelo plugin', async () => {
+  const V = await import('../js/speech.js'); novo(); await V.recheckNativeVoice(); await abrirAjustes();
+  assert.match($('#vstatus').textContent, /Voz francesa do aparelho: fr-fr-x-vlf-local/); assert.ok($('#sinstvoz')); assert.ok($('#stestapar'));
+  $('#sinstvoz').click(); await tick(40); assert.equal(cap.voz.instalou, 1, 'abriu a instalação de voz do Android');
+});
+
+test('Ajustes → Voz: sem voz francesa, orienta a instalar; com o limite do Gemini em pausa, explica quando volta', async () => {
+  const V = await import('../js/speech.js'); novo({ tts: { suportado: false, vozes: [] } }); await V.recheckNativeVoice(); S.setKey('gemini', 'k'); V.limparPausa();
+  await abrirAjustes(); assert.match($('#vstatus').textContent, /não tem voz francesa.*Instalar ou atualizar a voz francesa/);
+  localStorage.setItem('fr_tts_pausa', JSON.stringify({ ate: Date.now() + 3600000, motivo: 'dia', detalhe: 'limite 10 (gemini-3.8-flash-tts)' }));
+  await goto('#/'); await goto('#/settings'); await tick(40);
+  const t = $('#vstatus').textContent;
+  assert.match(t, /em pausa/); assert.ok(t.includes('limite 10 (gemini-3.8-flash-tts)')); assert.match(t, /meia-noite do horário do Pacífico/); V.limparPausa();
 });
