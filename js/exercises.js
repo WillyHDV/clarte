@@ -119,11 +119,11 @@ function genPhraseUnit(unit, keys) {
   const ptOpts = shuffle([p.pt, ...sample(allPhrases(['comm', 'saluer', 'congé', 'presenter']).map((x) => x.pt), 3, [p.pt])]);
   const frOpts = shuffle([p.fr, ...sample(allPhrases(['comm', 'saluer', 'congé', 'presenter']).map((x) => x.fr), 3, [p.fr])]);
   const types = [
-    () => mk(unit, 'choice', { items: it, q: `O que significa <b>${p.fr}</b>?`, audio: p.fr, options: ptOpts, answer: p.pt }),
-    () => mk(unit, 'choice', { items: it, q: `Como se diz: <b>${p.pt}</b>?`, options: frOpts, answer: p.fr, audio: p.fr }),
+    () => mk(unit, 'choice', { items: it, q: `O que significa <b>${p.fr}</b>${/[?!.…]$/.test(p.fr) ? '' : '?'}`, audio: p.fr, options: ptOpts, answer: p.pt }),
+    () => mk(unit, 'choice', { items: it, q: `Como se diz: <b>${p.pt}</b>${/[?!.…]$/.test(p.pt) ? '' : '?'}`, options: frOpts, answer: p.fr, audio: p.fr }),
     () => mk(unit, 'listen-choice', { items: it, q: 'O que você ouviu?', audio: p.fr, options: ptOpts, answer: p.pt, explain: p.fr }),
     () => mk(unit, 'listen-type', { items: it, q: 'Ouça e escreva a frase.', audio: p.fr, answer: p.fr, explain: p.fr + ' — ' + p.pt }),
-    () => mk(unit, 'speak', { items: it, q: `Diga em voz alta (${p.pt})`, answer: p.fr, shown: p.fr, audio: p.fr }),
+    () => mk(unit, 'speak', { items: it, q: `Diga em voz alta: <i>${p.pt}</i>`, answer: p.fr, shown: p.fr, audio: p.fr }),
   ];
   const tileable = !/«/.test(p.fr);
   if (tileable) types.push(() => {

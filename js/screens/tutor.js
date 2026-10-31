@@ -77,7 +77,7 @@ async function tutorPage() {
           <input id="tin" class="inp" aria-label="Mensagem para a Clara" placeholder="${tutorMode === 'duvidas' ? 'Pergunte em português…' : 'Écris en français…'}" autocomplete="off" autocapitalize="off" spellcheck="false">
           <button class="send" id="tsend">➤</button>
         </div>
-        <div class="acc">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>
+        <div class="acentos">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>
       </div>`;
     const chat = document.getElementById('chat'); chat.scrollTop = chat.scrollHeight;
     document.querySelectorAll('.seg [data-m]').forEach((b) => { b.onclick = () => { if (busy) return; tutorMode = b.dataset.m; ensureOpening(); draw(); }; });

@@ -20,6 +20,17 @@ Fase 2 (Trilha e Unidade) pronta:
 - **Degraus** da unidade e **tarefas do plano** com ícones de linha, sem emoji.
 - **Testes**: 282 → 287.
 
+Fase 3 (Exercícios e chamada) pronta:
+
+- **Exercício**: topo com o X (volta à unidade ou a Praticar), a barra de progresso e a sequência de dias; pergunta grande; opções grandes (62 px); o botão **Verificar** fica fixo embaixo, legível mesmo desativado.
+- **Painel de feedback que sobe**: ao responder, um painel colorido sobe de baixo (verde no acerto, âmbar no "quase", vermelho no erro, neutro ao pular) com ícone, a resposta certa, a explicação, "Ouvir" e o botão **Continuar** na cor do resultado. As opções ganham um ícone de certo ou errado (e texto para leitor de tela).
+- **Fim do treino**: medalha com ícone, "6 de 8 corretas" com o percentual grande, resultado do degrau, pontos, ganho de domínio e botões grandes; o "voltar" leva à unidade ou a Praticar.
+- **Sem emoji** nos botões de áudio, microfone, "Devagar" e no fim do treino.
+- **Texto das perguntas**: acabou a pontuação dobrada ("??" e ".?") e a pergunta de fala não tem mais parênteses dentro de parênteses.
+- **Chamada com a Clara**: as cores de texto sobre o fundo escuro viraram variáveis (`--call-*`) e entram no teste de contraste, junto com as cores do painel de feedback.
+- **Nomes de classe que colidiam** foram separados (a linha de acentos e os cartões de números da Evolução), o que também corrige o visual das peças do exercício de montar frases.
+- **Testes**: 287 → 292.
+
 ## v25 — 31/10/2026
 
 Cenários da Clara: missões de conversa por voz com objetivos.

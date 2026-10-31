@@ -23,7 +23,9 @@ const PARES = [
   ['ink', 'bg'], ['ink', 'card'], ['ink', 'card-2'], ['muted', 'bg'], ['muted', 'card'], ['muted', 'card-2'],
   ['brand-text', 'bg'], ['brand-text', 'card'], ['navy', 'card'],
   ['good', 'good-bg'], ['good', 'card'], ['bad', 'bad-bg'], ['bad', 'card'], ['warn', 'warn-bg'], ['disabled-ink', 'disabled-bg'],
-  ['on-brand', 'brand'], ['on-bad', 'bad'],
+  ['on-brand', 'brand'], ['on-bad', 'bad'], ['on-good', 'good'], ['on-warn', 'warn'],
+  ['ink', 'good-bg'], ['ink', 'warn-bg'], ['ink', 'bad-bg'], ['muted', 'card-2'], // texto do painel de feedback sobre o fundo de acerto, quase e erro
+  ['call-ink', 'call-bg'], ['call-ink-2', 'call-bg'], ['call-accent', 'call-bg'], ['call-ok', 'call-bg'], ['call-warn', 'call-bg'], // chamada e resumo da missão (fundo escuro)
 ];
 for (const [nome, v] of [['claro', claro], ['escuro', escuro]]) {
   test(`leitura (${nome}): todo par de texto e fundo tem contraste de pelo menos 4,5 para 1`, () => {

@@ -92,7 +92,7 @@ test('treino de cada unidade chega até o fim e registra a sessão', async () =>
   const xp0 = S.get().xp;
   for (const u of UNITS) {
     const end = await drive(`#/practice/${u.id}`);
-    assert.match(end, /\d+\/\d+ corretas/, `tela final de ${u.id}`);
+    assert.match(end, /\d+ de \d+ corretas/, `tela final de ${u.id}`);
     assert.ok(S.get().units[u.id].sessions >= 1, `sessão de ${u.id} não registrada`);
     noBroken(`treino ${u.id}`);
   }
@@ -110,9 +110,11 @@ test('treino inteligente (mix), degraus da trilha e reforço', async () => {
 
 test('fim do treino mostra o ganho de domínio e volta ao início', async () => {
   await drive('#/practice/comm');
-  assert.match($('.end').textContent, /Domínio da unidade/);
-  $('.end [data-go="#/"]').click(); await tick();
-  assert.match(text(), /Continuar de onde parou/);
+  assert.match($('.end').textContent, /Domínio da unidade/); assert.match($('.end .medalha svg.i') ? 'ok' : '', /ok/, 'medalha com ícone de linha');
+  assert.match($('#voltar').textContent, /Voltar à unidade/); $('#voltar').click(); await tick();
+  assert.match(w.location.hash, /#\/unit\/comm/, 'treino livre de uma unidade volta para a unidade');
+  await drive('#/practice/mix'); assert.match($('.end').textContent, /Domínio geral/); assert.match($('#voltar').textContent, /Voltar a Praticar/);
+  $('#voltar').click(); await tick(); assert.match(w.location.hash, /#\/praticar/, 'treino inteligente volta para Praticar');
 });
 
 test('Clara sem chave pede a chave; o link de configuração salva e abre o chat', async () => {
@@ -223,14 +225,14 @@ test('os treinos e a tela inicial gravam o histórico do dia', async () => {
   await goto('#/settings'); await goto('#/');
   assert.equal(S.get().history.at(-1).d, '2026-11-01'); assert.equal(typeof S.get().history.at(-1).r, 'number', 'início grava a prontidão do dia');
   const fim = await drive('#/practice/comm');
-  const h = S.get().history.at(-1); const [, ok, tot] = /(\d+)\/(\d+) corretas/.exec(fim).map(Number);
+  const h = S.get().history.at(-1); const [, ok, tot] = /(\d+) de (\d+) corretas/.exec(fim).map(Number);
   assert.equal(h.n, Math.max(tot, 1)); assert.equal(h.ok, ok, 'o histórico bate com o resultado mostrado na tela final');
 });
 
 test('Evolução sem histórico mostra o convite, sem gráficos quebrados', async () => {
   S.resetAll(); S.get().history = []; S.save(); await goto('#/settings'); await goto('#/history');
   assert.match(text(), /Ainda não há histórico/); assert.equal($$('figure.chart').length, 0); assert.ok($('[data-go="#/practice/mix"]'));
-  assert.equal($$('.tile').length, 4); noBroken('evolução vazia');
+  assert.equal($$('.kpi').length, 4); noBroken('evolução vazia');
 });
 
 function semear() {
@@ -243,7 +245,7 @@ function semear() {
 test('Evolução com dados: cartões, três gráficos acessíveis e tabelas equivalentes', async () => {
   semear(); mock.timers.setTime(DIA(11, 1).getTime()); await goto('#/settings'); await goto('#/history');
   assert.equal($$('figure.chart').length, 3); assert.equal($$('svg.chart-svg').length, 3);
-  const cartoes = $$('.tile').map((t) => [...t.children].map((c) => c.textContent).join(' '));
+  const cartoes = $$('.kpi').map((t) => [...t.children].map((c) => c.textContent).join(' '));
   assert.match(cartoes[0], /Dias seguidos 4/); assert.match(cartoes[3], /Simulações da prova 2 melhor nota 7,5\/10/);
   for (const svg of $$('svg.chart-svg')) { assert.equal(svg.getAttribute('role'), 'img'); assert.ok(svg.getAttribute('aria-label').length > 20, 'descrição do gráfico'); assert.equal(svg.getAttribute('tabindex'), '0'); }
   assert.match($$('svg.chart-svg')[0].getAttribute('aria-label'), /Prontidão para a avaliação: de 20% em 03\/10 para 49% em 01\/11/);
@@ -279,7 +281,7 @@ test('Evolução: com uma só simulação, mostra a dica em vez de um gráfico d
 
 test('o Perfil leva à Evolução (com a prontidão e os critérios) e a Evolução volta ao Perfil', async () => {
   await goto('#/settings'); await goto('#/perfil'); $('[data-go="#/history"]').click(); await tick();
-  assert.match(w.location.hash, /#\/history/); assert.ok($$('.tile').length === 4);
+  assert.match(w.location.hash, /#\/history/); assert.ok($$('.kpi').length === 4);
   assert.match($('.ready').textContent, /Prontidão para a avaliação/); assert.equal($$('.crit').length, 6, 'os 6 critérios da prova oral');
   $('.top .back').click(); await tick(); assert.match(w.location.hash, /#\/perfil/);
 });
@@ -593,4 +595,61 @@ test('Praticar traz o plano de hoje com ícones de linha', async () => {
   assert.match($('.plan').textContent, /Plano de hoje.*de \d/s); assert.ok($$('.ptask').length >= 2, 'foco e conversa com a Clara, no mínimo'); assert.equal($$('.ptask .tt svg.i').length, $$('.ptask').length, 'sem emoji nas tarefas');
   assert.ok($$('.ptask').every((t) => t.dataset.go.startsWith('#/')));
   noBroken('praticar com plano');
+});
+
+// ---------- fase 3: exercício com painel de feedback que sobe ----------
+// responde o exercício atual com qualquer coisa (como drive) para poder seguir adiante
+async function responderQualquer(n) {
+  const inp = $('#inp'); const tile = $('#bank [data-b]');
+  if ($('#match')) await resolverPares(n % 2 === 0); else if ($('.opt')) $('.opt').click(); else if (inp) { inp.value = 'x'; inp.dispatchEvent(new w.Event('input')); } else if (tile) tile.click();
+}
+// avança pelos exercícios até `cond()` ser verdadeira com o exercício ainda sem resposta
+async function ateExercicio(hash, cond, max = 60) {
+  await goto('#/settings'); await goto(hash);
+  for (let n = 0; n < max; n++) {
+    const ok = $('#ok'); if (!ok || $('.end')) return false;
+    if (ok.textContent.trim() !== 'Continuar' && cond()) return true;
+    if (ok.textContent.trim() !== 'Continuar') await responderQualquer(n);
+    ok.click(); await tick(5);
+  }
+  return false;
+}
+
+test('exercício: topo com progresso e sequência, X para o lugar certo e botão fixo com o painel dentro', async () => {
+  await goto('#/settings'); await goto('#/practice/mix');
+  const barra = $('.ptop .bar'); assert.equal(barra.getAttribute('role'), 'progressbar'); assert.equal(+barra.getAttribute('aria-valuenow'), 0); assert.ok(+barra.getAttribute('aria-valuemax') >= 5);
+  assert.ok($('.ptop .stat svg.i'), 'a sequência de dias aparece no topo'); assert.equal($('.ptop .x').dataset.go, '#/praticar');
+  assert.ok($('#dock #fb') && $('#dock #ok'), 'o painel de feedback mora dentro do botão fixo'); assert.equal($('#dock').className, 'dock'); assert.equal(document.body.classList.contains('com-fb'), false);
+  await goto('#/settings'); await goto('#/practice/comm'); assert.equal($('.ptop .x').dataset.go, '#/unit/comm', 'treino livre: o X volta para a unidade');
+  await goto('#/settings'); await goto('#/step/comm/recognize'); assert.equal($('.ptop .x').dataset.go, '#/unit/comm', 'degrau: o X volta para a unidade');
+  assert.ok(!/[🔊🐢🎤]/u.test($('#app').textContent), 'sem emoji nos botões do exercício'); noBroken('exercício');
+});
+
+test('erro: painel vermelho que sobe com ícone e a resposta certa, e "Continuar" limpa tudo', async () => {
+  assert.ok(await ateExercicio('#/step/presenter/write', () => !!$('#inp')), 'achou um exercício de digitar');
+  $('#inp').value = 'zzzz'; $('#inp').dispatchEvent(new w.Event('input')); assert.equal($('#ok').disabled, false); $('#ok').click();
+  assert.equal($('#dock').className, 'dock bad'); assert.ok(document.body.classList.contains('com-fb')); assert.match($('#fb').className, /\bshow\b.*\bbad\b/);
+  assert.ok($('#fb .fbi svg.i'), 'ícone no painel'); assert.match($('#fb .fbt').textContent, /Resposta correta/); assert.ok($('#fb .ans').textContent.trim().length > 1, 'mostra a resposta certa');
+  assert.equal($('#ok').textContent.trim(), 'Continuar'); assert.ok($('#ok').classList.contains('bad')); assert.equal($('#inp').disabled, true);
+  const antes = +$('.ptop .bar').getAttribute('aria-valuenow'); $('#ok').click(); await tick(5);
+  assert.equal($('#dock').className, 'dock', 'o painel some no exercício seguinte'); assert.equal(document.body.classList.contains('com-fb'), false);
+  assert.equal(+$('.ptop .bar').getAttribute('aria-valuenow'), antes + 1, 'a barra avança');
+});
+
+test('opções: depois de responder, a certa e a errada ganham ícone e texto para leitor de tela', async () => {
+  let visto = 0;
+  for (const alvo of ['primeira', 'ultima']) {
+    assert.ok(await ateExercicio('#/step/comm/recognize', () => $$('.opt').length >= 2), 'achou um exercício de escolha');
+    const o = $$('.opt'); (alvo === 'primeira' ? o[0] : o.at(-1)).click(); $('#ok').click();
+    assert.ok($('.opt.right .ico svg.i'), 'a certa tem ícone de check'); assert.match($('.opt.right .sr').textContent, /correta/); assert.ok($$('.opt').every((b) => b.disabled));
+    const estado = $('#dock').className.replace('dock ', ''); assert.ok(['good', 'almost', 'bad'].includes(estado), estado);
+    if (estado === 'bad') { assert.ok($('.opt.wrong .ico svg.i'), 'a errada tem ícone de x'); assert.match($('.opt.wrong .sr').textContent, /errada/); } else assert.equal($('.opt.wrong'), null);
+    visto++;
+  }
+  assert.equal(visto, 2);
+});
+
+test('fala sem reconhecimento: botão "Pular" e painel neutro', async () => {
+  S.resetAll(); assert.ok(await ateExercicio('#/practice/speakdrill', () => $('#ok').textContent.trim() === 'Pular', 5), 'sem microfone e chave, a fala oferece Pular');
+  assert.equal($('#ok').disabled, false); $('#ok').click(); assert.equal($('#dock').className, 'dock neutral'); assert.match($('#fb .fbt').textContent, /Pulado/); assert.ok($('#fb .fbi svg.i'));
 });

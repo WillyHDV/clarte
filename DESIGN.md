@@ -52,7 +52,7 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 
 1. **Base**: tokens, teste de contraste, ícones, componentes, nova barra, cabeçalho com avatar, Praticar e Perfil (feita).
 2. **Trilha** (cartão "Continuar" e caminho em zigue-zague) e **Unidade** (abas Trilha, Aula e Frases; aula em cartões que abrem; botão fixo): feita. O plano do dia e a reta final foram para Praticar; a prontidão e os critérios, para Evolução.
-3. Exercícios (feedback em painel que sobe) e chamada alinhada ao novo visual.
+3. **Exercícios** (feedback em painel que sobe, opções com ícone, fim do treino novo) e **chamada** alinhada ao novo visual (cores `--call-*` com contraste testado): feita.
 4. Clara (abas, cenários e chat), Evolução e Ajustes por subtelas.
 5. Polimento (animações leves, vibração no app, modo escuro conferido) e publicação de tudo junto.
 

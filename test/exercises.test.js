@@ -189,3 +189,9 @@ test('competências (critérios da prova) por tipo de exercício', () => {
   assert.deepEqual(skillsFor({ kind: 'type', unit: 'verbes' }, { ok: false }), [['gramatica', 0]]);
   assert.deepEqual(skillsFor({ kind: 'speak', unit: 'comm' }, { ok: true, score: 0.8 }), [['pronuncia', 0.8]]);
 });
+
+test('as perguntas de tradução não terminam com pontuação dobrada (".?" ou "??")', () => {
+  const ruins = new Set();
+  for (let n = 0; n < 400; n++) for (const ex of buildSession('mix', 12, () => 0.5)) { const t = String(ex.q).replace(/<[^>]+>/g, ''); if (/[.!?…]\?|\?\?/.test(t)) ruins.add(t); }
+  assert.deepEqual([...ruins], []);
+});

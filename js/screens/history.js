@@ -72,10 +72,10 @@ export function historyPage() {
   $app.innerHTML = `
     <header class="top"><button class="back" data-go="#/perfil" aria-label="Voltar">${I('back')}</button><h1>Evolução</h1></header>
     <section class="kpis" aria-label="Resumo">
-      <div class="tile"><small>Dias seguidos</small><b>${s.streak}</b><span>${s.streak ? 'sem pular um dia' : 'comece hoje'}</span></div>
-      <div class="tile"><small>Exercícios (7 dias)</small><b>${n7}</b><span>meta de ${goal} por dia</span></div>
-      <div class="tile"><small>Acertos (7 dias)</small><b>${n7 ? `${Math.round((100 * ok7) / n7)}%` : '—'}</b><span>${n7 ? `${ok7} de ${n7}` : 'sem exercícios na semana'}</span></div>
-      <div class="tile"><small>Simulações da prova</small><b>${(s.exams || []).length}</b><span>${bestExam ? `melhor nota ${nota(bestExam)}/10` : 'ainda nenhuma'}</span></div>
+      <div class="kpi"><small>Dias seguidos</small><b>${s.streak}</b><span>${s.streak ? 'sem pular um dia' : 'comece hoje'}</span></div>
+      <div class="kpi"><small>Exercícios (7 dias)</small><b>${n7}</b><span>meta de ${goal} por dia</span></div>
+      <div class="kpi"><small>Acertos (7 dias)</small><b>${n7 ? `${Math.round((100 * ok7) / n7)}%` : '—'}</b><span>${n7 ? `${ok7} de ${n7}` : 'sem exercícios na semana'}</span></div>
+      <div class="kpi"><small>Simulações da prova</small><b>${(s.exams || []).length}</b><span>${bestExam ? `melhor nota ${nota(bestExam)}/10` : 'ainda nenhuma'}</span></div>
     </section>
     ${prontidaoHtml()}
     ${charts.length ? charts.map(figure).join('') : '<div class="card center"><p>Ainda não há histórico para mostrar. Faça um treino hoje e volte aqui: os gráficos aparecem a partir do primeiro dia de uso.</p><button class="btn primary" data-go="#/practice/mix">Treino inteligente</button></div>'}

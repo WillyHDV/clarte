@@ -25,7 +25,9 @@ export function practice(id, stepId) {
   } else if (speakDrill) list = buildSession('mix', 5, strengthOf, { kinds: ['speak'] });
   else if (cfg) list = buildSession(id, cfg.n, strengthOf, cfg.kinds ? { kinds: cfg.kinds } : {});
   else list = buildSession(id, 10, strengthOf);
-  if (!list.length) { $app.innerHTML = `<header class="top"><button class="back" data-go="#/" aria-label="Voltar">${I('back')}</button><h1>Reforço</h1></header><div class="card center"><p>🎉 Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button> <button class="btn" data-go="#/">Voltar</button></div>`; return; }
+  const sair = cfg || !(review || id === 'mix' || speakDrill) ? `#/unit/${id}` : '#/praticar'; // para onde o X e o "voltar" levam
+  const voltarTxt = cfg || !(review || id === 'mix' || speakDrill) ? 'Voltar à unidade' : 'Voltar a Praticar';
+  if (!list.length) { $app.innerHTML = `<header class="apphead"><button class="back" data-go="#/praticar" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Reforço</b><small>Nada fraco agora</small></div></header><div class="card center"><div class="medalha ok">${I('trophy')}</div><p>Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary wide" data-go="#/practice/mix">${I('bolt')} Treino inteligente</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; const wrongList = [];
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false;
   // associar pares: seleção atual, pares já feitos, pares em que errou e a ordem embaralhada das colunas
@@ -33,6 +35,7 @@ export function practice(id, stepId) {
 
   function showEnd() {
     S.recordSession(review ? 'review' : id, correct, Math.max(attempted, 1)); S.logDay({ r: readiness().overall });
+    document.body.classList.remove('com-fb');
     const pct = Math.round((100 * correct) / Math.max(attempted, 1));
     // degrau da trilha: guarda o resultado e libera o próximo se passou
     let stepMsg = ''; let nextBtn = '';
@@ -44,55 +47,60 @@ export function practice(id, stepId) {
       const u = UNITS.find((x) => x.id === id); const nx = nextStep(id);
       if (passed && cfg.id === 'test') {
         const nu = UNITS[UNITS.indexOf(u) + 1];
-        stepMsg = `<div class="passbox ok">🏁 <b>Unidade concluída!</b> ${esc(u.title)} está completa.</div>`;
-        nextBtn = nu ? `<button class="btn primary" data-go="#/unit/${nu.id}">Próxima unidade: ${esc(nu.title)} ▶</button>` : '<button class="btn primary" data-go="#/practice/mix">⚡ Treino inteligente</button>';
+        stepMsg = `<div class="passbox ok">${I('trophy')} <span><b>Unidade concluída!</b> ${esc(u.title)} está completa.</span></div>`;
+        nextBtn = nu ? `<button class="btn primary" data-go="#/unit/${nu.id}">Próxima unidade: ${esc(nu.title)} ${I('chevron-right')}</button>` : `<button class="btn primary" data-go="#/practice/mix">${I('bolt')} Treino inteligente</button>`;
       } else if (passed) {
-        stepMsg = `<div class="passbox ok">✅ <b>${esc(cfg.title)}</b> concluído (${pct}% — precisa de ${cfg.pass}%).</div>`;
-        nextBtn = nx ? `<button class="btn primary" data-go="${nx.id === 'learn' ? '#/unit/' + id : '#/step/' + id + '/' + nx.id}">Próximo: ${esc(nx.title)} ▶</button>` : '';
+        stepMsg = `<div class="passbox ok">${I('circle-check')} <span><b>${esc(cfg.title)}</b> concluído (${pct}% — precisa de ${cfg.pass}%).</span></div>`;
+        nextBtn = nx ? `<button class="btn primary" data-go="${nx.id === 'learn' ? '#/unit/' + id : '#/step/' + id + '/' + nx.id}">Próximo: ${esc(nx.title)} ${I('chevron-right')}</button>` : '';
       } else {
-        stepMsg = `<div class="passbox no">Quase! Para concluir <b>${esc(cfg.title)}</b> são ${cfg.pass}% e você fez ${pct}%. Os itens que errou voltam a aparecer.</div>`;
+        stepMsg = `<div class="passbox no">${I('alert-circle')} <span>Quase! Para concluir <b>${esc(cfg.title)}</b> são ${cfg.pass}% e você fez ${pct}%. Os itens que errou voltam a aparecer.</span></div>`;
       }
     }
     const again = cfg ? `#/step/${id}/${cfg.id}` : `#/practice/${id}`;
+    const pontos = correct * 10 + (correct === attempted ? 20 : 0); const depois = avgPct();
+    const medalha = pct >= 80 ? ['trophy', 'ok'] : pct >= 50 ? ['star', 'meio'] : ['flame', 'baixo'];
     $app.innerHTML = `
-      <div class="end card center"><div class="big">${pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '💪'}</div>
-      <h2>${correct}/${attempted} corretas · ${pct}%</h2>
-      ${stepMsg}
-      <p>+${correct * 10 + (correct === attempted ? 20 : 0)} ⭐ ${wrongList.length ? `· ${wrongList.length} erro(s) vão voltar no reforço` : ''}</p>
-      <p class="dom">Domínio ${scope.length > 1 ? 'geral' : 'da unidade'}: <b>${before}% → ${avgPct()}%</b> ${avgPct() > before ? '▲' : avgPct() < before ? '▼' : ''}</p>
-      <div class="row">${nextBtn}<button class="btn ${nextBtn ? '' : 'primary'}" data-go="${again}" id="again">${cfg ? 'Tentar de novo' : 'Novamente'}</button>
-      ${S.dueMistakes().length && !cfg ? '<button class="btn warn" data-go="#/practice/review">🔁 Revisar erros</button>' : ''}</div>
-      <button class="btn" data-go="${cfg ? '#/unit/' + id : '#/'}">${cfg ? 'Voltar à unidade' : 'Voltar ao início'}</button></div>`;
+      <div class="end">
+        <div class="medalha ${medalha[1]}">${I(medalha[0])}</div>
+        <h2>${correct} de ${attempted} corretas</h2><p class="pct">${pct}%</p>
+        ${stepMsg}
+        <div class="grupo resumo">
+          <div class="linha"><span class="linha-i">${I('star')}</span><span class="linha-t"><b>+${pontos} pontos</b>${wrongList.length ? `<small>${wrongList.length} ${wrongList.length > 1 ? 'erros voltam' : 'erro volta'} no reforço</small>` : ''}</span></div>
+          <div class="linha"><span class="linha-i">${I('chart-line')}</span><span class="linha-t"><b class="dom">Domínio ${scope.length > 1 ? 'geral' : 'da unidade'}: ${before}% → ${depois}% ${depois > before ? '▲' : depois < before ? '▼' : ''}</b></span></div>
+        </div>
+        <div class="fim-botoes">${nextBtn}<button class="btn ${nextBtn ? '' : 'primary'}" data-go="${again}" id="again">${cfg ? 'Tentar de novo' : 'Novamente'}</button>
+          ${S.dueMistakes().length && !cfg ? `<button class="btn warn" data-go="#/practice/review">${I('repeat')} Revisar erros</button>` : ''}
+          <button class="btn" data-go="${sair}" id="voltar">${voltarTxt}</button></div>
+      </div>`;
   }
 
   function render() {
     if (i >= list.length) return showEnd();
-    ex = list[i]; sel = null; heard = ''; answered = false; rec = null;
+    ex = list[i]; sel = null; heard = ''; answered = false; rec = null; document.body.classList.remove('com-fb');
     const k = ex.kind; const listen = k.startsWith('listen');
     placed = []; bank = k === 'tiles' ? ex.tiles.map((t, n) => ({ t, n })) : [];
     if (k === 'match') { mSelL = null; mSelR = null; mDone = new Set(); mMiss = new Set(); mLock = false; const idx = ex.pairs.map((_, n) => n); mOrderL = shuffle(idx); mOrderR = shuffle(idx); }
     let body = '';
-    const audioBtn = ex.audio ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}" id="play">🔊</button><button class="say" data-slow="1" title="Devagar">🐢</button></div>` : '';
+    const audioBtn = ex.audio ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}" id="play" aria-label="Ouvir">${I('volume')}</button><button class="say" data-slow="1">${I('clock')} Devagar</button></div>` : '';
     if (k === 'choice' || k === 'listen-choice') {
       body = `<div class="opts">${ex.options.map((o, n) => `<button class="opt" data-o="${n}">${esc(o)}</button>`).join('')}</div>`;
     } else if (k === 'type' || k === 'listen-type') {
-      body = `<input id="inp" class="inp" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Digite em francês…"><div class="acc">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>`;
+      body = `<input id="inp" class="inp" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Digite em francês…"><div class="acentos">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>`;
     } else if (k === 'tiles') {
       body = `<div class="place" id="place"></div><div class="bank" id="bank"></div>`;
     } else if (k === 'match') {
       body = '<div class="match" id="match"><div class="mcol" id="mleft"></div><div class="mcol" id="mright"></div></div>';
     } else if (k === 'speak') {
       body = `<div class="speakbox"><div class="target">${esc(ex.shown || ex.answer)}</div>
-        ${canTalk() ? `<button class="mic" id="mic">🎤</button><div class="heard" id="heard">${browserRec() ? 'Toque no microfone e fale.' : 'Toque no microfone, fale e toque de novo para enviar.'}</div>` : `<div class="heard">${canRecord ? 'Para treinar a fala neste aparelho, coloque uma chave do Gemini em Ajustes. Por ora, leia em voz alta e toque em "Pular".' : 'Seu navegador não reconhece voz (use o Chrome). Leia em voz alta e toque em "Pular".'}</div>`}</div>`;
+        ${canTalk() ? `<button class="mic" id="mic" aria-label="Falar">${I('microphone')}</button><div class="heard" id="heard">${browserRec() ? 'Toque no microfone e fale.' : 'Toque no microfone, fale e toque de novo para enviar.'}</div>` : `<div class="heard">${canRecord ? 'Para treinar a fala neste aparelho, coloque uma chave do Gemini em Ajustes. Por ora, leia em voz alta e toque em "Pular".' : 'Seu navegador não reconhece voz (use o Chrome). Leia em voz alta e toque em "Pular".'}</div>`}</div>`;
     }
     $app.innerHTML = `
-      <div class="ptop"><button class="x" data-go="#/" aria-label="Sair">${I('x')}</button><div class="bar"><i style="width:${(100 * Math.min(i, total)) / list.length}%"></i></div></div>
+      <div class="ptop"><button class="x" data-go="${sair}" aria-label="Sair do treino">${I('x')}</button><div class="bar" role="progressbar" aria-label="Progresso do treino" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${Math.min(i, total)}"><i style="width:${(100 * Math.min(i, total)) / list.length}%"></i></div><span class="stat flame" title="Dias seguidos">${I('flame')} ${st().streak}</span></div>
       <div class="qcard">
         <div class="q">${ex.q}${ex.sub ? `<small class="sub">${esc(ex.sub)}</small>` : ''}</div>
         ${audioBtn}${body}
       </div>
-      <div class="fb" id="fb"></div>
-      <div class="dock"><button class="btn primary wide" id="ok" ${k === 'speak' && !canTalk() ? '' : 'disabled'}>${k === 'speak' && !canTalk() ? 'Pular' : 'Verificar'}</button></div>`;
+      <div class="dock" id="dock"><div class="fb" id="fb" role="status" aria-live="polite"></div><button class="btn primary wide" id="ok" ${k === 'speak' && !canTalk() ? '' : 'disabled'}>${k === 'speak' && !canTalk() ? 'Pular' : 'Verificar'}</button></div>`;
     wire();
     if (listen && ex.audio && st().settings.voice !== false) setTimeout(() => speak(ex.audio, { rate: rate() }), 250);
     if (k === 'tiles') drawTiles();
@@ -180,14 +188,15 @@ export function practice(id, stepId) {
       skillsFor(ex, r).forEach(([k, v]) => S.recordSkill(k, v));
       if (!r.ok && first) list.push({ ...ex, _retry: true });
     }
-    document.querySelectorAll('.opt').forEach((b) => { const v = ex.options[+b.dataset.o]; b.disabled = true; if (v === ex.answer) b.classList.add('right'); else if (v === sel) b.classList.add('wrong'); });
+    document.querySelectorAll('.opt').forEach((b) => { const v = ex.options[+b.dataset.o]; b.disabled = true; if (v === ex.answer) { b.classList.add('right'); b.insertAdjacentHTML('beforeend', `<span class="ico">${I('check')}<span class="sr">correta</span></span>`); } else if (v === sel) { b.classList.add('wrong'); b.insertAdjacentHTML('beforeend', `<span class="ico">${I('x')}<span class="sr">errada</span></span>`); } });
     const answer = ex.kind === 'match' ? '' : [].concat(ex.answer)[0];
     let extra = '';
     if (ex.kind === 'speak' && r.words) extra = `<div class="words">${r.words.map((w, n) => `<span class="${r.marks[n] ? 'g' : 'r'}">${esc(w)}</span>`).join(' ')}</div>`;
     if (ex.kind === 'match' && !r.ok) extra = `<div class="words">${ex.pairs.map((p, n) => `<span class="${r.wrong.includes(n) ? 'r' : 'g'}">${esc(p.l)} = ${esc(p.r)}</span>`).join(' · ')}</div>`;
     const title = skip ? 'Pulado' : r.ok ? (r.almost ? 'Quase! Atenção aos acentos' : ['Très bien !', 'Parfait !', 'Excellent !', 'Bravo !'][Math.floor(Math.random() * 4)]) : (ex.kind === 'speak' ? 'Tente pronunciar de novo' : ex.kind === 'match' ? 'Confira os pares (em vermelho, os que você errou):' : 'Resposta correta:');
-    fb.className = 'fb show ' + (skip ? 'neutral' : r.ok && !r.almost ? 'good' : r.ok ? 'almost' : 'bad');
-    fb.innerHTML = `<b>${title}</b>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio ? `<button class="say" data-say="${esc(ex.audio)}">🔊 Ouvir</button>` : ''}`;
+    const estado = skip ? 'neutral' : r.ok && !r.almost ? 'good' : r.ok ? 'almost' : 'bad';
+    fb.className = `fb show ${estado}`; document.getElementById('dock').className = `dock ${estado}`; document.body.classList.add('com-fb');
+    fb.innerHTML = `<div class="fbt"><span class="fbi">${I(estado === 'good' ? 'check' : estado === 'bad' ? 'x' : estado === 'almost' ? 'alert-circle' : 'player-skip-forward')}</span><b>${title}</b></div>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio ? `<button class="say" data-say="${esc(ex.audio)}">${I('volume')} Ouvir</button>` : ''}`;
     ok.disabled = false; ok.textContent = 'Continuar'; ok.classList.toggle('bad', !r.ok && !skip);
     if (document.getElementById('inp')) document.getElementById('inp').disabled = true;
   }
