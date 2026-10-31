@@ -1,5 +1,5 @@
 // Ajustes: provedor e chave da IA, voz, microfone, dados (backup), instalação e sobre.
-import { canListen, canSpeak, engineInfo, frenchVoiceName, TTS_CANDIDATES } from '../speech.js';
+import { canTalk, canRecord, canSpeak, engineInfo, frenchVoiceName, TTS_CANDIDATES } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast } from '../ui.js';
@@ -45,7 +45,7 @@ export function settingsPage() {
       <small>Para saber qual modelo é mais rápido no seu aparelho, use Diagnóstico → Comparar vozes.</small>
       <button class="btn" id="stest">🔊 Testar voz</button>
       <div id="vstatus"></div>
-      <small>${canListen ? '' : 'Reconhecimento de fala indisponível: use o Chrome ou o Edge.'}</small>
+      <small>${canTalk() ? '' : canRecord ? 'Para falar com a Clara neste aparelho, é preciso uma chave do Gemini (ou do Groq).' : 'Reconhecimento de fala indisponível: use o Chrome ou o Edge.'}</small>
     </section>
     <section class="card"><h3>Seus dados</h3>
       <p class="pt">Seu progresso fica só neste aparelho. <b>Se você desinstalar o app ou limpar os dados do navegador, ele some.</b> Guarde um backup de vez em quando (o app lembra a cada 7 dias): use Compartilhar para mandar o arquivo ao Google Drive, WhatsApp ou e-mail, e Importar para recuperar ou levar para outro aparelho.</p>

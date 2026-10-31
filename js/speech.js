@@ -1,6 +1,7 @@
 // Voz: síntese (ouvir) e reconhecimento (falar).
 // Ouvir: voz francesa do aparelho (Edge no PC, Google no Android) ou, se não houver, voz natural do Gemini (grátis, com cache).
 import * as S from './store.js';
+import * as T from './tutor.js';
 
 let voices = [];
 const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
@@ -213,6 +214,41 @@ export async function createRecorder({ onLevel } = {}) {
       });
     },
     cancel() { try { rec.onstop = null; if (rec.state !== 'inactive') rec.stop(); } catch (e) { /* ignore */ } cleanup(); },
+  };
+}
+
+// ---------- falar sem o reconhecimento do navegador (ex.: dentro do app Android, cujo WebView não o tem) ----------
+// Grava a fala e a IA transcreve (Gemini ou Groq, o mesmo caminho da ligação com a Clara). Precisa de chave.
+export const canDictate = () => canRecord && !!T.transcribeProvider(S.get().settings || {});
+// Dá para o aluno falar? Pelo reconhecimento do navegador ou por gravação + IA.
+export const canTalk = () => canListen || canDictate();
+
+// Mesma forma de listen(): { stop() } encerra a gravação e, depois da transcrição, chama onFinal(texto).
+// onPhase('rec' | 'think') avisa a tela; onError(código, mensagem) cobre microfone negado e falha da IA.
+export function dictate({ onPhase, onFinal, onError }) {
+  const s = S.get().settings || {}; const tp = T.transcribeProvider(s);
+  if (!canRecord || !tp) { onError && onError('unsupported'); return { stop() {}, cancel() {} }; }
+  let rec = null; let ctl = null; let state = 'open'; // open → stopping → done
+  const fail = (er, msg) => { if (state === 'done') return; state = 'done'; onError && onError(er, msg); };
+  const finish = async () => {
+    if (state !== 'stopping' || !rec) return;
+    const { blob, ms, peak } = await rec.stop();
+    if (state === 'done') return;
+    // só silêncio quase total é descartado: fala baixa passa e é amplificada antes de transcrever
+    if (ms < 800 || (peak >= 0 && peak < 0.003)) { state = 'done'; onFinal && onFinal(''); return; }
+    onPhase && onPhase('think'); ctl = new AbortController();
+    try {
+      const text = await T.transcribe({ provider: tp, apiKey: (s.keys || {})[tp], model: (s.models || {})[tp] || T.PROVIDERS[tp].model, blob, signal: ctl.signal });
+      if (state === 'done') return; state = 'done'; onFinal && onFinal(text || '');
+    } catch (e) { fail(e && e.name === 'AbortError' ? 'aborted' : 'network', T.friendlyError(e)); }
+  };
+  createRecorder().then((r) => {
+    rec = r; if (state === 'done') { r.cancel(); return; }
+    onPhase && onPhase('rec'); if (state === 'stopping') finish();
+  }).catch((e) => fail(e && e.name === 'NotAllowedError' ? 'not-allowed' : 'audio-capture'));
+  return {
+    stop() { if (state !== 'open') return; state = 'stopping'; finish(); },
+    cancel() { state = 'done'; if (rec) rec.cancel(); if (ctl) ctl.abort(); },
   };
 }
 

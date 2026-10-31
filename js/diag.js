@@ -40,10 +40,13 @@ export function initDiag(root, { cur }) {
     const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     add('ok', 'Versão do app', `v${VERSION} (${BUILD_DATE})`);
     add('ok', 'Modo de uso', N.isNative() ? `app Android (site dentro do app, ${N.platform()})` : 'site instalado ou navegador');
-    add(standalone ? 'ok' : 'warn', 'Instalado como app', standalone ? 'sim' : 'não: abrindo pelo navegador (menu ⋮ → Instalar app)');
+    if (N.isNative()) add('ok', 'Instalado como app', 'sim (app Android)');
+    else add(standalone ? 'ok' : 'warn', 'Instalado como app', standalone ? 'sim' : 'não: abrindo pelo navegador (menu ⋮ → Instalar app)');
     add(navigator.onLine ? 'ok' : 'warn', 'Internet', navigator.onLine ? 'conectado' : 'sem conexão');
     add(navigator.serviceWorker && navigator.serviceWorker.controller ? 'ok' : 'warn', 'Modo offline (service worker)', navigator.serviceWorker && navigator.serviceWorker.controller ? 'ativo' : 'ainda não ativo (recarregue uma vez)');
-    try { const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null; const e = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; add(p ? 'ok' : 'warn', 'Armazenamento protegido', `${p ? 'sim' : 'não'}${e ? ` · uso ${(e.usage / 1024).toFixed(0)} KB` : ''}${p ? '' : ' · faça um backup em Ajustes'}`); } catch (e) { add('warn', 'Armazenamento', 'não consegui verificar'); }
+    try { const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null; const e = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; const uso = e ? ` · uso ${(e.usage / 1024).toFixed(0)} KB` : ''; if (N.isNative()) add('warn', 'Armazenamento do app', `o Android apaga estes dados se o app for desinstalado${uso} · faça um backup em Ajustes`); else add(p ? 'ok' : 'warn', 'Armazenamento protegido', `${p ? 'sim' : 'não'}${uso}${p ? '' : ' · faça um backup em Ajustes'}`); } catch (e) { add('warn', 'Armazenamento', 'não consegui verificar'); }
+    // "Falar" nos exercícios e na ligação: pelo reconhecimento do navegador ou, sem ele (app Android), gravando e transcrevendo pela IA
+    add(V.canTalk() ? 'ok' : 'warn', 'Falar (exercícios e Clara)', V.canListen ? 'reconhecimento do navegador' : V.canDictate() ? 'gravação + transcrição pela IA' : V.canRecord ? 'falta uma chave do Gemini ou do Groq' : 'indisponível neste navegador');
     add(V.hasFrenchVoice() ? 'ok' : 'warn', 'Voz francesa do aparelho', V.hasFrenchVoice() ? V.frenchVoiceName() : 'nenhuma (o app usa a voz natural do Gemini)');
     const c = cur(); add(c.key ? 'ok' : 'fail', 'Chave de IA', c.key ? `${T.PROVIDERS[c.p].label}, modelo ${c.model}` : 'não configurada');
     const lembrado = T.stickyInfo(c.p);

@@ -1,7 +1,7 @@
 // Domínio, prontidão, degraus da trilha e plano do dia: regras puras, usadas por várias telas.
 import { EVALUATIONS, UNITS } from './data.js';
 import { unitItems } from './exercises.js';
-import { canListen } from './speech.js';
+import { canTalk } from './speech.js';
 import * as S from './store.js';
 import { toast } from './ui.js';
 
@@ -58,7 +58,7 @@ export const STEPS = [
   { id: 'speak', title: 'Falar', icon: '🎤', desc: 'Repetir em voz alta', kinds: ['speak'], n: 5, pass: 70 },
   { id: 'test', title: 'Teste da unidade', icon: '🏁', desc: 'Misto, para concluir a unidade', n: 12, pass: 80 },
 ];
-export const activeSteps = () => STEPS.filter((s) => s.id !== 'speak' || canListen);
+export const activeSteps = () => STEPS.filter((s) => s.id !== 'speak' || canTalk());
 export const stepDone = (uid, sid) => { const p = S.pathOf(uid); return sid === 'learn' ? !!p.learned : !!(p[sid] && p[sid].done); };
 export const unitPassed = (uid) => stepDone(uid, 'test');
 export const nextStep = (uid) => activeSteps().find((s) => !stepDone(uid, s.id)) || null;
@@ -74,7 +74,7 @@ export function ensurePlan() {
   if (weakN >= 3) tasks.push({ id: 'review', icon: '🔁', title: `Reforçar ${Math.min(weakN, 10)} itens fracos`, min: 3, go: '#/practice/review' });
   const ns = cur ? nextStep(cur.id) : null;
   tasks.push(ns ? { id: 'focus', icon: cur.icon, title: `${cur.title}: ${ns.title}`, min: 5, go: stepHref(cur.id, ns) } : { id: 'focus', icon: '⚡', title: 'Treino inteligente', min: 5, go: '#/practice/mix' });
-  if (canListen) tasks.push({ id: 'speak', icon: '🎤', title: 'Treino de fala: repetir 5 frases', min: 3, go: '#/practice/speakdrill' });
+  if (canTalk()) tasks.push({ id: 'speak', icon: '🎤', title: 'Treino de fala: repetir 5 frases', min: 3, go: '#/practice/speakdrill' });
   tasks.push({ id: 'clara', icon: '📞', title: 'Conversar com a Clara (4 respostas)', min: 4, go: '#/tutor/free' });
   if (d !== null && d <= 2) tasks.push({ id: 'exam', icon: '🎓', title: 'Simular a prova oral com a Clara', min: 6, go: '#/tutor/exam' });
   p.tasks = tasks; S.save(); return p;

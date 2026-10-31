@@ -1,7 +1,7 @@
 // Professora Clara: conversa em texto, prova oral simulada, dúvidas e ligação por voz.
 import { speakScore, itemLabel } from '../exercises.js';
 import * as V from '../speech.js';
-import { stopSpeaking, listen, canListen } from '../speech.js';
+import { stopSpeaking, listen, dictate, canListen, canTalk, canRecord } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast } from '../ui.js';
@@ -64,12 +64,12 @@ async function tutorPage() {
     $app.innerHTML = `
       <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1><button class="icon" id="newc" title="Nova conversa" aria-label="Nova conversa">${I('trash')}</button></header>
       <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${tutorMode !== 'duvidas' ? (canListen ? `<button class="btn primary wide callbtn" id="callbtn">${I('phone')} Conversar por voz com a Clara</button>` : '<div class="pt">A conversa por voz precisa do Chrome (ou Edge).</div>') : ''}
+      ${tutorMode !== 'duvidas' ? (canTalk() ? `<button class="btn primary wide callbtn" id="callbtn">${I('phone')} Conversar por voz com a Clara</button>` : `<div class="pt">${canRecord ? 'Para conversar por voz neste aparelho, coloque uma chave do Gemini (ou do Groq) em Ajustes.' : 'A conversa por voz precisa do Chrome (ou Edge).'}</div>`) : ''}
       <div class="chat" id="chat">${msgs.filter((m) => !m.hidden).map(drawMsg).join('')}${sumCard(msgs)}${tutorMode === 'exam' && !msgs.length ? `<div class="card center"><p>Simulação da <b>avaliação oral</b>: a professora Clara faz perguntas por voz ou texto, sem corrigir durante a prova. No fim, você recebe a nota nos 6 critérios.</p><button class="btn primary" id="startexam">Começar a prova</button></div>` : ''}</div>
       <div class="composer ${tutorMode === 'exam' && !msgs.length ? 'hide' : ''}">
         ${tutorMode === 'exam' && msgs.length ? '<button class="btn warn sm" id="endexam">Terminar e avaliar</button>' : ''}
         <div class="inrow">
-          ${canListen ? '<button class="micb" id="tmic">🎤</button>' : ''}
+          ${canTalk() ? '<button class="micb" id="tmic">🎤</button>' : ''}
           <input id="tin" class="inp" aria-label="Mensagem para a Clara" placeholder="${tutorMode === 'duvidas' ? 'Pergunte em português…' : 'Écris en français…'}" autocomplete="off" autocapitalize="off" spellcheck="false">
           <button class="send" id="tsend">➤</button>
         </div>
@@ -91,7 +91,7 @@ async function tutorPage() {
     if (tm) tm.onclick = () => {
       if (busy) return; if (rec) { rec.stop(); return; }
       stopSpeaking(); tm.classList.add('on');
-      rec = listen({ onInterim: (t) => { tin.value = t; }, onFinal: (t) => { tm.classList.remove('on'); rec = null; if (t) submit(t); }, onError: (er) => { tm.classList.remove('on'); rec = null; tin.placeholder = er === 'not-allowed' ? 'Permita o microfone no navegador' : 'Não ouvi nada, tente de novo'; } });
+      rec = (canListen ? listen : dictate)({ onInterim: (t) => { tin.value = t; }, onPhase: (p) => { tin.placeholder = p === 'think' ? 'Entendendo você…' : 'Gravando… toque de novo para enviar'; }, onFinal: (t) => { tm.classList.remove('on'); rec = null; if (t) submit(t); else tin.placeholder = 'Não ouvi nada, tente de novo'; }, onError: (er, msg) => { tm.classList.remove('on'); rec = null; tin.placeholder = er === 'not-allowed' ? 'Permita o microfone no navegador' : msg || 'Não ouvi nada, tente de novo'; } });
     };
   }
   function ensureOpening() {
@@ -168,7 +168,8 @@ async function tutorPage() {
       </footer>`;
     document.body.appendChild(el); document.body.classList.add('incall');
     const $ = (id) => el.querySelector('#' + id);
-    const recOk = () => V.canRecord && st().settings.micMode !== 'web' && !!T.transcribeProvider(st().settings);
+    // micMode 'web' (reserva escolhida no PC/Chrome) só vale onde o navegador tem reconhecimento; no app Android a gravação é o único caminho
+    const recOk = () => V.canRecord && (st().settings.micMode !== 'web' || !canListen) && !!T.transcribeProvider(st().settings);
     const micFace = (p) => (p === 'listen' ? `${I('send')}<span>Enviar</span>` : p === 'think' ? '<span class="dots3"><i></i><i></i><i></i></span>' : `${I('mic')}<span>Falar</span>`);
     const setPhase = (p, txt) => {
       phase = p; $('cav').dataset.state = p; $('cstatus').textContent = txt;
@@ -246,7 +247,7 @@ async function tutorPage() {
         userSaid(text);
       } catch (e) {
         if (!alive || e.name === 'AbortError') return;
-        fail(T.friendlyError(e), () => transcribeClip(lastClip), { label: 'Usar o reconhecimento do navegador', fn: () => { S.setSetting('micMode', 'web'); toast('Usando o reconhecimento de voz do navegador.'); listenTurn(); } });
+        fail(T.friendlyError(e), () => transcribeClip(lastClip), canListen ? { label: 'Usar o reconhecimento do navegador', fn: () => { S.setSetting('micMode', 'web'); toast('Usando o reconhecimento de voz do navegador.'); listenTurn(); } } : null);
       }
     }
 

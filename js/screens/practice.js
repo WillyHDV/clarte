@@ -1,7 +1,7 @@
 // Treino: sessão de exercícios (escolha, digitação, peças, fala) com correção e resultado.
 import { UNITS } from '../data.js';
 import { buildSession, check, shuffle, skillsFor } from '../exercises.js';
-import { listen, canListen, prefetch } from '../speech.js';
+import { listen, dictate, canListen, canTalk, canRecord, prefetch } from '../speech.js';
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
 import { $app, st, rate, speak, setCleanup } from '../core.js';
@@ -83,7 +83,7 @@ export function practice(id, stepId) {
       body = '<div class="match" id="match"><div class="mcol" id="mleft"></div><div class="mcol" id="mright"></div></div>';
     } else if (k === 'speak') {
       body = `<div class="speakbox"><div class="target">${esc(ex.shown || ex.answer)}</div>
-        ${canListen ? `<button class="mic" id="mic">🎤</button><div class="heard" id="heard">Toque no microfone e fale.</div>` : `<div class="heard">Seu navegador não reconhece voz (use o Chrome). Leia em voz alta e toque em "Pular".</div>`}</div>`;
+        ${canTalk() ? `<button class="mic" id="mic">🎤</button><div class="heard" id="heard">${canListen ? 'Toque no microfone e fale.' : 'Toque no microfone, fale e toque de novo para enviar.'}</div>` : `<div class="heard">${canRecord ? 'Para treinar a fala neste aparelho, coloque uma chave do Gemini em Ajustes. Por ora, leia em voz alta e toque em "Pular".' : 'Seu navegador não reconhece voz (use o Chrome). Leia em voz alta e toque em "Pular".'}</div>`}</div>`;
     }
     $app.innerHTML = `
       <div class="ptop"><button class="x" data-go="#/" aria-label="Sair">${I('x')}</button><div class="bar"><i style="width:${(100 * Math.min(i, total)) / list.length}%"></i></div></div>
@@ -92,7 +92,7 @@ export function practice(id, stepId) {
         ${audioBtn}${body}
       </div>
       <div class="fb" id="fb"></div>
-      <div class="dock"><button class="btn primary wide" id="ok" ${k === 'speak' && !canListen ? '' : 'disabled'}>${k === 'speak' && !canListen ? 'Pular' : 'Verificar'}</button></div>`;
+      <div class="dock"><button class="btn primary wide" id="ok" ${k === 'speak' && !canTalk() ? '' : 'disabled'}>${k === 'speak' && !canTalk() ? 'Pular' : 'Verificar'}</button></div>`;
     wire();
     if (listen && ex.audio && st().settings.voice !== false) setTimeout(() => speak(ex.audio, { rate: rate() }), 250);
     if (k === 'tiles') drawTiles();
@@ -146,17 +146,19 @@ export function practice(id, stepId) {
       if (answered) return;
       if (rec) { rec.stop(); return; }
       mic.classList.add('on'); const hd = document.getElementById('heard'); hd.textContent = 'Ouvindo…';
-      rec = listen({
+      // sem reconhecimento do navegador (app Android), a fala é gravada e a IA transcreve
+      rec = (canListen ? listen : dictate)({
         onInterim: (t) => { hd.textContent = t || 'Ouvindo…'; },
+        onPhase: (p) => { hd.textContent = p === 'think' ? 'Entendendo você…' : 'Gravando… toque de novo para enviar.'; },
         onFinal: (t) => { mic.classList.remove('on'); rec = null; heard = t; hd.textContent = t ? `“${t}”` : 'Não ouvi nada. Tente de novo.'; ok.disabled = !t; },
-        onError: (er) => { mic.classList.remove('on'); rec = null; hd.textContent = er === 'not-allowed' ? 'Permita o microfone no navegador.' : er === 'no-speech' ? 'Não ouvi nada. Tente de novo.' : 'Erro no reconhecimento de voz (' + er + ').'; },
+        onError: (er, msg) => { mic.classList.remove('on'); rec = null; hd.textContent = er === 'not-allowed' ? 'Permita o microfone no navegador.' : er === 'no-speech' ? 'Não ouvi nada. Tente de novo.' : msg || 'Erro no reconhecimento de voz (' + er + ').'; },
       });
     };
     ok.onclick = () => (answered ? next() : verify());
   }
 
   function verify() {
-    if (ex.kind === 'speak' && !canListen) { answered = true; return feedback({ ok: true }, true); }
+    if (ex.kind === 'speak' && !canTalk()) { answered = true; return feedback({ ok: true }, true); }
     let input;
     if (ex.kind === 'choice' || ex.kind === 'listen-choice') input = sel;
     else if (ex.kind === 'tiles') input = placed.map((t) => t.t);

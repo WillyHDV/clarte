@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## v19 — 31/10/2026
+
+Correção para o app Android, a partir do diagnóstico feito no celular (a ponte nativa e a gravação em Documentos/Clarte funcionaram).
+
+- **Falar e conversar por voz no app Android**: a janela do app não tem o reconhecimento de fala do Chrome, e por isso a ligação com a Clara, o microfone do chat e os exercícios "Falar" ficavam escondidos (ou só dava para "Pular"). Agora, sem o reconhecimento do navegador, o app grava a sua fala e a IA transcreve (Gemini ou Groq, o mesmo caminho da ligação). No Chrome nada muda.
+- **Plano do dia e degraus das unidades**: o treino de fala e o degrau "Falar" voltam a aparecer onde há como falar.
+- **Diagnóstico**: dentro do app não pede mais para "instalar o app" e explica o armazenamento do Android; nova linha "Falar (exercícios e Clara)" diz por qual caminho a fala é entendida.
+- **Testes**: gravação + transcrição (inclui microfone negado, silêncio, falha da IA e cancelamento) e as telas no cenário do app (184 → 195 testes).
+
 ## v18 — 31/10/2026
 
 Primeiro passo para o app Android.
