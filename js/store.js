@@ -1,10 +1,12 @@
 // Estado salvo no aparelho (localStorage): progresso, erros para revisão e configurações.
 const KEY = 'fr_app_v1';
+export const CHAT_KEY = 'fr_chat_v2';
+export const SCHEMA = 2; // versão do formato dos dados (para migrar no futuro sem perder progresso)
 const DAY = 86400000;
 const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
-  xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
+  v: SCHEMA, exams: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20 },
 });
 let state = blank();
@@ -101,3 +103,37 @@ export function setSetting(k, v) { state.settings[k] = v; save(); }
 export function setKey(provider, key) { state.settings.keys = { ...state.settings.keys, [provider]: key }; save(); }
 export function setModel(provider, model) { state.settings.models = { ...state.settings.models, [provider]: model }; save(); }
 export function resetAll() { state = blank(); save(); }
+
+// ---------- simulações da prova oral (nota que a Clara dá ao fim) ----------
+export function addExam(entry) { state.exams = [...(state.exams || []), { date: new Date().toISOString(), ...entry }].slice(-30); save(); }
+
+// ---------- backup: exportar e importar o progresso ----------
+// A chave de API só vai para o arquivo se você pedir (includeKeys).
+export function exportData({ includeKeys = false } = {}) {
+  const s = JSON.parse(JSON.stringify(state));
+  if (!includeKeys) s.settings.keys = {};
+  let chats = {}; try { chats = JSON.parse(localStorage.getItem(CHAT_KEY)) || {}; } catch (e) { /* sem conversas */ }
+  state.lastBackup = new Date().toISOString(); save();
+  return { app: 'clarte', schema: SCHEMA, exportedAt: state.lastBackup, state: { ...s, lastBackup: state.lastBackup }, chats };
+}
+export function validateBackup(obj) {
+  if (!obj || obj.app !== 'clarte' || typeof obj.state !== 'object' || obj.state === null) return 'Este arquivo não é um backup do Clarté.';
+  if (typeof obj.schema !== 'number' || obj.schema > SCHEMA) return 'Este backup é de uma versão mais nova do app. Atualize o app e tente de novo.';
+  const s = obj.state;
+  if (typeof s.mastery !== 'object' || typeof s.settings !== 'object') return 'O arquivo está incompleto.';
+  return '';
+}
+export function importData(obj) {
+  const err = validateBackup(obj); if (err) throw new Error(err);
+  const keep = state.settings.keys || {}; const s = obj.state;
+  state = { ...blank(), ...s, v: SCHEMA, settings: { ...blank().settings, ...(s.settings || {}) } };
+  // as chaves atuais do aparelho vencem, a menos que o backup traga chaves
+  state.settings.keys = (s.settings && s.settings.keys && Object.keys(s.settings.keys).length) ? s.settings.keys : keep;
+  save();
+  try { if (obj.chats && typeof obj.chats === 'object') localStorage.setItem(CHAT_KEY, JSON.stringify(obj.chats)); } catch (e) { /* ignore */ }
+}
+// pede ao navegador para não apagar os dados do app quando faltar espaço
+export async function requestPersist() {
+  try { if (navigator.storage && navigator.storage.persist) return await navigator.storage.persist(); } catch (e) { /* ignore */ }
+  return false;
+}

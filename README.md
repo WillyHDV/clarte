@@ -41,9 +41,20 @@ Para levar a chave a outro aparelho sem digitar: Ajustes → "Usar em outro apar
 O microfone e a instalação exigem **HTTPS**, então o app precisa estar hospedado (ex.: Netlify, GitHub Pages ou Cloudflare Pages — todos gratuitos para sites estáticos).
 Publique a pasta `publicar/` (gerada a partir de `app/`), abra o endereço no Chrome do Android e use ⋮ → **Instalar app**.
 
+## Seus dados e atualizações
+
+- **Backup:** Ajustes → Seus dados → Exportar gera um arquivo `.json` com progresso, erros e conversas (a chave de IA só entra se você marcar). Importar restaura em outro aparelho ou depois de limpar os dados do site.
+- **Atualização:** o app confere sozinho se há versão nova e mostra o aviso "Nova versão disponível". A versão fica em `js/version.js`: aumente-a (e o `CACHE` do `sw.js`) a cada publicação.
+- **Diagnóstico:** Ajustes → Diagnóstico testa voz, microfone, transcrição, IA e armazenamento, e copia um relatório.
+- **Folha de revisão:** página de resumo da Évaluation 1 para imprimir ou salvar em PDF (Ajustes ou início → Reta final).
+
+## Segurança da chave de IA
+
+A chave fica só no navegador de cada aparelho. Para limitar o estrago caso ela vaze, restrinja-a ao endereço do app no Google Cloud (APIs e serviços → Credenciais → sua chave → Restrições de aplicativo → Sites → `https://willyhdv.github.io/*`).
 ## Estrutura
 
 - `js/data.js` — conteúdo das aulas (vocabulário, verbos, profissões, frases)
 - `js/exercises.js` — geradores de exercícios e correção
+- `js/ui.js` — ícones, escape de HTML e avisos; `js/folha.js` e `js/diag.js` — folha de revisão e diagnóstico; `js/version.js` — versão
 - `js/app.js` — telas; `js/store.js` — progresso e revisão; `js/speech.js` — voz
 - `js/tutor.js` — professora de IA (prompts + chamadas aos provedores gratuitos)
