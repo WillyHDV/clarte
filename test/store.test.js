@@ -256,3 +256,26 @@ test('dados antigos sem versão (v1) também ganham cópia, e dados ilegíveis s
   await import(`../js/store.js?ilegivel=${Date.now()}`);
   assert.equal(localStorage.getItem('fr_app_v1_corrompido'), '{quebrado'); assert.equal(localStorage.getItem('fr_app_v1_antes_v1'), null);
 });
+
+// ---- backup: lembrete e data só quando o arquivo realmente saiu ----
+test('backupAgeDays: nunca, hoje e há N dias', () => {
+  assert.equal(S.backupAgeDays(T0), null);
+  S.get().lastBackup = new Date(T0).toISOString(); assert.equal(S.backupAgeDays(T0), 0); assert.equal(S.backupAgeDays(T0 + 6.9 * DAY), 6); assert.equal(S.backupAgeDays(T0 + 9 * DAY), 9);
+  assert.equal(S.backupAgeDays(T0 - 3 * DAY), 0, 'relógio atrasado não dá idade negativa');
+  S.get().lastBackup = 'lixo'; assert.equal(S.backupAgeDays(T0), null);
+});
+
+test('backupDue: só avisa quando já há o que perder e o backup nunca foi feito ou tem 7 dias ou mais', () => {
+  assert.equal(S.backupDue(T0), false, 'sem progresso, nada a perder');
+  S.addXp(61); assert.equal(S.backupDue(T0), true, 'nunca fez backup');
+  S.get().lastBackup = new Date(T0).toISOString();
+  assert.equal(S.backupDue(T0 + 2 * DAY), false); assert.equal(S.backupDue(T0 + 6.9 * DAY), false); assert.equal(S.backupDue(T0 + 7 * DAY), true); assert.equal(S.backupDue(T0 + 30 * DAY), true);
+  S.resetAll(); S.addXp(60); assert.equal(S.backupDue(T0), false, 'o limite é mais de 60 pontos');
+});
+
+test('exportData com mark:false não anota a data; markBackup anota', () => {
+  S.addXp(80); const b = S.exportData({ mark: false });
+  assert.equal(S.get().lastBackup, ''); assert.equal(b.state.lastBackup, ''); assert.ok(b.exportedAt);
+  S.markBackup(); assert.ok(S.get().lastBackup); assert.equal(S.backupAgeDays(), 0);
+  const c = S.exportData(); assert.equal(c.state.lastBackup, S.get().lastBackup, 'o padrão continua anotando (Baixar)');
+});

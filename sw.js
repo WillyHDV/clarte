@@ -1,6 +1,6 @@
 ﻿// Cache para funcionar offline (exceto a professora de IA). A rede vem primeiro e sempre revalida,
 // então uma publicação nova chega sem esperar o cache do servidor; o cache só serve quando está sem internet.
-const CACHE = 'fr-v16';
+const CACHE = 'fr-v17';
 const ASSETS = ['./', 'index.html', 'styles.css', 'manifest.webmanifest', 'js/app.js', 'js/core.js', 'js/progress.js', 'js/update.js', 'js/ics.js', 'js/chart.js', 'js/screens/home.js', 'js/screens/lesson.js', 'js/screens/practice.js', 'js/screens/tutor.js', 'js/screens/settings.js', 'js/screens/history.js', 'js/screens/about.js', 'js/screens/tools.js', 'js/ui.js', 'js/version.js', 'js/folha.js', 'js/diag.js', 'js/data.js', 'js/exercises.js', 'js/speech.js', 'js/store.js', 'js/tutor.js', 'content/fb1/pack.js', 'content/fb1/units.js', 'content/fb1/evaluations.js', 'content/fb1/alphabet.js', 'content/fb1/phrases.js', 'content/fb1/social.js', 'content/fb1/verbs.js', 'content/fb1/people.js', 'content/fb1/questions.js', 'content/fb1/lessons.js', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => Promise.all(ASSETS.map((a) => c.add(new Request(a, { cache: 'reload' })).catch(() => {})))).then(() => self.skipWaiting())); });

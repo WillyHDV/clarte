@@ -413,3 +413,50 @@ test('Diagnóstico → Testar a Clara: quando uma reserva responde, mostra por q
     assert.match($('#dres').textContent, /Modelo de reserva em uso.*gemini-3\.5-flash-lite no lugar de gemini-3\.1-flash-lite/);
   } finally { globalThis.fetch = realFetch; localStorage.removeItem('fr_model_pref'); }
 });
+
+// ---- backup: lembrete e compartilhar ----
+test('lembrete de backup: aparece sem backup ou com 7+ dias, some com backup recente ou pouco progresso', async () => {
+  mock.timers.setTime(DIA(11, 1).getTime());
+  const inicio = async () => { await goto('#/settings'); await goto('#/'); return $$('.nudge').map((n) => n.textContent).join(' | '); };
+  S.resetAll(); S.get().xp = 30; assert.equal(await inicio(), '', 'pouco progresso: sem aviso');
+  S.get().xp = 200; assert.match(await inicio(), /ainda não fez backup.*reinstalado.*dados do navegador/);
+  S.get().lastBackup = new Date(DIA(10, 23).getTime()).toISOString(); assert.match(await inicio(), /Faz 9 dias desde o último backup/);
+  S.get().lastBackup = new Date(DIA(10, 30).getTime()).toISOString(); assert.equal(await inicio(), '', 'backup de 2 dias atrás: sem aviso');
+  assert.ok($('.nudge') === null);
+});
+
+test('Compartilhar backup: abre o compartilhamento do celular com o arquivo e anota a data', async () => {
+  S.resetAll(); S.get().xp = 150; S.setKey('gemini', 'AIzaSEGREDO'); S.save();
+  const nav = w.navigator; let dado = null;
+  nav.canShare = (d) => !!(d && d.files && d.files.length); nav.share = async (d) => { dado = d; };
+  try {
+    await goto('#/history'); await goto('#/settings'); $('#sshare').click(); await tick(30);
+    assert.equal(dado.files.length, 1); assert.match(dado.files[0].name, /^clarte-progresso-\d{4}-\d{2}-\d{2}\.json$/); assert.equal(dado.files[0].type, 'application/json');
+    const obj = JSON.parse(await dado.files[0].text()); assert.equal(obj.app, 'clarte'); assert.equal(obj.schema, S.SCHEMA); assert.equal(obj.state.xp, 150);
+    assert.deepEqual(obj.state.settings.keys, {}, 'a chave não vai sem pedir');
+    assert.ok(S.get().lastBackup, 'data anotada depois do envio'); assert.match($('#sbk').textContent, /Backup compartilhado agora/);
+    // com a caixa marcada, a chave vai junto
+    S.get().lastBackup = ''; await goto('#/history'); await goto('#/settings'); $('#sbkkeys').checked = true; $('#sshare').click(); await tick(30);
+    assert.equal(JSON.parse(await dado.files[0].text()).state.settings.keys.gemini, 'AIzaSEGREDO');
+  } finally { delete nav.canShare; delete nav.share; S.setKey('gemini', ''); }
+});
+
+test('Compartilhar backup cancelado não anota a data; sem suporte, baixa o arquivo', async () => {
+  S.resetAll(); S.get().xp = 150; S.save(); const nav = w.navigator;
+  nav.canShare = () => true; nav.share = async () => { const e = new Error('cancelado'); e.name = 'AbortError'; throw e; };
+  const proto = w.HTMLAnchorElement.prototype; const click0 = proto.click; const criar0 = URL.createObjectURL; const baixados = []; let ultimo = null;
+  URL.createObjectURL = (b) => { ultimo = b; return 'blob:t'; }; proto.click = function () { baixados.push({ nome: this.download, blob: ultimo }); };
+  try {
+    await goto('#/history'); await goto('#/settings'); $('#sshare').click(); await tick(30);
+    assert.equal(S.get().lastBackup, '', 'cancelar não conta como backup'); assert.equal(baixados.length, 0); assert.match([...document.querySelectorAll('[role="status"]')].at(-1).textContent, /cancelado/);
+    // aparelho sem compartilhamento de arquivos: cai para o download
+    nav.canShare = () => false; $('#sshare').click(); await tick(30);
+    assert.equal(baixados.length, 1); assert.match(baixados[0].nome, /^clarte-progresso-.*\.json$/); assert.equal(JSON.parse(await baixados[0].blob.text()).app, 'clarte');
+    assert.ok(S.get().lastBackup); assert.match($('#sbk').textContent, /foi baixado/);
+  } finally { delete nav.canShare; delete nav.share; proto.click = click0; URL.createObjectURL = criar0; }
+});
+
+test('os avisos de dados deixam claro que reinstalar ou limpar o navegador apaga o progresso', async () => {
+  await goto('#/history'); await goto('#/settings'); assert.match(text(), /desinstalar o app ou limpar os dados do navegador, ele some/);
+  await goto('#/about'); assert.match(text(), /Desinstalar o app ou limpar os dados do navegador apaga o seu progresso/);
+});

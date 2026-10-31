@@ -124,3 +124,11 @@ test('tudo o que o app usa está versionado no Git (arquivo ignorado não chega 
   const faltando = [...new Set(usados)].filter((f) => !rastreados.has(f));
   assert.deepEqual(faltando, [], 'arquivos usados pelo app que o Git não está rastreando (veja o .gitignore e faça git add)');
 });
+
+test('a classe .chk (círculo de tarefa feita) não é usada em rótulos de caixa de seleção (ficavam brancos e minúsculos)', () => {
+  const css = read('styles.css');
+  assert.match(css, /^\.chk \{[^}]*width: 24px[^}]*color: #fff/m, 'a regra .chk mudou: reavalie este teste');
+  for (const f of jsFiles) assert.doesNotMatch(read(f), /<label[^>]*class="(?:[^"]*\s)?chk(?:\s[^"]*)?"/, `${f}: use class="chk-l" em <label> de caixa de seleção`);
+  assert.match(css, /^\.chk-l \{/m, 'falta a regra .chk-l');
+  assert.doesNotMatch(css, /label\.chk/, 'sobrou regra para label.chk');
+});

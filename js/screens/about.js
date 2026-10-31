@@ -14,7 +14,7 @@ export function aboutPage() {
         <li>A chave da IA. Ela só é enviada ao provedor que você escolheu, para ele aceitar os seus pedidos.</li>
         <li>Não há conta, cadastro, anúncios nem estatísticas de uso. O Clarté não tem servidor próprio.</li>
       </ul>
-      <small>Para levar o progresso a outro aparelho, use Ajustes → Seus dados. Para apagar tudo, use “Zerar progresso” nos Ajustes e, se quiser, limpe os dados do site no navegador.</small>
+      <small><b>Desinstalar o app ou limpar os dados do navegador apaga o seu progresso</b>: guarde um backup (Ajustes → Seus dados → Compartilhar). Para levar o progresso a outro aparelho, use esse mesmo backup. Para apagar tudo, use “Zerar progresso” nos Ajustes e, se quiser, limpe os dados do site no navegador.</small>
     </section>
     <section class="card about"><h3>O que sai do aparelho (só quando você usa a Clara ou a voz natural)</h3>
       <ul>

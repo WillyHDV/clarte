@@ -21,14 +21,15 @@ function planHtml() {
 // Reta final: aparece nas 2 semanas antes da próxima avaliação
 const STRETCH_DAYS = 14;
 const dm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
-const noBackup = () => st().xp > 60 && !st().lastBackup;
+// aviso de backup: nunca fez, ou faz 7 dias ou mais (reinstalar o app ou limpar os dados do navegador apaga o progresso)
+const backupText = () => { const d = S.backupAgeDays(); return d === null ? 'Você ainda não fez backup do progresso. Se o app for reinstalado ou os dados do navegador forem apagados, ele se perde.' : `Faz ${d} dias desde o último backup do progresso.`; };
 const backupNudge = (text) => `<div class="nudge">${I('shield')}<span>${text}</span><button class="pill" data-go="#/settings">Ajustes</button></div>`;
 function finalStretch(nx) {
   const ex = st().exams || []; const last = ex[ex.length - 1]; const best = Math.max(0, ...ex.map((e) => e.score || 0));
   const sim = last ? `Última simulação: <b>${String(last.score).replace(".", ",")}/10</b> (${new Date(last.date).toLocaleDateString('pt-BR')})${ex.length > 1 ? ` · melhor ${String(best).replace(".", ",")}/10 · ${ex.length} simulações` : ''}` : 'Você ainda não fez uma simulação da prova oral com a Clara.';
   return `<section class="card quick"><h3>Reta final · ${esc(nx.ev.title)}</h3><p class="pt">${sim}</p>
     <div class="row"><button class="btn" data-go="#/tutor/exam">${I('phone')} Simular a prova oral</button>${nx.ev.sheet ? `<button class="btn" data-go="#/folha">${I('file')} Folha de revisão</button>` : ''}</div>
-    ${noBackup() ? backupNudge('Faça um backup do seu progresso antes da avaliação.') : ''}</section>`;
+    ${S.backupDue() ? backupNudge(backupText()) : ''}</section>`;
 }
 export function home() {
   S.touchDay(); S.save();
@@ -48,7 +49,7 @@ export function home() {
       ${due ? `<button class="btn warn wide" data-go="#/practice/review">${I('repeat')} Reforçar ${due} ${due > 1 ? 'itens que estão fracos' : 'item que está fraco'}</button>` : ''}
     </section>
     ${planHtml()}
-    ${nx && nx.days <= STRETCH_DAYS ? finalStretch(nx) : noBackup() ? `<section class="card quick">${backupNudge('Faça um backup do seu progresso de vez em quando.')}</section>` : ''}
+    ${nx && nx.days <= STRETCH_DAYS ? finalStretch(nx) : S.backupDue() ? `<section class="card quick">${backupNudge(backupText())}</section>` : ''}
     <section class="card ready">
       <div class="rtop"><div class="ring" style="--p:${R.overall}"><b>${R.overall}%</b></div>
         <div><h3>Prontidão para a avaliação</h3><small>Média do domínio das 8 unidades. O treino inteligente escolhe o que está mais fraco.${R.weakest ? `<br>Mais fraca agora: <b>${esc(R.weakest.u.title)}</b> (${R.weakest.m.pct}%).` : ''}</small></div></div>

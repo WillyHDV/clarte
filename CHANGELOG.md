@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## v17 — 31/10/2026
+
+Proteção do progresso e uma correção visual, a partir do diagnóstico da v16 (que mostrou o armazenamento zerado depois de reinstalar o app).
+
+- **Compartilhar backup** (Ajustes → Seus dados): abre a lista de apps do celular (Google Drive, WhatsApp, e-mail). A data do backup só é anotada se o envio não for cancelado; em aparelhos sem esse recurso, o arquivo é baixado.
+- **Lembrete na tela inicial** quando nunca houve backup ou faz 7 dias ou mais (a partir de 60 pontos).
+- **Aviso claro**: desinstalar o app ou limpar os dados do navegador apaga o progresso (em Ajustes e em Privacidade e créditos).
+- **Correção**: três caixas de seleção de Ajustes (ler as respostas em voz alta, voz mais devagar, incluir a chave no backup) estavam com o texto invisível, branco sobre branco.
+
 ## v16 — 31/10/2026
 
 Ajustes a partir do diagnóstico feito no celular com a v15.

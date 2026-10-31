@@ -176,8 +176,9 @@ body:has(.dock) { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
 .inp:focus { outline: none; border-color: var(--brand); background: var(--card); }
 label { display: block; font-weight: 700; margin: 12px 0; }
 label .inp { margin-top: 5px; font-weight: 400; }
-.chk-l, label.chk { display: flex; gap: 10px; align-items: center; font-weight: 500; }
-label.chk input { width: 20px; height: 20px; accent-color: var(--brand); }
+/* rótulo de caixa de seleção (a classe .chk é o círculo de tarefa feita do plano do dia: não reutilizar em <label>) */
+.chk-l { display: flex; gap: 10px; align-items: center; font-weight: 500; }
+.chk-l input { width: 20px; height: 20px; accent-color: var(--brand); }
 .acc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .acc button { min-width: 38px; height: 38px; border: 1.5px solid var(--line); background: var(--card-2); border-radius: 11px; font-size: 1rem; }
 .place { min-height: 58px; border-bottom: 2px solid var(--line); padding: 6px 0 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }

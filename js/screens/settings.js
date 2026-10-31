@@ -30,8 +30,8 @@ export function settingsPage() {
       <button class="btn" id="slink">🔗 Copiar link de configuração</button><div id="slmsg"></div>
     </section>
     <section class="card"><h3>Voz</h3>
-      <label class="chk"><input type="checkbox" id="svoice" ${s.voice !== false ? 'checked' : ''}> Ler as respostas do professor em voz alta</label>
-      <label class="chk"><input type="checkbox" id="sslow" ${s.slow ? 'checked' : ''}> Voz mais devagar</label>
+      <label class="chk-l"><input type="checkbox" id="svoice" ${s.voice !== false ? 'checked' : ''}> Ler as respostas do professor em voz alta</label>
+      <label class="chk-l"><input type="checkbox" id="sslow" ${s.slow ? 'checked' : ''}> Voz mais devagar</label>
       <label>Microfone na conversa por voz<select id="smic" class="inp">
         <option value="rec" ${s.micMode !== 'web' ? 'selected' : ''}>Gravar e transcrever (recomendado)</option>
         <option value="web" ${s.micMode === 'web' ? 'selected' : ''}>Reconhecimento de voz do navegador</option></select></label>
@@ -48,10 +48,10 @@ export function settingsPage() {
       <small>${canListen ? '' : 'Reconhecimento de fala indisponível: use o Chrome ou o Edge.'}</small>
     </section>
     <section class="card"><h3>Seus dados</h3>
-      <p class="pt">Seu progresso fica só neste aparelho. Faça um backup de vez em quando, principalmente antes da prova, e use Importar para recuperar ou levar para outro aparelho.</p>
+      <p class="pt">Seu progresso fica só neste aparelho. <b>Se você desinstalar o app ou limpar os dados do navegador, ele some.</b> Guarde um backup de vez em quando (o app lembra a cada 7 dias): use Compartilhar para mandar o arquivo ao Google Drive, WhatsApp ou e-mail, e Importar para recuperar ou levar para outro aparelho.</p>
       <small id="sbk">${s.lastBackup ? 'Último backup: ' + esc(new Date(s.lastBackup).toLocaleString('pt-BR')) : 'Nenhum backup feito ainda.'} · Armazenamento protegido: <span id="spersist">verificando…</span></small>
-      <label class="chk"><input type="checkbox" id="sbkkeys"> Incluir minha chave de IA no arquivo (guarde com cuidado)</label>
-      <div class="row"><button class="btn" id="sexport">${I('download')} Exportar</button><button class="btn" id="simport">${I('upload')} Importar</button></div>
+      <label class="chk-l"><input type="checkbox" id="sbkkeys"> Incluir minha chave de IA no arquivo (guarde com cuidado)</label>
+      <div class="row"><button class="btn primary" id="sshare">${I('send')} Compartilhar backup</button><button class="btn" id="sexport">${I('download')} Baixar</button><button class="btn" id="simport">${I('upload')} Importar</button></div>
       <input type="file" id="sfile" accept="application/json,.json" hidden>
     </section>
     <section class="card"><h3>Sobre</h3>
@@ -122,6 +122,20 @@ export function settingsPage() {
   on('sinstall', 'click', async () => { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; settingsPage(); });
   on('supd', 'click', () => checkUpdate(true));
   (async () => { const el = document.getElementById('spersist'); if (!el) return; try { const p = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false; el.textContent = p ? 'sim' : 'não (faça backups)'; } catch (e) { el.textContent = 'desconhecido'; } })();
+  // Compartilhar: abre a lista de apps do celular (Drive, WhatsApp, e-mail…). Sem suporte, baixa o arquivo. A data do backup só vale se o envio não foi cancelado.
+  on('sshare', 'click', async () => {
+    const nome = `clarte-progresso-${new Date().toLocaleDateString('sv-SE')}.json`; const incluir = document.getElementById('sbkkeys').checked;
+    const texto = JSON.stringify(S.exportData({ includeKeys: incluir, mark: false }), null, 1);
+    try {
+      const arquivo = new File([texto], nome, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        await navigator.share({ files: [arquivo], title: 'Backup do Clarté', text: 'Backup do meu progresso no Clarté' });
+        S.markBackup(); document.getElementById('sbk').textContent = 'Backup compartilhado agora.'; toast('Backup compartilhado.'); return;
+      }
+    } catch (e) { if (e && e.name === 'AbortError') { toast('Compartilhamento cancelado: o backup não foi guardado.'); return; } }
+    download(nome, texto, 'application/json'); S.markBackup();
+    document.getElementById('sbk').textContent = 'Este aparelho não compartilha arquivos: o backup foi baixado. Procure em Downloads.'; toast('Backup baixado.');
+  });
   on('sexport', 'click', () => {
     const data = S.exportData({ includeKeys: document.getElementById('sbkkeys').checked });
     download(`clarte-progresso-${new Date().toLocaleDateString('sv-SE')}.json`, JSON.stringify(data, null, 1), 'application/json');

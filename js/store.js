@@ -160,13 +160,23 @@ export function addExam(entry) { state.exams = [...(state.exams || []), { date: 
 
 // ---------- backup: exportar e importar o progresso ----------
 // A chave de API só vai para o arquivo se você pedir (includeKeys).
-export function exportData({ includeKeys = false } = {}) {
+// mark: false não anota a data do backup (use markBackup() depois, quando o arquivo realmente saiu do aparelho)
+export function exportData({ includeKeys = false, mark = true } = {}) {
   const s = JSON.parse(JSON.stringify(state));
   if (!includeKeys) s.settings.keys = {};
   let chats = {}; try { chats = JSON.parse(localStorage.getItem(CHAT_KEY)) || {}; } catch (e) { /* sem conversas */ }
-  state.lastBackup = new Date().toISOString(); save();
-  return { app: 'clarte', schema: SCHEMA, exportedAt: state.lastBackup, state: { ...s, lastBackup: state.lastBackup }, chats };
+  const quando = new Date().toISOString();
+  if (mark) { state.lastBackup = quando; save(); }
+  return { app: 'clarte', schema: SCHEMA, exportedAt: quando, state: { ...s, lastBackup: mark ? quando : state.lastBackup }, chats };
 }
+export function markBackup() { state.lastBackup = new Date().toISOString(); save(); }
+// dias desde o último backup (0 = hoje); null se nunca fez
+export function backupAgeDays(now = Date.now()) {
+  const t = Date.parse(state.lastBackup); if (!Number.isFinite(t)) return null;
+  return Math.max(0, Math.floor((now - t) / DAY));
+}
+// já há o que perder (mais de 60 pontos) e o backup nunca foi feito ou tem uma semana ou mais
+export function backupDue(now = Date.now()) { const age = backupAgeDays(now); return state.xp > 60 && (age === null || age >= 7); }
 export function validateBackup(obj) {
   if (!obj || obj.app !== 'clarte' || typeof obj.state !== 'object' || obj.state === null) return 'Este arquivo não é um backup do Clarté.';
   if (typeof obj.schema !== 'number' || obj.schema > SCHEMA) return 'Este backup é de uma versão mais nova do app. Atualize o app e tente de novo.';
