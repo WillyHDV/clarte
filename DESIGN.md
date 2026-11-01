@@ -36,9 +36,11 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Barra de baixo (`js/nav.js`) | todas as telas, menos exercício e chamada | Trilha, **Clara no centro** (botão de ligar) e Praticar (com contador de itens para reforçar) |
 | Cabeçalho (`.apphead`) | Trilha, Praticar | fixo e compacto; na Trilha leva a sequência de dias e o **avatar**, que abre o Perfil |
 | Avatar (`avatarHtml`) | cabeçalho e Perfil | a inicial do nome ou um desenho de linha; as cores têm contraste conferido |
-| Linha (`linha()`, `.grupo`) | Praticar, Perfil e, em breve, Ajustes | ícone, título, resumo atual e seta; abre uma tela ou subtela |
+| Linha (`linha()`, `.grupo`) | Praticar, Perfil, Ajustes, central da Clara e lista de cenários | ícone, título, resumo atual e seta; abre uma tela ou subtela |
 | Sanfona (`.acc`) | aulas e seções longas | usa `<details>`, sem JavaScript |
-| Interruptor (`.switch`) | Ajustes | área de toque de 52×32 px |
+| Interruptor (`opcao()`, `.switch`) | Ajustes | linha inteira clicável; o interruptor tem 52×32 px |
+| Cartão de estado (`estado()`, `.estado`) | topo de cada subtela de Ajustes | `ok`, `aviso`, `erro` ou `info`; texto simples sobre o estado, antes de qualquer botão |
+| Cartão que abre (`.acc.evo`) | Evolução | rótulo, número principal e minigráfico (`sparkLine`, `sparkBars`) sempre à vista; o gráfico completo fica dentro |
 | Cartão do Reforço (`.reforco`) | Praticar | anel com o contador e botão branco dentro |
 | Cartão Continuar (`.continuar`) | Trilha | unidade e degrau certos, contagem da avaliação, meta do dia |
 | Caminho (`.caminho`, `.passo`) | Trilha | nós em zigue-zague (`ONDA`), anel de domínio, selo de check ou cadeado; a linha é desenhada por `ligarNos` |
@@ -48,12 +50,14 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 
 `Trilha` · `Clara` · `Praticar`. Evolução, Ajustes e Backup ficam no **Perfil** (avatar na Trilha). O exercício e a chamada escondem a barra.
 
+Telas de lista seguem o mesmo padrão: cabeçalho fixo com **voltar** (`.apphead .back`), corpo em grupos de linhas e, no fim, o que é técnico numa sanfona "Avançado". Rotas: `#/settings/<ia|voz|estudo|avaliacoes|dados|sobre>` e `#/tutor` (central) com `#/tutor/<cenarios|exam|free|duvidas>`.
+
 ## Fases
 
 1. **Base**: tokens, teste de contraste, ícones, componentes, nova barra, cabeçalho com avatar, Praticar e Perfil (feita).
 2. **Trilha** (cartão "Continuar" e caminho em zigue-zague) e **Unidade** (abas Trilha, Aula e Frases; aula em cartões que abrem; botão fixo): feita. O plano do dia e a reta final foram para Praticar; a prontidão e os critérios, para Evolução.
 3. **Exercícios** (feedback em painel que sobe, opções com ícone, fim do treino novo) e **chamada** alinhada ao novo visual (cores `--call-*` com contraste testado): feita.
-4. Clara (abas, cenários e chat), Evolução e Ajustes por subtelas.
+4. Clara (central em lista, cenários e chat em telas próprias), Evolução em cartões que abrem e Ajustes em subtelas: feita.
 5. Polimento (animações leves, vibração no app, modo escuro conferido) e publicação de tudo junto.
 
 Ícones: Tabler Icons, licença MIT, © Paweł Kuna.

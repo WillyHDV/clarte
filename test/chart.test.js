@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { VIEW, niceMax, ticksWithGoal, indexAt, pointPos, lineChart, barChart } from '../js/chart.js';
+import { VIEW, niceMax, ticksWithGoal, indexAt, pointPos, lineChart, barChart, sparkLine, sparkBars } from '../js/chart.js';
 
 const dia = (i) => `${String((i % 28) + 1).padStart(2, '0')}/10`;
 const pts = (ys) => ys.map((y, i) => ({ label: dia(i), y }));
@@ -97,4 +97,23 @@ test('pointPos acompanha o desenho', () => {
   assert.ok(Math.abs(pointPos('line', 4, 5, 50, 100).x - (VIEW.w - VIEW.r)) < 1e-9);
   const b = pointPos('bars', 0, 30, 10, 40); assert.ok(b.x > VIEW.l && b.x < VIEW.l + 12);
   assert.ok(pointPos('line', 1, 3, 100, 100).y < pointPos('line', 1, 3, 0, 100).y, 'valor maior fica mais acima');
+});
+
+test('sparkLine: linha e ponto final, ignora dias sem medida, vazio devolve nada', () => {
+  assert.equal(sparkLine([]), ''); assert.equal(sparkLine([null, null]), '');
+  const s = sparkLine([20, null, 40, 60, 100]);
+  assert.match(s, /aria-hidden="true"/); assert.equal(count(s, /class="spark-line"/g), 1); assert.equal(count(s, /class="spark-dot"/g), 1);
+  assert.ok(!/NaN|undefined|Infinity/.test(s)); for (const m of s.matchAll(/\b(?:cx|cy)="(-?[\d.]+)"/g)) assert.ok(+m[1] >= 0 && +m[1] <= 88, 'ponto dentro da área');
+  const um = sparkLine([null, 50]); assert.equal(count(um, /class="spark-line"/g), 0, 'um ponto só: sem linha'); assert.equal(count(um, /class="spark-dot"/g), 1);
+  const plana = sparkLine([80, 80, 80]); assert.ok(!/NaN|Infinity/.test(plana), 'valores iguais não dividem por zero');
+  const alto = sparkLine([0, 100]); const [y0, y1] = [...alto.matchAll(/ d="M[\d.]+ ([\d.]+) L[\d.]+ ([\d.]+)"/g)][0].slice(1).map(Number); assert.ok(y1 < y0, 'valor maior fica mais acima');
+});
+
+test('sparkBars: uma coluna por valor com dado, altura proporcional e dentro da área', () => {
+  assert.equal(sparkBars([]), '');
+  const s = sparkBars([0, 5, 10, 0, 20]); assert.equal(count(s, /class="spark-bar"/g), 3, 'dia sem valor não ganha coluna');
+  assert.ok(!/NaN|undefined|Infinity/.test(s));
+  const alturas = [...s.matchAll(/height="([\d.]+)" rx/g)].map((m) => +m[1]); assert.ok(alturas[2] > alturas[1] && alturas[1] > alturas[0], 'proporcional ao valor');
+  for (const m of s.matchAll(/ (?:x|y)="(-?[\d.]+)"/g)) assert.ok(+m[1] >= 0 && +m[1] <= 88);
+  assert.match(sparkBars([30, 60], { max: 100, w: 64 }), /viewBox="0 0 64 34"/);
 });

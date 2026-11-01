@@ -70,6 +70,22 @@ export function barChart({ points, yMax, ticks, goal, aria }) {
   return `${open(aria, n, 'bars')}${frame({ n, yMax, ticks, labels: points.map((p) => p.label), pos: xBar })}${bars}${goalSvg}${top}${overlay}</svg>`;
 }
 
+// Minigráficos do resumo dos cartões da Evolução: sem eixos nem rótulos (o gráfico completo fica dentro do cartão)
+const spark = (w, h, corpo) => `<svg class="spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true" focusable="false">${corpo}</svg>`;
+// a escala acompanha os próprios valores (mínimo e máximo, com folga), para a tendência aparecer mesmo em números altos e parecidos
+export function sparkLine(values, { w = 88, h = 34 } = {}) {
+  const pts = values.map((v, i) => [i, v]).filter(([, v]) => v !== null && v !== undefined); if (!pts.length) return '';
+  const vs = pts.map(([, v]) => v); const lo = Math.max(0, Math.min(...vs) - 5); const hi = Math.max(...vs, lo + 10);
+  const n = values.length; const x = (i) => 3 + (n <= 1 ? (w - 6) / 2 : (i / (n - 1)) * (w - 6)); const y = (v) => 3 + (h - 6) - ((v - lo) / (hi - lo)) * (h - 6);
+  const d = pts.map(([i, v], k) => `${k ? 'L' : 'M'}${n1(x(i))} ${n1(y(v))}`).join(' '); const [li, lv] = pts[pts.length - 1];
+  return spark(w, h, `${pts.length > 1 ? `<path class="spark-line" d="${d}"/>` : ''}<circle class="spark-dot" cx="${n1(x(li))}" cy="${n1(y(lv))}" r="3"/>`);
+}
+export function sparkBars(values, { max, w = 88, h = 34 } = {}) {
+  const n = values.length; if (!n) return ''; const top = max || Math.max(1, ...values.map((v) => v || 0));
+  const slot = (w - 6) / n; const bw = Math.max(2, Math.min(8, slot - 2));
+  return spark(w, h, values.map((v, i) => { if (!v) return ''; const bh = Math.max(2, (Math.min(v, top) / top) * (h - 6)); return `<rect class="spark-bar" x="${n1(3 + i * slot + (slot - bw) / 2)}" y="${n1(h - 3 - bh)}" width="${n1(bw)}" height="${n1(bh)}" rx="1.5"/>`; }).join(''));
+}
+
 // marcas do eixo y: 0, meio e topo, mais a meta (se o meio ficar colado nela, sai o meio)
 export function ticksWithGoal(yMax, goal) {
   const t = [0, yMax / 2, yMax]; if (!goal || t.includes(goal)) return t;

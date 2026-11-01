@@ -31,6 +31,14 @@ Fase 3 (Exercícios e chamada) pronta:
 - **Nomes de classe que colidiam** foram separados (a linha de acentos e os cartões de números da Evolução), o que também corrige o visual das peças do exercício de montar frases.
 - **Testes**: 287 → 292.
 
+Fase 4 (Ajustes, Clara e Evolução) pronta:
+
+- **Ajustes** viraram uma **lista que abre subtelas**: Professora Clara, Voz, Estudo, Avaliações, Seus dados e Sobre. Cada linha mostra o estado atual (por exemplo "Gemini · chave salva", "Meta de 20 exercícios por dia"). Cada subtela começa com um **cartão de estado em linguagem simples** ("A Clara está pronta", "Falta a voz francesa", "Você ainda não fez backup") e deixa o que é técnico numa sanfona **Avançado** (modelo da IA, voz natural online, microfone, incluir a chave no backup, zerar o progresso). Caixas de seleção viraram interruptores grandes.
+- **Clara** agora abre numa **central em lista**: cartão "Ligar para a Clara" e linhas para Cenários ("2 de 8 missões cumpridas"), Prova oral ("Última nota 7,5 de 10"), Conversa por texto e Dúvidas em português. Cada uma abre em **tela própria, com botão de voltar**; as abas apertadas em cima do chat acabaram, e o chat ganhou altura. Ligação que começa na central e tem pelo menos duas falas termina no chat, onde fica o resumo; sair da tela no meio da ligação não puxa mais a navegação de volta.
+- **Evolução** virou **cinco cartões que abrem** (Prontidão, Exercícios dos 7 dias, Notas da prova oral, Os 6 critérios, Acertos da semana), fechados no início: cada um mostra o número principal e um minigráfico, e o gráfico completo, a leitura ao tocar e a tabela ficam dentro. A tela cabe numa altura de celular.
+- **Sem emoji** nas mensagens do chat (alto-falante, microfone, enviar, aviso) e nos Ajustes; os ícones dos cenários continuam como identidade.
+- **Testes**: 292 → 299.
+
 ## v25 — 31/10/2026
 
 Cenários da Clara: missões de conversa por voz com objetivos.

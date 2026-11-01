@@ -264,6 +264,24 @@ test('Evolução com dados: cartões, três gráficos acessíveis e tabelas equi
   assert.doesNotMatch(document.body.innerHTML, /NaN|undefined/); assert.equal($$('nav.tabbar a.on').length, 0, 'Evolução fica no perfil: nenhuma aba marcada');
 });
 
+test('Evolução: cinco cartões que abrem, fechados no início, com número e minigráfico no resumo', async () => {
+  semear(); mock.timers.setTime(DIA(11, 1).getTime()); await goto('#/settings'); await goto('#/history');
+  assert.deepEqual($$('details.evo').map((d) => d.id), ['evo-prontidao', 'evo-exercicios', 'evo-notas', 'evo-criterios', 'evo-semana']);
+  assert.ok($$('details.evo').every((d) => !d.open), 'fechados: o essencial cabe numa tela');
+  const resumo = (id) => $(`#${id} summary`).textContent;
+  assert.match(resumo('evo-prontidao'), /Prontidão para a avaliação\d+%/); assert.match(resumo('evo-exercicios'), /Exercícios nos últimos 7 dias\d+/);
+  assert.match(resumo('evo-notas'), /Notas da prova oral7,5\/10/); assert.match(resumo('evo-criterios'), /Os 6 critérios da prova oral\d de 6/); assert.match(resumo('evo-semana'), /Acertos da semana\d+%/);
+  assert.ok($('#evo-prontidao summary svg.spark .spark-line'), 'minigráfico da prontidão'); assert.ok($('#evo-exercicios summary .spark-bar'), 'colunas dos exercícios'); assert.ok($('#evo-notas summary .spark-line'), 'linha das notas');
+  assert.equal($$('svg.chart-svg').length, 3, 'os gráficos completos ficam dentro dos cartões'); assert.equal($$('summary svg.chart-svg').length, 0);
+  assert.equal($$('.apphead .back')[0].dataset.go, '#/perfil'); assert.doesNotMatch(document.body.innerHTML, /NaN|undefined/);
+});
+
+test('Evolução sem simulações da prova: o cartão das notas convida a fazer a primeira', async () => {
+  S.resetAll(); await goto('#/settings'); await goto('#/history');
+  assert.match($('#evo-notas summary').textContent, /Notas da prova oral—/); assert.equal($('#evo-notas summary .spark'), null, 'sem nota, sem minigráfico');
+  assert.ok($('#evo-notas [data-go="#/tutor/exam"]'), 'atalho para a prova com a Clara'); assert.match($('#evo-exercicios').textContent, /Nenhum exercício nos últimos 30 dias/);
+});
+
 test('Evolução: tocar mostra o dia, setas andam e Esc limpa', async () => {
   semear(); await goto('#/settings'); await goto('#/history');
   const fig = $$('figure.chart')[1]; const svg = fig.querySelector('svg'); const out = fig.querySelector('.readout'); const cursor = fig.querySelector('.ch-cursor');
@@ -290,8 +308,8 @@ test('Evolução: com uma só simulação, mostra a dica em vez de um gráfico d
 test('o Perfil leva à Evolução (com a prontidão e os critérios) e a Evolução volta ao Perfil', async () => {
   await goto('#/settings'); await goto('#/perfil'); $('[data-go="#/history"]').click(); await tick();
   assert.match(w.location.hash, /#\/history/); assert.ok($$('.kpi').length === 4);
-  assert.match($('.ready').textContent, /Prontidão para a avaliação/); assert.equal($$('.crit').length, 6, 'os 6 critérios da prova oral');
-  $('.top .back').click(); await tick(); assert.match(w.location.hash, /#\/perfil/);
+  assert.match($('#evo-prontidao summary').textContent, /Prontidão para a avaliação/); assert.match($('.ready').textContent, /Média do domínio/); assert.equal($$('.crit').length, 6, 'os 6 critérios da prova oral');
+  $('.apphead .back').click(); await tick(); assert.match(w.location.hash, /#\/perfil/);
 });
 
 // ---- associar pares na tela ----

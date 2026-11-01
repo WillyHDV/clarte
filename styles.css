@@ -477,6 +477,17 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .ligar .exam { color: rgba(255, 255, 255, .95); }
 .micb svg.i, .send svg.i { width: 24px; height: 24px; }
 .rep { display: inline-flex; align-items: center; gap: 4px; } .rep.ok { color: var(--good); }
+.evo > summary { min-height: 76px; }
+.evo-t { display: grid; flex: 1; min-width: 0; line-height: 1.2; gap: 2px; }
+.evo-t small { font-size: var(--fs-sm); color: var(--muted); font-weight: 500; }
+.evo-t b { font-size: var(--fs-xl); letter-spacing: -.02em; }
+.spark { flex: none; }
+.spark-line { fill: none; stroke: var(--brand); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.spark-dot { fill: var(--brand); stroke: var(--card); stroke-width: 1.5; }
+.spark-bar { fill: var(--brand); }
+.evo .chart { margin: 0 0 var(--s3); } .evo .chart figcaption small { display: block; margin-bottom: var(--s3); }
+.evo .kpis { margin-bottom: 0; }
+.evo .ready { margin-bottom: var(--s3); }
 .estado { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) var(--s4); border-radius: var(--r); margin-bottom: var(--s4); line-height: 1.35; }
 .estado > svg.i { width: 24px; height: 24px; flex: none; margin-top: 1px; }
 .estado > div { display: grid; gap: 2px; min-width: 0; }
