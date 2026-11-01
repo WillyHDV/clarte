@@ -5,7 +5,7 @@ import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast, linha, estado, opcao } from '../ui.js';
 import { VERSION, BUILD_DATE } from '../version.js';
-import { $app, st, rate, speak, cur, CHAT_KEY, download } from '../core.js';
+import { $app, st, rate, speak, cur, CHAT_KEY, download, haptico } from '../core.js';
 import { checkUpdate } from '../update.js';
 import * as A from '../autobackup.js';
 import * as N from '../native.js';
@@ -106,8 +106,10 @@ function estudoHtml() {
       <label>Horário<input type="time" id="sremt" class="inp" value="${esc(R.config().hora)}"></label>
       <div class="row"><button class="btn sm" id="sremtest">Enviar um teste (em 8 segundos)</button></div>` : ''}
       <small id="sremst">${esc(R.statusText())}</small></section>` : '';
+  const vibracao = navigator.vibrate ? `<div class="grupo">${opcao({ id: 'shaptics', titulo: 'Vibração ao responder', resumo: 'Um toque curto ao acertar, errar e terminar um treino', marcado: s.haptics !== false })}</div>` : '';
   return `${estado('info', 'target', `Hoje: ${Math.min(st().today.n, s.goal)} de <span id="estmeta">${s.goal}</span> exercícios`, 'A meta diária define a barra do cartão Continuar na Trilha.')}
     <section class="card"><h3>Meta diária</h3><label>Exercícios por dia<input id="sgoal" class="inp" type="number" inputmode="numeric" min="5" max="100" value="${s.goal}"></label></section>
+    ${vibracao}
     ${lembrete}`;
 }
 
@@ -237,6 +239,7 @@ function wireVoz() {
 }
 
 function wireEstudo() {
+  on('shaptics', 'change', (e) => { S.setSetting('haptics', e.target.checked); if (e.target.checked) haptico('good'); });
   on('sgoal', 'change', (e) => { const g = Math.max(5, +e.target.value || 20); S.setSetting('goal', g); const m = document.getElementById('estmeta'); if (m) m.textContent = g; });
   // lembrete diário (só no app Android com o plugin de notificações)
   const sremst = () => { const el = document.getElementById('sremst'); if (el) el.textContent = R.statusText(); };

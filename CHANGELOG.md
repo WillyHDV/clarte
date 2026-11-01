@@ -1,8 +1,8 @@
 # Histórico de versões
 
-## Em preparação — app novo (visual v2, ainda não publicado)
+## v26 — 31/10/2026
 
-Reforma completa do visual, só para celular, em fases na linha de trabalho `dev`. Plano e regras em `DESIGN.md`. Fase 1 (base) pronta:
+**App novo (visual v2)**: reforma completa do visual, só para celular, feita em cinco fases e publicada de uma vez. Plano e regras em `DESIGN.md`. Para voltar ao visual anterior existe a etiqueta `v25`. Fase 1 (base):
 
 - **Sistema visual**: cores com contraste conferido por teste (mínimo 4,5 para 1, claro e escuro), escala de texto sem nada abaixo de 13 px, espaços e raios em escala, botões e linhas com área de toque de 48 px ou mais. A marca usada como texto ganhou um tom mais escuro (`--brand-text`).
 - **Ícones de linha** do conjunto Tabler no lugar do conjunto antigo, todos no mesmo estilo.
@@ -38,6 +38,15 @@ Fase 4 (Ajustes, Clara e Evolução) pronta:
 - **Evolução** virou **cinco cartões que abrem** (Prontidão, Exercícios dos 7 dias, Notas da prova oral, Os 6 critérios, Acertos da semana), fechados no início: cada um mostra o número principal e um minigráfico, e o gráfico completo, a leitura ao tocar e a tabela ficam dentro. A tela cabe numa altura de celular.
 - **Sem emoji** nas mensagens do chat (alto-falante, microfone, enviar, aviso) e nos Ajustes; os ícones dos cenários continuam como identidade.
 - **Testes**: 292 → 299.
+
+Fase 5 (polimento) pronta:
+
+- **Ficha da missão** (a folha que sobe ao tocar num cenário) refeita: alça, ícone e subtítulo, objetivos com círculos, os três níveis de ajuda como opções grandes (58 px), botões largos e toque fora para fechar. **Resumo da missão** com medalha (troféu, estrela ou seta circular), objetivos com ícones de check e dois botões grandes ("Repetir a missão" e "Voltar aos cenários").
+- **Animações leves**: a tela nova aparece com um esmaecer rápido, as sanfonas abrem suavemente e os botões da barra de baixo afundam ao toque. Tudo some para quem pede menos movimento no Android.
+- **Vibração curta** ao acertar, errar e terminar um treino ou missão, com interruptor em Ajustes → Estudo (só aparece onde o aparelho vibra). **No app Android isso exige reinstalar o APK** (a casca ganhou a permissão VIBRATE); sem reinstalar, tudo funciona, só não vibra.
+- **A casca Android** deixou de imprimir no log do Android os dados que passam pelos plugins (`loggingBehavior: none`), outro motivo para reinstalar o APK quando for conveniente.
+- **Limpeza**: saíram 34 linhas de CSS do visual antigo (`.hero`, `.unit`, `.seg`, `.mast` e outras sem uso). Tudo o que o app usa passa pelo mesmo sistema de peças.
+- **Testes**: 299 → 300.
 
 ## v25 — 31/10/2026
 

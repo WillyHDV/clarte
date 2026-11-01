@@ -1,6 +1,7 @@
 {
   "appId": "br.willy.clarte",
   "appName": "Clarté",
+  "loggingBehavior": "none",
   "webDir": "www",
   "server": {
     "url": "https://willyhdv.github.io/clarte/",

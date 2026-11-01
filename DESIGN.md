@@ -58,6 +58,6 @@ Telas de lista seguem o mesmo padrão: cabeçalho fixo com **voltar** (`.apphead
 2. **Trilha** (cartão "Continuar" e caminho em zigue-zague) e **Unidade** (abas Trilha, Aula e Frases; aula em cartões que abrem; botão fixo): feita. O plano do dia e a reta final foram para Praticar; a prontidão e os critérios, para Evolução.
 3. **Exercícios** (feedback em painel que sobe, opções com ícone, fim do treino novo) e **chamada** alinhada ao novo visual (cores `--call-*` com contraste testado): feita.
 4. Clara (central em lista, cenários e chat em telas próprias), Evolução em cartões que abrem e Ajustes em subtelas: feita.
-5. Polimento (animações leves, vibração no app, modo escuro conferido) e publicação de tudo junto.
+5. Polimento (ficha e resumo da missão no sistema novo, animações leves que respeitam "menos movimento", vibração curta no app, CSS antigo removido, modo escuro conferido) e publicação de tudo junto: feita (v26).
 
 Ícones: Tabler Icons, licença MIT, © Paweł Kuna.

@@ -7,7 +7,7 @@ const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
 
 const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
-  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial' },
+  settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial', haptics: true },
   scenarios: {},
 });
 // ---------- versões do formato ----------

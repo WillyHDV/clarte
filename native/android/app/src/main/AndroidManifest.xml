@@ -41,5 +41,7 @@
     <!-- microfone: a ligação com a Clara grava a sua voz (o Android pede a permissão na primeira vez) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- vibração curta ao acertar ou errar um exercício (Ajustes → Estudo desliga) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 </manifest>

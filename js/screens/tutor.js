@@ -5,7 +5,7 @@ import { stopSpeaking, listen, dictate, browserRec, canTalk, canRecord } from '.
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast, linha } from '../ui.js';
-import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats, go } from '../core.js';
+import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats, go, haptico } from '../core.js';
 import { readiness, CRITERIA, planDone } from '../progress.js';
 import { ACC } from './practice.js';
 import * as SC from '../scenarios.js';
@@ -31,6 +31,7 @@ let tutorMode = 'free';
 let tutorView = 'hub'; // hub (entrada em lista), chat (free, exam, duvidas) ou cenarios
 let scRun = null; // missão (cenário) em andamento: { def, nivel, done:Set, turns }
 const nota = (v) => String(v).replace('.', ',');
+const marca = (feito) => I(feito ? 'circle-check' : 'circle'); // objetivo da missão: feito ou por fazer
 const CHAT_TITULOS = { free: ['Conversa por texto', 'Escreva em francês'], exam: ['Prova oral', 'Simulação da avaliação'], duvidas: ['Dúvidas em português', 'Pergunte à vontade'] };
 
 // o que fazer ao encerrar uma ligação: nada (o usuário já está saindo da tela), ir ao chat mostrar o resumo ou redesenhar a tela atual
@@ -190,7 +191,7 @@ async function tutorPage() {
       if (sc.nivel >= 3) { m.innerHTML = `<div class="mrow"><b>Missão</b><span>Modo prova: sem ajuda</span></div>`; hb.hidden = true; return; }
       const total = d.objetivos.length; const aberta = m.classList.contains('open');
       m.innerHTML = `<button class="mhead" id="cmtoggle" aria-expanded="${aberta}"><b>Missão</b><span>${sc.done.size} de ${total}</span><span class="mseg">${d.objetivos.map((o) => `<i class="${sc.done.has(o.id) ? 'on' : ''}"></i>`).join('')}</span></button>
-        <ul class="mlist">${d.objetivos.map((o) => `<li class="${sc.done.has(o.id) ? 'ok' : ''}">${sc.done.has(o.id) ? '✓' : '○'} ${esc(o.texto)}</li>`).join('')}</ul>`;
+        <ul class="mlist">${d.objetivos.map((o) => `<li class="${sc.done.has(o.id) ? 'ok' : ''}">${marca(sc.done.has(o.id))} ${esc(o.texto)}</li>`).join('')}</ul>`;
       $('cmtoggle').onclick = () => { m.classList.toggle('open'); $('cmtoggle').setAttribute('aria-expanded', String(m.classList.contains('open'))); };
       const dicas = SC.dicas(d, sc.nivel, sc.done); hb.hidden = !dicas.length;
       hb.innerHTML = dicas.map((x) => `<button class="hint" data-say="${esc(x.texto.replace(/…/g, ''))}">${esc(x.texto)}</button>`).join('');
@@ -198,6 +199,7 @@ async function tutorPage() {
     // fim da missão: grava o resultado, fecha a ligação e mostra o resumo
     function endScenario(text, mk) {
       S.recordScenario(sc.def.id, { nivel: sc.nivel, done: sc.done.size, total: sc.def.objetivos.length });
+      haptico(sc.done.size >= sc.def.objetivos.length ? 'fim' : 'toque');
       const relatorio = SC.stripMarkers(text); end(false); showSummary(sc, relatorio);
     }
     // micMode 'web' (reserva escolhida no PC/Chrome) só vale onde o navegador tem reconhecimento; no app Android a gravação é o único caminho
@@ -486,11 +488,14 @@ async function tutorPage() {
     const pinta = () => {
       const niveis = d.nivelFixo ? `<p class="pt"><b>Modo prova</b>: ${SC.NIVEIS[2].desc}</p>`
         : `<h4>Quanta ajuda?</h4><div class="lvls">${SC.NIVEIS.map((n) => `<label class="lvl ${n.n === nivel ? 'on' : ''}"><input type="radio" name="nivel" value="${n.n}" ${n.n === nivel ? 'checked' : ''}><span><b>${n.nome}</b><small>${n.desc}</small></span></label>`).join('')}</div>`;
-      box.innerHTML = `<div class="scsheet"><div class="box"><h3>${d.icon} ${esc(d.title)}</h3><p>${esc(d.situacao)}</p>
-        <h4>Objetivos</h4><ul class="scobj">${d.objetivos.map((o) => `<li>${esc(o.texto)}</li>`).join('')}</ul>${niveis}
-        <div class="row">${canTalk() ? '<button class="btn primary" id="scgo">Começar a missão</button>' : ''}<button class="btn" id="scno">Agora não</button></div></div></div>`;
+      box.innerHTML = `<div class="scsheet" role="dialog" aria-modal="true" aria-label="Missão: ${esc(d.title)}"><div class="box"><span class="grab" aria-hidden="true"></span>
+        <div class="sc-head"><span class="linha-i emo">${d.icon}</span><div><h3>${esc(d.title)}</h3><small>${esc(d.sub)}</small></div></div>
+        <p class="sc-situacao">${esc(d.situacao)}</p>
+        <h4>Objetivos</h4><ul class="scobj">${d.objetivos.map((o) => `<li>${marca(false)} ${esc(o.texto)}</li>`).join('')}</ul>${niveis}
+        <div class="sc-acoes">${canTalk() ? `<button class="btn primary" id="scgo">${I('phone')} Começar a missão</button>` : ''}<button class="btn" id="scno">Agora não</button></div></div></div>`;
       box.querySelectorAll('input[name="nivel"]').forEach((r) => { r.onchange = () => { nivel = +r.value; pinta(); }; });
       box.querySelector('#scno').onclick = () => { box.innerHTML = ''; };
+      box.querySelector('.scsheet').onclick = (e) => { if (e.target.classList.contains('scsheet')) box.innerHTML = ''; }; // tocar fora fecha
       const go = box.querySelector('#scgo'); if (go) go.onclick = () => { box.innerHTML = ''; startScenario(d, nivel); };
     };
     pinta();
@@ -504,10 +509,11 @@ async function tutorPage() {
   function showSummary(sc, relatorio) {
     const d = sc.def; const total = d.objetivos.length; const n = sc.done.size; const v = SC.veredito(n, total);
     const el = document.createElement('div'); el.className = 'call csum-wrap'; el.dataset.ts = 'm';
-    el.innerHTML = `<div class="csum"><h2>${v.titulo}</h2><p class="csub">${esc(d.title)} · ${SC.NIVEIS[sc.nivel - 1].nome} · ${n} de ${total}</p>
-      <ul class="mlist open">${d.objetivos.map((o) => `<li class="${sc.done.has(o.id) ? 'ok' : ''}">${sc.done.has(o.id) ? '✓' : '○'} ${esc(o.texto)}</li>`).join('')}</ul>
+    const medalha = { ok: 'trophy', parcial: 'star', nao: 'rotate-clockwise' }[v.chave];
+    el.innerHTML = `<div class="csum"><span class="cs-medal ${v.chave}">${I(medalha)}</span><h2>${v.titulo}</h2><p class="csub">${esc(d.title)} · ${SC.NIVEIS[sc.nivel - 1].nome} · ${n} de ${total}</p>
+      <ul class="mlist open">${d.objetivos.map((o) => `<li class="${sc.done.has(o.id) ? 'ok' : ''}">${marca(sc.done.has(o.id))} ${esc(o.texto)}</li>`).join('')}</ul>
       <div class="creport">${md(relatorio)}</div>
-      <div class="row"><button class="pill primary" id="csagain">Repetir a missão</button><button class="pill" id="csclose">Fechar</button></div></div>`;
+      <div class="cs-acoes"><button class="btn primary" id="csagain">${I('rotate-clockwise')} Repetir a missão</button><button class="btn" id="csclose">Voltar aos cenários</button></div></div>`;
     document.body.appendChild(el); document.body.classList.add('incall');
     const fechar = () => { el.remove(); document.body.classList.remove('incall'); };
     el.querySelector('#csclose').onclick = fechar;

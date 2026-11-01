@@ -128,8 +128,8 @@ test('tudo o que o app usa está versionado no Git (arquivo ignorado não chega 
 test('a classe .chk (círculo de tarefa feita) não é usada em rótulos de caixa de seleção (ficavam brancos e minúsculos)', () => {
   const css = read('styles.css');
   assert.match(css, /^\.chk \{[^}]*width: 24px[^}]*color: #fff/m, 'a regra .chk mudou: reavalie este teste');
-  for (const f of jsFiles) assert.doesNotMatch(read(f), /<label[^>]*class="(?:[^"]*\s)?chk(?:\s[^"]*)?"/, `${f}: use class="chk-l" em <label> de caixa de seleção`);
-  assert.match(css, /^\.chk-l \{/m, 'falta a regra .chk-l');
+  for (const f of jsFiles) assert.doesNotMatch(read(f), /<label[^>]*class="(?:[^"]*\s)?chk(?:\s[^"]*)?"/, `${f}: use .opcao (linha com interruptor) em <label> de caixa de seleção`);
+  assert.match(css, /^\.opcao \{/m, 'falta a regra .opcao');
   assert.doesNotMatch(css, /label\.chk/, 'sobrou regra para label.chk');
 });
 
@@ -139,8 +139,9 @@ test('app Android: configuração do Capacitor aponta para o site publicado e te
   assert.equal(cfg.server.url, 'https://willyhdv.github.io/clarte/'); assert.ok(cfg.server.allowNavigation.includes('willyhdv.github.io')); assert.equal(cfg.server.androidScheme, 'https');
   assert.ok(existsSync(join(root, 'native/www', cfg.server.errorPath)), 'página de erro offline do app');
   assert.ok(existsSync(join(root, 'native/www/index.html')));
+  assert.equal(cfg.loggingBehavior, 'none', 'o app em uso não imprime no log do Android os dados que passam pelos plugins');
   const man = read('native/android/app/src/main/AndroidManifest.xml');
-  for (const p of ['INTERNET', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS']) assert.match(man, new RegExp(`android.permission.${p}`), p);
+  for (const p of ['INTERNET', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'VIBRATE']) assert.match(man, new RegExp(`android.permission.${p}`), p);
   assert.match(man, /microphone" android:required="false"/);
 });
 

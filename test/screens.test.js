@@ -420,6 +420,19 @@ test('Diagnóstico → Comparar vozes sem chave pede a chave, sem fazer pedidos'
   try { await goto('#/history'); await goto('#/diag'); await tick(60); $('[data-t="vozes"]').click(); await tick(80); assert.match($('#dres').textContent, /Comparar vozes.*precisa da chave/); assert.equal(pedidos, 0); } finally { globalThis.fetch = realFetch; }
 });
 
+test('vibração: toca ao responder e terminar, só onde o aparelho vibra e se estiver ligada em Ajustes', async () => {
+  const { haptico } = await import('../js/core.js'); const nav = w.navigator; const chamadas = [];
+  nav.vibrate = (p) => { chamadas.push(p); return true; };
+  try {
+    S.resetAll(); haptico('good'); haptico('bad'); haptico('neutral'); haptico('inexistente');
+    assert.deepEqual(chamadas, [18, [40, 50, 40]], 'pular e tipo desconhecido não vibram');
+    await goto('#/settings/estudo'); assert.ok($('#shaptics').checked, 'ligada por padrão');
+    $('#shaptics').checked = false; $('#shaptics').dispatchEvent(new w.Event('change')); assert.equal(S.get().settings.haptics, false);
+    chamadas.length = 0; haptico('good'); assert.deepEqual(chamadas, [], 'desligada: nada vibra');
+  } finally { delete nav.vibrate; S.setSetting('haptics', true); }
+  await goto('#/settings'); await goto('#/settings/estudo'); assert.equal($('#shaptics'), null, 'sem vibração no aparelho, a opção não aparece');
+});
+
 test('Ajustes: modelo da voz natural lista os candidatos e salva a escolha', async () => {
   S.resetAll(); await goto('#/history'); await goto('#/settings/voz');
   const opcoes = $$('#sttsm option').map((o) => o.value); assert.deepEqual(opcoes, ['auto', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts']);

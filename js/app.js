@@ -30,6 +30,7 @@ async function route() {
   }
   runCleanup();
   stopSpeaking();
+  $app.classList.remove('entra'); void $app.offsetWidth; $app.classList.add('entra'); // a tela nova aparece suave (só opacidade: nada com transform, que deslocaria os elementos fixos)
   const [, page, arg, arg2] = (location.hash || '#/').slice(1).split('/');
   marcarAba(page);
   $app.scrollTo?.(0, 0); window.scrollTo(0, 0);

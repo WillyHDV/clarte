@@ -13,6 +13,10 @@ let cleanup = null;
 export const setCleanup = (fn) => { cleanup = fn; };
 export function runCleanup() { if (cleanup) { try { cleanup(); } catch (e) { /* ignore */ } cleanup = null; } }
 
+// vibração curta ao responder e ao terminar (só onde o aparelho tem; no app Android depende da permissão VIBRATE da casca; desligável em Ajustes)
+const VIBRA = { toque: 10, good: 18, almost: [20, 40, 20], bad: [40, 50, 40], fim: [30, 50, 30, 50, 70] };
+export function haptico(tipo) { try { const v = VIBRA[tipo]; if (v && st().settings.haptics !== false && navigator.vibrate) navigator.vibrate(v); } catch (e) { /* sem vibração */ } }
+
 // baixa um arquivo gerado no aparelho (backup do progresso, lembretes de calendário)
 export function download(name, content, type) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name;

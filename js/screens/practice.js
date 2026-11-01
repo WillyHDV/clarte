@@ -4,7 +4,7 @@ import { buildSession, check, shuffle, skillsFor } from '../exercises.js';
 import { listen, dictate, browserRec, canTalk, canRecord, prefetch } from '../speech.js';
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
-import { $app, st, rate, speak, setCleanup } from '../core.js';
+import { $app, st, rate, speak, setCleanup, haptico } from '../core.js';
 import { strengthOf, readiness, unitMastery, STEPS, nextStep, planDone, markFocus } from '../progress.js';
 
 // ---------- prática ----------
@@ -59,6 +59,7 @@ export function practice(id, stepId) {
     const again = cfg ? `#/step/${id}/${cfg.id}` : `#/practice/${id}`;
     const pontos = correct * 10 + (correct === attempted ? 20 : 0); const depois = avgPct();
     const medalha = pct >= 80 ? ['trophy', 'ok'] : pct >= 50 ? ['star', 'meio'] : ['flame', 'baixo'];
+    haptico(pct >= 80 ? 'fim' : 'toque');
     $app.innerHTML = `
       <div class="end">
         <div class="medalha ${medalha[1]}">${I(medalha[0])}</div>
@@ -195,6 +196,7 @@ export function practice(id, stepId) {
     if (ex.kind === 'match' && !r.ok) extra = `<div class="words">${ex.pairs.map((p, n) => `<span class="${r.wrong.includes(n) ? 'r' : 'g'}">${esc(p.l)} = ${esc(p.r)}</span>`).join(' · ')}</div>`;
     const title = skip ? 'Pulado' : r.ok ? (r.almost ? 'Quase! Atenção aos acentos' : ['Très bien !', 'Parfait !', 'Excellent !', 'Bravo !'][Math.floor(Math.random() * 4)]) : (ex.kind === 'speak' ? 'Tente pronunciar de novo' : ex.kind === 'match' ? 'Confira os pares (em vermelho, os que você errou):' : 'Resposta correta:');
     const estado = skip ? 'neutral' : r.ok && !r.almost ? 'good' : r.ok ? 'almost' : 'bad';
+    haptico(estado);
     fb.className = `fb show ${estado}`; document.getElementById('dock').className = `dock ${estado}`; document.body.classList.add('com-fb');
     fb.innerHTML = `<div class="fbt"><span class="fbi">${I(estado === 'good' ? 'check' : estado === 'bad' ? 'x' : estado === 'almost' ? 'alert-circle' : 'player-skip-forward')}</span><b>${title}</b></div>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio ? `<button class="say" data-say="${esc(ex.audio)}">${I('volume')} Ouvir</button>` : ''}`;
     ok.disabled = false; ok.textContent = 'Continuar'; ok.classList.toggle('bad', !r.ok && !skip);
