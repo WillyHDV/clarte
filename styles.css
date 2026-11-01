@@ -471,6 +471,17 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .avatares { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: var(--s3); }
 .avatares button { display: grid; justify-items: center; gap: 4px; padding: var(--s2) 0; background: none; border: 2px solid transparent; border-radius: var(--r-sm); font-size: var(--fs-xs); min-height: var(--tap); color: var(--ink); }
 .avatares button.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.estado { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) var(--s4); border-radius: var(--r); margin-bottom: var(--s4); line-height: 1.35; }
+.estado > svg.i { width: 24px; height: 24px; flex: none; margin-top: 1px; }
+.estado > div { display: grid; gap: 2px; min-width: 0; }
+.estado small { font-size: var(--fs-sm); }
+.estado.ok { background: var(--good-bg); color: var(--good); } .estado.aviso { background: var(--warn-bg); color: var(--warn); } .estado.erro { background: var(--bad-bg); color: var(--bad); }
+.estado.info { background: var(--card); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.opcao { display: flex; align-items: center; gap: var(--s3); min-height: 56px; margin: 0; padding: var(--s3) var(--s4); border-top: 1px solid var(--line); font-weight: 400; cursor: pointer; }
+.grupo > .opcao:first-child { border-top: 0; }
+.grupo.sem-borda { border: 0; box-shadow: none; background: none; border-radius: 0; margin-bottom: var(--s2); }
+.grupo.sem-borda > .opcao { padding-left: 0; padding-right: 0; }
+.spc { height: var(--s4); }
 .voltar { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); padding: 0; background: none; border: 0; color: var(--brand-text); font-weight: 700; }
 
 /* ====== Trilha (caminho) e Unidade (abas, aula em cartões, frases) ====== */
@@ -509,7 +520,7 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 
 .abas { display: flex; gap: var(--s1); padding: var(--s1); border-radius: 16px; background: color-mix(in srgb, var(--ink) 8%, transparent); margin-bottom: var(--s4); }
 .abas button { flex: 1; min-height: 44px; border: 0; border-radius: 12px; background: none; font-weight: 700; color: var(--muted); }
-.abas button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 6px rgba(20, 24, 40, .15); }
+.abas button[aria-selected="true"], .abas button[aria-checked="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 6px rgba(20, 24, 40, .15); }
 .apphead .back { flex: none; }
 .apphead .dom { font-weight: 800; font-size: var(--fs-sm); color: var(--brand-text); background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; }
 .dominio { margin-bottom: var(--s4); } .dominio .mrow { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--s2); }

@@ -21,7 +21,7 @@ export function perfilPage() {
     <div class="grupo">
       ${linha({ icone: 'chart-line', titulo: 'Minha evolução', resumo: 'Gráficos e prontidão', go: '#/history' })}
       ${linha({ icone: 'adjustments', titulo: 'Ajustes', resumo: 'Clara, voz, estudo e dados', go: '#/settings' })}
-      ${linha({ icone: 'shield-check', titulo: 'Backup e dados', resumo: backup, go: '#/settings' })}
+      ${linha({ icone: 'shield-check', titulo: 'Backup e dados', resumo: backup, go: '#/settings/dados' })}
     </div>
     <h3>Avatar</h3>
     <div class="avatares" role="radiogroup" aria-label="Avatar">

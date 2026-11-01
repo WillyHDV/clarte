@@ -26,7 +26,7 @@ const PLUGINS = ['Filesystem', 'Share', 'LocalNotifications', 'TextToSpeech'];
 const $ = (sel) => document.querySelector(sel);
 const tick = (ms = 25) => new Promise((r) => setTimeout(r, ms));
 async function goto(hash) { w.location.hash = hash; await tick(60); }
-async function abrirAjustes() { await goto('#/'); await goto('#/settings'); await tick(40); }
+async function abrirAjustes(sub = 'estudo') { await goto('#/'); await goto('#/settings/' + sub); await tick(40); }
 const mudar = (el, valor) => { if (typeof valor === 'boolean') el.checked = valor; else el.value = valor; el.dispatchEvent(new w.Event('change')); };
 
 let S; let R; let cap;
@@ -77,16 +77,16 @@ test('no site (sem app Android) o bloco não existe', async () => {
 });
 
 test('Ajustes → Voz no app: mostra a voz francesa do Android, instala/atualiza e testa pelo plugin', async () => {
-  const V = await import('../js/speech.js'); novo(); await V.recheckNativeVoice(); await abrirAjustes();
-  assert.match($('#vstatus').textContent, /Voz francesa do aparelho: fr-fr-x-vlf-local/); assert.ok($('#sinstvoz')); assert.ok($('#stestapar'));
+  const V = await import('../js/speech.js'); novo(); await V.recheckNativeVoice(); await abrirAjustes('voz');
+  assert.match($('#vstatus').textContent, /Voz francesa do aparelho.*fr-fr-x-vlf-local/); assert.ok($('#sinstvoz')); assert.ok($('#stestapar'));
   $('#sinstvoz').click(); await tick(40); assert.equal(cap.voz.instalou, 1, 'abriu a instalação de voz do Android');
 });
 
 test('Ajustes → Voz: sem voz francesa, orienta a instalar; com o limite do Gemini em pausa, explica quando volta', async () => {
   const V = await import('../js/speech.js'); novo({ tts: { suportado: false, vozes: [] } }); await V.recheckNativeVoice(); S.setKey('gemini', 'k'); V.limparPausa();
-  await abrirAjustes(); assert.match($('#vstatus').textContent, /não tem voz francesa.*Instalar ou atualizar a voz francesa/);
+  await abrirAjustes('voz'); assert.match($('#vstatus').textContent, /não tem voz francesa.*Instalar ou atualizar a voz francesa/);
   localStorage.setItem('fr_tts_pausa', JSON.stringify({ ate: Date.now() + 3600000, motivo: 'dia', detalhe: 'limite 10 (gemini-3.8-flash-tts)' }));
-  await goto('#/'); await goto('#/settings'); await tick(40);
+  await goto('#/'); await goto('#/settings/voz'); await tick(40);
   const t = $('#vstatus').textContent;
   assert.match(t, /em pausa/); assert.ok(t.includes('limite 10 (gemini-3.8-flash-tts)')); assert.match(t, /meia-noite do horário do Pacífico/); V.limparPausa();
 });

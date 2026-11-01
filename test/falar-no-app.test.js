@@ -103,6 +103,6 @@ test('chamada: sem frases prontas, esfera ao lado da fala, histórico em bolhas 
 });
 
 test('Ajustes: o tamanho do texto da ligação é salvo (padrão: médio)', async () => {
-  S.setSetting('callText', 'm'); await goto('#/'); await goto('#/settings');
+  S.setSetting('callText', 'm'); await goto('#/'); await goto('#/settings/voz');
   assert.equal($('#sctext').value, 'm'); $('#sctext').value = 'p'; $('#sctext').dispatchEvent(new w.Event('change')); assert.equal(S.get().settings.callText, 'p');
 });

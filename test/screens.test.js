@@ -155,12 +155,16 @@ test('Clara mostra o erro em português quando a IA falha', async () => {
   } finally { globalThis.fetch = realFetch; }
 });
 
-test('ajustes: seções, exportar backup e apagar progresso', async () => {
+test('ajustes: lista de seções, subtelas, exportar backup e apagar progresso', async () => {
   await goto('#/settings');
   const t = text();
-  for (const s of ['Seus dados', 'Diagnóstico', 'Sobre']) assert.ok(t.includes(s), `seção ausente: ${s}`);
-  assert.ok(t.includes(`v${(await import('../js/version.js')).VERSION}`), 'versão visível');
+  for (const s of ['Professora Clara', 'Voz', 'Estudo', 'Avaliações', 'Seus dados', 'Sobre']) assert.ok(t.includes(s), `seção ausente: ${s}`);
+  assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['ia', 'voz', 'estudo', 'avaliacoes', 'dados', 'sobre'].map((x) => `#/settings/${x}`));
+  assert.equal($('.apphead .back').dataset.go, '#/perfil', 'a lista volta ao Perfil');
   noBroken('ajustes');
+  for (const sub of ['ia', 'voz', 'estudo', 'avaliacoes', 'dados', 'sobre']) { await goto(`#/settings/${sub}`); assert.equal($('.apphead .back').dataset.go, '#/settings', `${sub} volta para a lista`); assert.ok($('.estado, .opcao, .card'), `${sub} abriu`); noBroken(`ajustes/${sub}`); }
+  await goto('#/settings/sobre'); assert.ok(text().includes(`v${(await import('../js/version.js')).VERSION}`), 'versão visível'); assert.ok(text().includes('Diagnóstico'));
+  await goto('#/settings/dados');
   $('#sexport').click(); await tick();
   assert.match($('#sbk').textContent, /Backup salvo/);
   assert.ok(S.get().lastBackup, 'registra a data do backup');
@@ -207,12 +211,12 @@ test('a Trilha segue a próxima avaliação e Praticar põe a reta final em evid
 });
 
 test('Ajustes: mudar a data de uma avaliação muda a contagem; vazio e "voltar" restauram', async () => {
-  await goto('#/settings');
+  await goto('#/settings/avaliacoes');
   assert.deepEqual($$('[data-eval]').map((i) => i.value), ['2026-11-04', '2026-12-02']);
   const eval1 = $('[data-eval="eval1"]'); eval1.value = '2026-11-10'; eval1.dispatchEvent(new w.Event('change')); await tick();
   assert.equal(S.get().settings.evalDates.eval1, '2026-11-10');
   assert.match(await inicioEm(DIA(11, 1)), /Évaluation 1 em 9 dias \(10\/11\)/);
-  await goto('#/settings'); const again = $('[data-eval="eval1"]'); again.value = ''; again.dispatchEvent(new w.Event('change')); await tick();
+  await goto('#/settings/avaliacoes'); const again = $('[data-eval="eval1"]'); again.value = ''; again.dispatchEvent(new w.Event('change')); await tick();
   assert.deepEqual(S.get().settings.evalDates, {}, 'data vazia volta à data do curso');
   $('[data-eval="eval2"]').value = '2026-12-09'; $('[data-eval="eval2"]').dispatchEvent(new w.Event('change')); await tick();
   $('#sevreset').click(); await tick();
@@ -343,7 +347,7 @@ test('pares: perfeito conta como acerto e a sessão continua normalmente', async
 
 // ---- Privacidade e créditos, lembretes de calendário ----
 test('Privacidade e créditos: seções, link de Ajustes e volta', async () => {
-  await goto('#/settings'); $('[data-go="#/about"]').click(); await tick();
+  await goto('#/settings/sobre'); $('[data-go="#/about"]').click(); await tick();
   assert.match(w.location.hash, /#\/about/);
   for (const h of ['O que fica só no seu aparelho', 'O que sai do aparelho', 'Proteja a sua chave', 'Conteúdo e créditos']) assert.ok(text().includes(h), `seção ausente: ${h}`);
   assert.match(text(), /Google Gemini, Groq ou Mistral/); assert.match(text(), /Français basique 1 \(v1\)/); assert.match(text(), /sem vínculo oficial/);
@@ -355,7 +359,7 @@ test('Ajustes: lembretes no calendário baixam só as avaliações futuras', asy
   const baixados = []; const proto = w.HTMLAnchorElement.prototype; const click0 = proto.click; const criar0 = URL.createObjectURL;
   let ultimo = null; URL.createObjectURL = (b) => { ultimo = b; return 'blob:teste'; }; proto.click = function () { baixados.push({ nome: this.download, blob: ultimo }); };
   try {
-    const gerar = async (data) => { mock.timers.setTime(data.getTime()); await goto('#/history'); await goto('#/settings'); baixados.length = 0; $('#sics').click(); await tick(); return baixados[0]; };
+    const gerar = async (data) => { mock.timers.setTime(data.getTime()); await goto('#/history'); await goto('#/settings/avaliacoes'); baixados.length = 0; $('#sics').click(); await tick(); return baixados[0]; };
     let d = await gerar(DIA(11, 1)); assert.equal(d.nome, 'clarte-avaliacoes.ics'); let t = await d.blob.text();
     assert.equal(d.blob.type, 'text/calendar'); assert.match(t, /SUMMARY:Évaluation 1 \(prova oral\)/); assert.match(t, /SUMMARY:Évaluation 2 \(prova oral\)/); assert.match(t, /DTSTART;VALUE=DATE:20261204|DTSTART;VALUE=DATE:20261202/);
     d = await gerar(DIA(11, 5)); t = await d.blob.text(); assert.doesNotMatch(t, /Évaluation 1/); assert.match(t, /Évaluation 2/);
@@ -395,11 +399,11 @@ test('Diagnóstico → Comparar vozes sem chave pede a chave, sem fazer pedidos'
 });
 
 test('Ajustes: modelo da voz natural lista os candidatos e salva a escolha', async () => {
-  S.resetAll(); await goto('#/history'); await goto('#/settings');
+  S.resetAll(); await goto('#/history'); await goto('#/settings/voz');
   const opcoes = $$('#sttsm option').map((o) => o.value); assert.deepEqual(opcoes, ['auto', 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts']);
   assert.equal($('#sttsm').value, 'auto');
   $('#sttsm').value = 'gemini-3.8-flash-lite-tts'; $('#sttsm').dispatchEvent(new w.Event('change')); await tick(); assert.equal(S.get().settings.ttsModel, 'gemini-3.8-flash-lite-tts');
-  await goto('#/history'); await goto('#/settings'); assert.equal($('#sttsm').value, 'gemini-3.8-flash-lite-tts', 'a escolha volta marcada ao reabrir');
+  await goto('#/history'); await goto('#/settings/voz'); assert.equal($('#sttsm').value, 'gemini-3.8-flash-lite-tts', 'a escolha volta marcada ao reabrir');
   S.setSetting('ttsModel', 'auto');
 });
 
@@ -438,13 +442,13 @@ test('Compartilhar backup: abre o compartilhamento do celular com o arquivo e an
   const nav = w.navigator; let dado = null;
   nav.canShare = (d) => !!(d && d.files && d.files.length); nav.share = async (d) => { dado = d; };
   try {
-    await goto('#/history'); await goto('#/settings'); $('#sshare').click(); await tick(30);
+    await goto('#/history'); await goto('#/settings/dados'); $('#sshare').click(); await tick(30);
     assert.equal(dado.files.length, 1); assert.match(dado.files[0].name, /^clarte-progresso-\d{4}-\d{2}-\d{2}\.json$/); assert.equal(dado.files[0].type, 'application/json');
     const obj = JSON.parse(await dado.files[0].text()); assert.equal(obj.app, 'clarte'); assert.equal(obj.schema, S.SCHEMA); assert.equal(obj.state.xp, 150);
     assert.deepEqual(obj.state.settings.keys, {}, 'a chave não vai sem pedir');
     assert.ok(S.get().lastBackup, 'data anotada depois do envio'); assert.match($('#sbk').textContent, /Backup compartilhado agora/);
     // com a caixa marcada, a chave vai junto
-    S.get().lastBackup = ''; await goto('#/history'); await goto('#/settings'); $('#sbkkeys').checked = true; $('#sshare').click(); await tick(30);
+    S.get().lastBackup = ''; await goto('#/history'); await goto('#/settings/dados'); $('#sbkkeys').checked = true; $('#sshare').click(); await tick(30);
     assert.equal(JSON.parse(await dado.files[0].text()).state.settings.keys.gemini, 'AIzaSEGREDO');
   } finally { delete nav.canShare; delete nav.share; S.setKey('gemini', ''); }
 });
@@ -455,7 +459,7 @@ test('Compartilhar backup cancelado não anota a data; sem suporte, baixa o arqu
   const proto = w.HTMLAnchorElement.prototype; const click0 = proto.click; const criar0 = URL.createObjectURL; const baixados = []; let ultimo = null;
   URL.createObjectURL = (b) => { ultimo = b; return 'blob:t'; }; proto.click = function () { baixados.push({ nome: this.download, blob: ultimo }); };
   try {
-    await goto('#/history'); await goto('#/settings'); $('#sshare').click(); await tick(30);
+    await goto('#/history'); await goto('#/settings/dados'); $('#sshare').click(); await tick(30);
     assert.equal(S.get().lastBackup, '', 'cancelar não conta como backup'); assert.equal(baixados.length, 0); assert.match([...document.querySelectorAll('[role="status"]')].at(-1).textContent, /cancelado/);
     // aparelho sem compartilhamento de arquivos: cai para o download
     nav.canShare = () => false; $('#sshare').click(); await tick(30);
@@ -465,7 +469,7 @@ test('Compartilhar backup cancelado não anota a data; sem suporte, baixa o arqu
 });
 
 test('os avisos de dados deixam claro que reinstalar ou limpar o navegador apaga o progresso', async () => {
-  await goto('#/history'); await goto('#/settings'); assert.match(text(), /desinstalar o app ou limpar os dados do navegador, ele some/);
+  await goto('#/history'); await goto('#/settings/dados'); assert.match(text(), /desinstalar o app ou limpar os dados do navegador, ele some/);
   await goto('#/about'); assert.match(text(), /Desinstalar o app ou limpar os dados do navegador apaga o seu progresso/);
 });
 
@@ -519,7 +523,7 @@ test('Praticar: Reforço em destaque, contador na barra e os outros treinos numa
 test('Perfil: dados, atalhos para Evolução e Ajustes, e troca de avatar que aparece na Trilha', async () => {
   S.setSetting('avatar', 'initial'); await goto('#/perfil');
   assert.match($('.perfil-topo').textContent, /Willy/); assert.equal($$('[data-av]').length, 9); assert.equal($('[data-av].on').dataset.av, 'initial');
-  assert.match($('.stats3').textContent, new RegExp(`${S.get().xp}`)); assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/history', '#/settings', '#/settings']);
+  assert.match($('.stats3').textContent, new RegExp(`${S.get().xp}`)); assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/history', '#/settings', '#/settings/dados']);
   $('[data-av="leaf"]').click(); await tick();
   assert.equal(S.get().settings.avatar, 'leaf'); assert.equal($('[data-av].on').dataset.av, 'leaf'); assert.ok($('.perfil-topo .avatar svg.i'), 'o desenho aparece no perfil');
   await goto('#/'); assert.ok($('.apphead .avatar-btn .avatar svg.i'), 'e no cabeçalho da Trilha'); assert.match($('.apphead .hello').textContent, /Salut, Willy/);

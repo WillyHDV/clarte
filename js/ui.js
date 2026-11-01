@@ -40,3 +40,7 @@ export const linha = ({ icone, titulo, resumo = '', valor = '', go = '', id = ''
   const tag = go || id ? 'button' : 'div';
   return `<${tag} class="linha" ${go ? `data-go="${esc(go)}"` : ''} ${id ? `id="${esc(id)}"` : ''}>${icone ? `<span class="linha-i">${I(icone)}</span>` : ''}<span class="linha-t"><b>${esc(titulo)}</b>${resumo ? `<small>${esc(resumo)}</small>` : ''}</span>${valor ? `<span class="linha-v">${esc(valor)}</span>` : ''}${chevron && (go || id) ? I('chevron-right') : ''}</${tag}>`;
 };
+// Cartão de estado em linguagem simples, no topo de uma subtela. tipo: ok | aviso | erro | info. `titulo` e `texto` já chegam como HTML seguro.
+export const estado = (tipo, icone, titulo, texto = '') => `<div class="estado ${tipo}">${I(icone)}<div><b>${titulo}</b>${texto ? `<small>${texto}</small>` : ''}</div></div>`;
+// Linha com interruptor (um checkbox por baixo, então id, checked e change funcionam como sempre)
+export const opcao = ({ id, titulo, resumo = '', marcado = false }) => `<label class="opcao"><span class="linha-t"><b>${esc(titulo)}</b>${resumo ? `<small>${esc(resumo)}</small>` : ''}</span><span class="switch"><input type="checkbox" id="${esc(id)}" ${marcado ? 'checked' : ''}><span></span></span></label>`;

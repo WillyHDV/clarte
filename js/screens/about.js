@@ -7,7 +7,7 @@ import { PACK } from '../data.js';
 
 export function aboutPage() {
   $app.innerHTML = `
-    <header class="top"><button class="back" data-go="#/settings" aria-label="Voltar">${I('back')}</button><h1>Privacidade e créditos</h1></header>
+    <header class="top"><button class="back" data-go="#/settings/sobre" aria-label="Voltar">${I('back')}</button><h1>Privacidade e créditos</h1></header>
     <section class="card about"><h3>O que fica só no seu aparelho</h3>
       <ul>
         <li>Seu progresso, histórico, erros para revisão, conversas com a Clara e as configurações.</li>

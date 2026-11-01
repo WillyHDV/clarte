@@ -64,7 +64,7 @@ test('sem backup ou com backup menor que o do app, não há oferta', async () =>
 
 test('Ajustes mostra o backup automático; "Fazer agora" avisa antes de trocar um backup maior', async () => {
   S.resetAll(); S.addXp(20); mock.timers.tick(60000); guardar(300, new Date(2026, 9, 31, 21).toISOString());
-  await goto('#/'); await goto('#/settings');
+  await goto('#/'); await goto('#/settings/dados');
   assert.ok($('#sautoon').checked); assert.match($('#sautost').textContent, /Ainda sem backup automático/); assert.ok($('#sautonow')); assert.ok($('#sautorest'));
   confirmou = false; $('#sautonow').click(); await tick(60);
   assert.match(perguntas.at(-1), /Já existe um backup com mais pontos \(300\)/); assert.equal(JSON.parse(cap.arquivos.get(ARQ)).state.xp, 300, 'cancelou: backup intacto');
@@ -75,13 +75,13 @@ test('Ajustes mostra o backup automático; "Fazer agora" avisa antes de trocar u
 
 test('restaurar pelo botão de Ajustes e mensagem clara quando o Android não deixa ler', async () => {
   S.resetAll(); mock.timers.tick(60000); guardar(150, new Date(2026, 9, 31, 22).toISOString());
-  await goto('#/'); await goto('#/settings'); confirmou = true; $('#sautorest').click(); await tick(80);
+  await goto('#/'); await goto('#/settings/dados'); confirmou = true; $('#sautorest').click(); await tick(80);
   assert.equal(S.get().xp, 150);
-  cap.arquivos.clear(); await goto('#/'); await goto('#/settings'); $('#sautorest').click(); await tick(60);
+  cap.arquivos.clear(); await goto('#/'); await goto('#/settings/dados'); $('#sautorest').click(); await tick(60);
   assert.match(document.body.textContent, /Não consegui ler um backup automático/);
 });
 
 test('no site (sem app Android) o bloco de backup automático não existe', async () => {
   const guarda = globalThis.Capacitor; delete globalThis.Capacitor;
-  try { await goto('#/'); await goto('#/settings'); assert.equal($('#sautoon'), null); assert.equal($('#restore'), null); } finally { globalThis.Capacitor = guarda; }
+  try { await goto('#/'); await goto('#/settings/dados'); assert.ok($('#sshare'), 'a tela de dados abriu'); assert.equal($('#sautoon'), null); assert.equal($('#restore'), null); } finally { globalThis.Capacitor = guarda; }
 });

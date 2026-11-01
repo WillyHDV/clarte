@@ -38,7 +38,7 @@ async function route() {
   if (page === 'practice') return practice(arg);
   if (page === 'step') return practice(arg, arg2);
   if (page === 'tutor') return openTutor(arg);
-  if (page === 'settings') return settingsPage();
+  if (page === 'settings') return settingsPage(arg);
   if (page === 'praticar') return praticar();
   if (page === 'perfil') return perfilPage();
   if (page === 'history') return historyPage();

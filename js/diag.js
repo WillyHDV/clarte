@@ -10,7 +10,7 @@ import { esc, I, toast } from './ui.js';
 
 export function diagHtml() {
   return `
-  <header class="top"><button class="back" data-go="#/settings" aria-label="Voltar">${I('back')}</button><h1>Diagnóstico do aparelho</h1></header>
+  <header class="top"><button class="back" data-go="#/settings/sobre" aria-label="Voltar">${I('back')}</button><h1>Diagnóstico do aparelho</h1></header>
   <section class="card"><p class="pt">Rode os testes um por um e, se algo falhar, copie o relatório e me envie. Os testes de voz, transcrição e IA usam sua chave gratuita (1 pedido cada).</p>
     <div class="diag-btns">
       <button class="btn" data-t="voz">${I('volume')} Testar a voz</button>
