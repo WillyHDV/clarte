@@ -4,8 +4,8 @@ import * as V from '../speech.js';
 import { stopSpeaking, listen, dictate, browserRec, canTalk, canRecord } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
-import { esc, I, toast } from '../ui.js';
-import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats } from '../core.js';
+import { esc, I, toast, linha } from '../ui.js';
+import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats, go } from '../core.js';
 import { readiness, CRITERIA, planDone } from '../progress.js';
 import { ACC } from './practice.js';
 import * as SC from '../scenarios.js';
@@ -28,16 +28,24 @@ function recordExam(text) {
   S.addExam({ score: +m[1].replace(',', '.'), crit });
 }
 let tutorMode = 'free';
+let tutorView = 'hub'; // hub (entrada em lista), chat (free, exam, duvidas) ou cenarios
 let scRun = null; // missão (cenário) em andamento: { def, nivel, done:Set, turns }
+const nota = (v) => String(v).replace('.', ',');
+const CHAT_TITULOS = { free: ['Conversa por texto', 'Escreva em francês'], exam: ['Prova oral', 'Simulação da avaliação'], duvidas: ['Dúvidas em português', 'Pergunte à vontade'] };
 
-export function openTutor(arg) { if (arg === 'exam' || arg === 'free' || arg === 'cenarios') tutorMode = arg; return tutorPage(); }
+// o que fazer ao encerrar uma ligação: nada (o usuário já está saindo da tela), ir ao chat mostrar o resumo ou redesenhar a tela atual
+export const destinoFimLigacao = ({ saindo, resumo, daCentral }) => (saindo ? 'nada' : resumo && daCentral ? 'chat' : 'redesenhar');
+
+export function openTutor(arg) {
+  if (arg === 'free' || arg === 'exam' || arg === 'duvidas') { tutorMode = arg; tutorView = 'chat'; } else if (arg === 'cenarios') tutorView = 'cenarios'; else tutorView = 'hub';
+  return tutorPage();
+}
 
 async function tutorPage() {
-  const chats = loadChats(); let busy = false; let ctrl = null; let rec = null; let callEnd = null;
-  const labels = { free: '💬 Conversa', exam: '🎓 Prova', cenarios: '🎭 Cenários', duvidas: '❓ Dúvidas' };
+  const chats = loadChats(); let busy = false; let ctrl = null; let rec = null; let callEnd = null; let leaving = false;
   if (!cur().key) {
     const c = cur();
-    $app.innerHTML = `<header class="top"><h1>👩‍🏫 Professora Clara</h1></header>
+    $app.innerHTML = `<header class="apphead"><div class="hello"><b>Clara</b><small>Sua professora de francês</small></div></header>
       <div class="card"><p>A professora Clara usa uma IA com <b>plano gratuito, sem cartão</b>. Você só precisa de uma chave (um código), que fica salva só neste aparelho.</p>
       <label>Provedor<select id="prov" class="inp">${provOptions(c.p)}</select></label>
       <p id="how" class="pt">${esc(c.def.how)}</p>
@@ -54,33 +62,32 @@ async function tutorPage() {
 
   function drawMsg(m) {
     const [fr, corr] = m.role === 'assistant' ? split(m.content) : [m.content, ''];
-    return `<div class="msg ${m.role}"><div class="bub">${md(fr)}${m.role === 'assistant' && speakable(m.content) ? `<button class="say sm" data-say="${esc(fr)}">🔊</button>` : ''}</div>${corr ? `<div class="corr">${md(corr)}</div>` : ''}</div>`;
+    return `<div class="msg ${m.role}"><div class="bub">${md(fr)}${m.role === 'assistant' && speakable(m.content) ? `<button class="say sm" data-say="${esc(fr)}" aria-label="Ouvir">${I('volume')}</button>` : ''}</div>${corr ? `<div class="corr">${md(corr)}</div>` : ''}</div>`;
   }
   function sumCard(msgs) {
     const x = chats.sum; if (!x || x.mode !== tutorMode || x.n !== msgs.length) return '';
-    const rep = x.repeats.length ? `<p>Frases que você repetiu: ${x.repeats.map((r) => `<span>${r.ok ? '✅' : '🔁'} ${esc(r.t)}</span>`).join(' · ')}</p>${x.repeats.some((r) => !r.ok) ? '<small>As frases com 🔁 foram para o Reforço, para você repetir de novo depois.</small>' : ''}` : '';
+    const rep = x.repeats.length ? `<p>Frases que você repetiu: ${x.repeats.map((r) => `<span class="rep ${r.ok ? 'ok' : ''}">${I(r.ok ? 'check' : 'repeat')} ${esc(r.t)}</span>`).join(' · ')}</p>${x.repeats.some((r) => !r.ok) ? '<small>As frases marcadas com a seta circular foram para o Reforço, para você repetir de novo depois.</small>' : ''}` : '';
     const notes = x.notes.length ? `<small>Correções da Clara:</small><ul>${x.notes.map((n) => `<li>${md(n)}</li>`).join('')}</ul>` : '<small>A Clara não precisou corrigir nada. Muito bem!</small>';
     return `<div class="card sumcard"><h3>Resumo da ligação</h3><p>Você falou <b>${x.turns} ${x.turns > 1 ? 'vezes' : 'vez'}</b>.</p>${rep}${notes}</div>`;
   }
   function draw() {
-    if (tutorMode === 'cenarios') return drawScenarios();
-    const msgs = getMsgs();
+    if (tutorView === 'hub') return drawHub();
+    if (tutorView === 'cenarios') return drawScenarios();
+    const msgs = getMsgs(); const [titulo, sub] = CHAT_TITULOS[tutorMode];
     $app.innerHTML = `
-      <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1><button class="icon" id="newc" title="Nova conversa" aria-label="Nova conversa">${I('trash')}</button></header>
-      <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${tutorMode !== 'duvidas' ? (canTalk() ? `<button class="btn primary wide callbtn" id="callbtn">${I('phone')} Conversar por voz com a Clara</button>` : `<div class="pt">${canRecord ? 'Para conversar por voz neste aparelho, coloque uma chave do Gemini (ou do Groq) em Ajustes.' : 'A conversa por voz precisa do Chrome (ou Edge).'}</div>`) : ''}
+      <header class="apphead"><button class="back" data-go="#/tutor" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>${titulo}</b><small>${sub}</small></div>${tutorMode !== 'duvidas' && canTalk() ? `<button class="icon" id="callbtn" aria-label="Ligar para a Clara">${I('phone')}</button>` : ''}<button class="icon" id="newc" title="Nova conversa" aria-label="Nova conversa">${I('trash')}</button></header>
+      ${tutorMode !== 'duvidas' && !canTalk() ? `<div class="pt">${canRecord ? 'Para conversar por voz neste aparelho, coloque uma chave do Gemini (ou do Groq) em Ajustes.' : 'A conversa por voz precisa do Chrome (ou Edge).'}</div>` : ''}
       <div class="chat" id="chat">${msgs.filter((m) => !m.hidden).map(drawMsg).join('')}${sumCard(msgs)}${tutorMode === 'exam' && !msgs.length ? `<div class="card center"><p>Simulação da <b>avaliação oral</b>: a professora Clara faz perguntas por voz ou texto, sem corrigir durante a prova. No fim, você recebe a nota nos 6 critérios.</p><button class="btn primary" id="startexam">Começar a prova</button></div>` : ''}</div>
       <div class="composer ${tutorMode === 'exam' && !msgs.length ? 'hide' : ''}">
         ${tutorMode === 'exam' && msgs.length ? '<button class="btn warn sm" id="endexam">Terminar e avaliar</button>' : ''}
         <div class="inrow">
-          ${canTalk() ? '<button class="micb" id="tmic">🎤</button>' : ''}
+          ${canTalk() ? `<button class="micb" id="tmic" aria-label="Falar">${I('mic')}</button>` : ''}
           <input id="tin" class="inp" aria-label="Mensagem para a Clara" placeholder="${tutorMode === 'duvidas' ? 'Pergunte em português…' : 'Écris en français…'}" autocomplete="off" autocapitalize="off" spellcheck="false">
-          <button class="send" id="tsend">➤</button>
+          <button class="send" id="tsend" aria-label="Enviar">${I('send')}</button>
         </div>
         <div class="acentos">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>
       </div>`;
     const chat = document.getElementById('chat'); chat.scrollTop = chat.scrollHeight;
-    document.querySelectorAll('.seg [data-m]').forEach((b) => { b.onclick = () => { if (busy) return; tutorMode = b.dataset.m; ensureOpening(); draw(); }; });
     document.getElementById('newc').onclick = () => { if (busy) return; if (confirm('Apagar esta conversa?')) { chats[tutorMode] = []; saveChats(chats); ensureOpening(); draw(); } };
     const tin = document.getElementById('tin'); const send = document.getElementById('tsend');
     if (tin) {
@@ -130,13 +137,13 @@ async function tutorPage() {
       if (m.length && m[m.length - 1].role === 'user') back = m.pop().content;
       saveChats(chats); draw();
       if (back && back !== '[FIN]' && document.getElementById('tin')) document.getElementById('tin').value = back;
-      const c = document.getElementById('chat'); c.insertAdjacentHTML('beforeend', `<div class="err">⚠️ ${esc(T.friendlyError(e))}</div>`); c.scrollTop = c.scrollHeight;
+      const c = document.getElementById('chat'); c.insertAdjacentHTML('beforeend', `<div class="err">${I('alert-circle')} ${esc(T.friendlyError(e))}</div>`); c.scrollTop = c.scrollHeight;
     }
   }
   // ---------- conversa por voz: a Clara fala, você grava a resposta e toca em Enviar ----------
   function startCall(sc = null) {
     if (busy || callEnd) return;
-    const isExam = !sc && tutorMode === 'exam'; const mode = sc ? 'scenario' : isExam ? 'examVoice' : 'voice';
+    const isExam = !sc && tutorMode === 'exam'; const mode = sc ? 'scenario' : isExam ? 'examVoice' : 'voice'; const daCentral = tutorView === 'hub';
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     let alive = true; let paused = false; let phase = 'think'; let target = ''; let cr = null; let listenId = 0; let blocked = false;
     let speaker = null; let abortCtl = null; let wake = null; let evalMode = false; let hideText = false;
@@ -384,8 +391,12 @@ async function tutorPage() {
       if (wake) { try { wake.release(); } catch (e) { /* ignore */ } }
       document.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('incall'); callEnd = null; scRun = null;
       // resumo da ligação (conversa livre com pelo menos 2 falas suas); aparece no chat até a conversa continuar
-      if (!sc && !isExam && !showEval && stats.turns >= 2) chats.sum = { mode: tutorMode, n: getMsgs().length, turns: stats.turns, repeats: stats.repeats.slice(-6), notes: [...new Set(stats.notes)].slice(-4) };
-      saveChats(chats); draw(); if (showEval) toast('Avaliação pronta, no chat.');
+      const resumo = !sc && !isExam && !showEval && stats.turns >= 2;
+      if (resumo) chats.sum = { mode: tutorMode, n: getMsgs().length, turns: stats.turns, repeats: stats.repeats.slice(-6), notes: [...new Set(stats.notes)].slice(-4) };
+      saveChats(chats); const destino = destinoFimLigacao({ saindo: leaving, resumo, daCentral });
+      if (destino === 'nada') return;
+      if (destino === 'chat') { go('#/tutor/free'); return; } // o resumo aparece no topo do chat
+      draw(); if (showEval) toast('Avaliação pronta, no chat.');
     }
     callEnd = end;
     const onKey = (e) => { if (e.key === 'Escape') end(false); };
@@ -433,21 +444,41 @@ async function tutorPage() {
     })();
   }
 
+  // ---------- central da Clara: ligar e as quatro formas de estudar com ela ----------
+  const cumpridas = () => { const sc = S.get().scenarios || {}; return SCENARIOS.filter((d) => (sc[d.id] || {}).levelDone).length; };
+  function drawHub() {
+    const ex = st().exams || []; const prova = ex.length ? `Última nota ${nota(ex[ex.length - 1].score)} de 10` : 'Você ainda não fez uma simulação';
+    const chamada = canTalk() ? `<button class="btn" id="callbtn">${I('phone')} Ligar agora</button>`
+      : `<p class="exam">${canRecord ? 'Para conversar por voz neste aparelho, coloque uma chave do Gemini (ou do Groq) em Ajustes.' : 'A conversa por voz precisa do Chrome (ou Edge).'}</p>${canRecord ? '<button class="btn" data-go="#/settings/ia">Abrir Ajustes</button>' : ''}`;
+    $app.innerHTML = `
+      <header class="apphead"><div class="hello"><b>Clara</b><small>Sua professora de francês</small></div></header>
+      <section class="card continuar ligar" id="callcard" aria-labelledby="ltitulo">
+        <small class="eyebrow">Conversa por voz</small>
+        <h2 id="ltitulo">Ligar para a Clara</h2>
+        <p class="exam">Fale em francês: ela responde, corrige e pede para você repetir.</p>
+        ${chamada}
+      </section>
+      <div class="grupo">
+        ${linha({ icone: 'route', titulo: 'Cenários', resumo: `${cumpridas()} de ${SCENARIOS.length} missões cumpridas`, go: '#/tutor/cenarios' })}
+        ${linha({ icone: 'trophy', titulo: 'Prova oral', resumo: prova, go: '#/tutor/exam' })}
+        ${linha({ icone: 'message-circle', titulo: 'Conversa por texto', resumo: 'Escreva em francês, com acentos à mão', go: '#/tutor/free' })}
+        ${linha({ icone: 'help-circle', titulo: 'Dúvidas em português', resumo: 'Pergunte sobre gramática e vocabulário', go: '#/tutor/duvidas' })}
+      </div>`;
+    const cb = document.getElementById('callbtn'); if (cb) cb.onclick = () => { tutorMode = 'free'; ensureOpening(); startCall(); };
+  }
   // ---------- cenários: lista, ficha da missão e resultado ----------
   function drawScenarios() {
     const stats = S.get().scenarios || {};
     const lista = SCENARIOS.map((d) => {
       const x = stats[d.id] || {}; const total = d.objetivos.length;
-      const sel = x.levelDone ? `✅ nível ${x.levelDone}` : x.runs ? `${Math.min(x.best || 0, total)}/${total}` : 'novo';
-      return `<button class="unit" data-sc="${d.id}"><span class="ic">${d.icon}</span><span class="tx"><b>${esc(d.title)}</b><small>${esc(d.sub)}</small><small>${total} objetivos${x.runs ? ` · ${x.runs} ${x.runs > 1 ? 'tentativas' : 'tentativa'}` : ''}</small></span><span class="sc">${sel}</span></button>`;
+      const sel = x.levelDone ? `<span class="linha-v ok">${I('check')} nível ${x.levelDone}</span>` : `<span class="linha-v">${x.runs ? `${Math.min(x.best || 0, total)}/${total}` : 'novo'}</span>`;
+      return `<button class="linha" data-sc="${d.id}"><span class="linha-i emo">${d.icon}</span><span class="linha-t"><b>${esc(d.title)}</b><small>${esc(d.sub)}</small><small>${total} objetivos${x.runs ? ` · ${x.runs} ${x.runs > 1 ? 'tentativas' : 'tentativa'}` : ''}</small></span>${sel}${I('chevron-right')}</button>`;
     }).join('');
     $app.innerHTML = `
-      <header class="top"><div class="avatar-s">C</div><h1>Professora Clara</h1></header>
-      <div class="seg">${Object.entries(labels).map(([k, v]) => `<button data-m="${k}" class="${k === tutorMode ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <header class="apphead"><button class="back" data-go="#/tutor" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Cenários</b><small>${cumpridas()} de ${SCENARIOS.length} missões cumpridas</small></div></header>
       <p class="pt">Missões curtas por voz: a Clara interpreta um papel (recepcionista, colega, guia…) e você cumpre os objetivos falando. Escolha quanta ajuda quer, de frases na tela até o modo prova.</p>
       ${canTalk() ? '' : '<div class="card"><p class="pt">Para falar nos cenários, o app precisa gravar a sua voz e entender o que você diz: coloque uma chave do Gemini (ou do Groq) em Ajustes e permita o microfone.</p></div>'}
-      <div class="units">${lista}</div><div id="scsheet"></div>`;
-    document.querySelectorAll('.seg [data-m]').forEach((b) => { b.onclick = () => { if (busy) return; tutorMode = b.dataset.m; ensureOpening(); draw(); }; });
+      <div class="grupo">${lista}</div><div id="scsheet"></div>`;
     document.querySelectorAll('[data-sc]').forEach((b) => { b.onclick = () => openBriefing(SCENARIOS.find((d) => d.id === b.dataset.sc)); });
   }
   function openBriefing(d, nivelInicial) {
@@ -483,6 +514,7 @@ async function tutorPage() {
     el.querySelector('#csagain').onclick = () => { fechar(); openBriefing(d, SC.nivelSugerido(d, S.get().scenarios)); };
   }
 
-  ensureOpening(); draw();
-  setCleanup(() => { if (callEnd) callEnd(false); if (ctrl) ctrl.abort(); if (rec) rec.stop(); saveChats(chats); });
+  if (tutorView === 'chat') ensureOpening();
+  draw();
+  setCleanup(() => { leaving = true; if (callEnd) callEnd(false); if (ctrl) ctrl.abort(); if (rec) rec.stop(); saveChats(chats); });
 }

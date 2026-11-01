@@ -68,7 +68,7 @@ async function abrirMissao(id, nivel) {
 
 test('a aba Cenários lista as 8 missões e a ficha mostra situação, objetivos e os 3 níveis', async () => {
   await goto('#/tutor/cenarios');
-  assert.equal($$('.seg [data-m]').length, 4); assert.ok($('.seg [data-m="cenarios"].on'));
+  assert.equal($('.apphead .back').dataset.go, '#/tutor', 'a lista volta para a central'); assert.match($('.apphead .hello small').textContent, /\d de 8 missões cumpridas/);
   assert.equal($$('[data-sc]').length, 8); assert.match($('[data-sc="apresentacao"]').textContent, /Primeiro encontro.*5 objetivos.*novo/s);
   $('[data-sc="apresentacao"]').click(); await tick(20);
   assert.match($('.scsheet').textContent, /madame Martin/); assert.equal($$('.scobj li').length, 5); assert.equal($$('.lvl').length, 3); assert.ok($('.lvl.on input[value="1"]'), 'sugere o nível 1 na primeira vez');
@@ -107,7 +107,7 @@ test('missão completa no nível 1: frases-guia, objetivos marcados ao vivo, fim
   assert.ok(pedidosTranscricao >= 5, 'cada fala do aluno passou pela transcrição');
   const final = pedidosIA.at(-1); assert.equal(final.contents.at(-1).parts[0].text, '[FIN]', 'a avaliação foi pedida com [FIN]');
   const x = S.get().scenarios.apresentacao; assert.deepEqual([x.runs, x.best, x.levelDone, x.nivel], [1, 5, 1, 1]); assert.equal(S.get().xp, xp0 + 25 + 20, '5 objetivos × 5 + 20 da missão cumprida');
-  $('#csclose').click(); assert.equal($('.csum'), null); assert.match($('#app').textContent, /✅ nível 1/, 'a lista mostra o nível vencido');
+  $('#csclose').click(); assert.equal($('.csum'), null); assert.match($('[data-sc="apresentacao"] .linha-v.ok').textContent, /nível 1/, 'a lista mostra o nível vencido');
 });
 
 test('o botão "Terminar" encerra com resultado parcial, e a avaliação final confere o que foi marcado', async () => {

@@ -117,17 +117,21 @@ test('fim do treino mostra o ganho de domínio e volta ao início', async () => 
   $('#voltar').click(); await tick(); assert.match(w.location.hash, /#\/praticar/, 'treino inteligente volta para Praticar');
 });
 
-test('Clara sem chave pede a chave; o link de configuração salva e abre o chat', async () => {
+test('Clara sem chave pede a chave; o link de configuração salva e abre a central da Clara', async () => {
   await goto('#/tutor');
   assert.ok($('#savekey'), 'formulário de chave');
   await goto('#/setup/gemini/AIzaTESTE');
   assert.equal(S.get().settings.keys.gemini, 'AIzaTESTE');
   assert.match(w.location.hash, /^#\/tutor/, 'a chave some da barra de endereço');
+  assert.ok($('#callcard'), 'a central da Clara abre');
+  assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/tutor/cenarios', '#/tutor/exam', '#/tutor/free', '#/tutor/duvidas']);
+  await goto('#/tutor/free');
   assert.ok($('#tin'), 'campo de mensagem');
+  assert.equal($('.apphead .back').dataset.go, '#/tutor', 'o chat volta para a central');
   assert.match(text(), /Comment tu t’appelles/, 'frase de abertura da Clara');
 });
 
-test('Clara: abas, prova oral, envio de mensagem e limpar conversa', async () => {
+test('Clara: telas de conversa, prova oral, envio de mensagem e limpar conversa', async () => {
   const realFetch = globalThis.fetch; const sent = [];
   globalThis.fetch = async (url, opts) => { if (!/streamGenerateContent/.test(String(url))) return new Response('{}', { status: 500 }); /* voz (TTS) falha: o chat segue */ sent.push(JSON.parse(opts.body)); return new Response(`data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: 'Très bien, Willy ! Tu habites où ?\n---\nBoa frase.' }] } }] })}\n\n`, { status: 200 }); };
   try {
@@ -138,10 +142,10 @@ test('Clara: abas, prova oral, envio de mensagem e limpar conversa', async () =>
     assert.equal(sent[0].contents.at(-1).parts[0].text, "je m'appelle Willy");
     assert.match(sent[0].systemInstruction.parts[0].text, /MODE : conversation libre/);
     // aba da prova oral e das dúvidas
-    $('.seg [data-m="exam"]').click(); await tick(); assert.ok($('#startexam'), 'botão da prova');
-    $('.seg [data-m="duvidas"]').click(); await tick(); assert.match(text(), /Pode perguntar qualquer dúvida/);
+    await goto('#/tutor/exam'); assert.ok($('#startexam'), 'botão da prova'); assert.equal($('.apphead .back').dataset.go, '#/tutor');
+    await goto('#/tutor/duvidas'); assert.match(text(), /Pode perguntar qualquer dúvida/); assert.equal($('#callbtn'), null, 'dúvidas não tem ligação');
     // limpar conversa
-    $('.seg [data-m="free"]').click(); await tick(); $('#newc').click(); await tick();
+    await goto('#/tutor/free'); $('#newc').click(); await tick();
     assert.doesNotMatch(text(), /Très bien, Willy/);
   } finally { globalThis.fetch = realFetch; }
 });
