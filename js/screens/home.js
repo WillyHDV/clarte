@@ -38,9 +38,10 @@ function noHtml(u, idx, m, estado, cu) {
   const off = ONDA[idx % ONDA.length];
   const selo = estado === 'feita' ? `<span class="selo ok">${I('check')}</span>` : estado === 'depois' ? `<span class="selo">${I('lock')}</span>` : '';
   const tag = estado === 'atual' ? ' · você está aqui' : estado === 'feita' ? ' · concluída' : '';
-  return `<button class="passo ${estado}" data-go="#/unit/${u.id}" ${estado === 'depois' ? `data-lock="${esc(cu.title)}"` : ''} style="--off:${off}px;--p:${m.pct}" aria-label="${u.n}. ${esc(u.title)}, ${m.pct}% dominado${tag}">
+  const etiqueta = estado === 'atual' ? '<span class="etq aqui">você está aqui</span>' : estado === 'feita' ? `<span class="etq ok">${I('check')} concluída</span>` : '';
+  return `<button class="passo ${estado}" data-go="#/unit/${u.id}" ${estado === 'depois' ? `data-lock="${esc(cu.title)}"` : ''} style="--off:${off}px;--p:${m.pct};--i:${Math.min(idx, 8)}" aria-label="${u.n}. ${esc(u.title)}, ${m.pct}% dominado${tag}">
     <span class="no" aria-hidden="true"><span class="emo">${u.icon}</span>${selo}</span>
-    <span class="tx"><b>${u.n}. ${esc(u.title)}</b><small>${m.pct}% · ${m.seen}/${m.total} itens${tag}</small></span></button>`;
+    <span class="tx"><small class="uni">Unidade ${u.n}</small><b>${esc(u.title)}</b><span class="mini" aria-hidden="true"><i style="width:${m.pct}%"></i></span><small class="meta">${m.pct}% · ${m.seen}/${m.total} itens</small>${etiqueta}</span></button>`;
 }
 
 // linha pontilhada que liga os nós (medida depois de desenhar; em tela sem layout não desenha nada)
@@ -72,13 +73,12 @@ export function home() {
     <header class="apphead"><div class="hello"><small class="brand">Clarté</small><b>Salut, ${esc(S.studentName())} !</b></div><div class="stats"><span class="stat flame" title="Dias seguidos">${I('flame')} ${s.streak}</span><button class="avatar-btn" data-go="#/perfil" aria-label="Abrir o seu perfil">${avatarHtml(s.settings.avatar, S.studentName(), 40)}</button></div></header>
     ${S.backupDue() ? backupNudge(backupText()) : ''}
     <section class="card continuar" aria-labelledby="ctitulo">
-      <small class="eyebrow">Continuar de onde parou</small>
-      <h2 id="ctitulo">${titulo}</h2>
+      <div class="c-topo"><div class="c-txt"><small class="eyebrow">Continuar de onde parou</small><h2 id="ctitulo">${titulo}</h2></div>
+        <div class="meta-dia"><div class="meta-ring" role="img" aria-label="Meta de hoje: ${Math.min(s.today.n, goal)} de ${goal} exercícios" style="--p:${pct}"><b>${Math.min(s.today.n, goal)}</b><small>de ${goal}</small></div><small>meta de hoje</small></div></div>
       <p class="exam">${examTxt}</p>
-      <div class="goal"><div class="bar"><i style="width:${pct}%"></i></div><small>Meta de hoje: ${Math.min(s.today.n, goal)}/${goal} exercícios</small></div>
       <button class="btn" id="continuar" data-go="${destino}">${I('player-play')} Continuar</button>
     </section>
-    <h2 class="sec">Trilha da avaliação</h2>
+    <div class="sec-head"><h2>Trilha da avaliação</h2><span class="chip-prova">${R.per.filter(({ u }) => unitPassed(u.id)).length} de ${UNITS.length} concluídas</span></div>
     <div class="caminho" id="caminho">${R.per.map(({ u, m }, idx) => noHtml(u, idx, m, estadoDe(idx, unitPassed(u.id), cidx), cu || { title: '' })).join('')}</div>`;
   offerRestore();
   ligarNos(document.getElementById('caminho'));

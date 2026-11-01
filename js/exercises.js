@@ -21,6 +21,27 @@ const mk = (unit, kind, o) => ({ unit, kind, key: `${kind}|${o.q}|${[].concat(o.
 const lettersOf = (name) => [...new Set(name.toUpperCase().normalize('NFD').replace(/[^A-Z]/g, '').split(''))].map((c) => `letter:${c}`);
 
 // ---------- verificação ----------
+// ---------- som dos exercícios ----------
+// o áudio entrega a resposta? (a resposta, inteira ou em parte, está dentro do que ele fala; nos de ouvir e falar o áudio é o enunciado)
+const palavras = (s) => ' ' + norm(String(s)).replace(/'/g, ' ').replace(/\s+/g, ' ') + ' '; // por palavras inteiras, e j'habite conta como habite
+export const audioEntrega = (ex) => !!ex.audio && !/^(listen|speak)/.test(ex.kind) && [].concat(ex.answer).some((a) => a && palavras(ex.audio).includes(palavras(a)));
+// quando cada tipo de exercício toca som:
+//   antes        = botão Ouvir no enunciado (e, nos de ouvir, toca sozinho ao abrir)
+//   aoSelecionar = ler em voz alta a opção tocada, certa ou errada
+//   aoVerificar  = tocar a frase certa sozinho depois de Verificar
+//   botaoFinal   = botão Ouvir no painel de resposta
+// Exercícios de adivinhar (a resposta está escrita em francês e o áudio a entregaria) não têm som antes; nos de escolha o som vem das opções.
+export function politicaSom(ex) {
+  const k = ex.kind;
+  if (k === 'match') return { antes: false, aoSelecionar: false, aoVerificar: false, botaoFinal: false };
+  const entrega = audioEntrega(ex);
+  const opcoesFr = k === 'choice' && (!!ex.falaOpcoes || entrega);
+  if (opcoesFr) return { antes: false, aoSelecionar: true, aoVerificar: false, botaoFinal: false };
+  if (!ex.audio) return { antes: false, aoSelecionar: false, aoVerificar: false, botaoFinal: false };
+  if (k === 'speak') return { antes: true, aoSelecionar: false, aoVerificar: false, botaoFinal: true }; // quem acabou de falar não precisa ouvir o modelo de novo sozinho
+  return { antes: !entrega, aoSelecionar: false, aoVerificar: true, botaoFinal: true };
+}
+
 export function check(ex, input) {
   if (ex.kind === 'choice' || ex.kind === 'listen-choice') return { ok: input === ex.answer };
   if (ex.kind === 'tiles') {
@@ -231,7 +252,7 @@ function genVerbes() {
   if (t === 0 || t === 1) return mk('verbes', 'type', { items: vit, q: `Conjugue: ${blank}`, sub: hint, answer: sen.form, audio: sen.full, explain: `${sen.full} (${PRONOUNS[idx]} → ${sen.form})` });
   if (t === 2) {
     const opts = shuffle([...new Set([sen.form, ...sample(forms.filter((f) => f !== sen.form), 3)])]);
-    return mk('verbes', 'choice', { items: vit, q: `Escolha a forma certa: ${blank}`, sub: hint, options: opts, answer: sen.form, explain: sen.full });
+    return mk('verbes', 'choice', { items: vit, q: `Escolha a forma certa: ${blank}`, sub: hint, options: opts, answer: sen.form, explain: sen.full, falaOpcoes: true });
   }
   if (t === 3) {
     const clean = sen.full.replace('.', '');

@@ -42,9 +42,25 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Cartão de estado (`estado()`, `.estado`) | topo de cada subtela de Ajustes | `ok`, `aviso`, `erro` ou `info`; texto simples sobre o estado, antes de qualquer botão |
 | Cartão que abre (`.acc.evo`) | Evolução | rótulo, número principal e minigráfico (`sparkLine`, `sparkBars`) sempre à vista; o gráfico completo fica dentro |
 | Cartão do Reforço (`.reforco`) | Praticar | anel com o contador e botão branco dentro |
-| Cartão Continuar (`.continuar`) | Trilha | unidade e degrau certos, contagem da avaliação, meta do dia |
-| Caminho (`.caminho`, `.passo`) | Trilha | nós em zigue-zague (`ONDA`), anel de domínio, selo de check ou cadeado; a linha é desenhada por `ligarNos` |
+| Cartão Continuar (`.continuar`) | Trilha | unidade e degrau certos, contagem da avaliação e o anel da meta de hoje (`.meta-ring`) |
+| Caminho (`.caminho`, `.passo`) | Trilha | nós em zigue-zague (`ONDA`), anel de domínio, selo de check ou cadeado; cada unidade tem "UNIDADE N", título, barra fina de domínio (`.mini`) e etiqueta de estado (`.etq`); a linha é desenhada por `ligarNos` e o nó atual pulsa |
+| Folha que sobe (`.scsheet`) | ficha da missão (Cenários) e escolha de avatar (Perfil) | alça, conteúdo e botões largos; tocar fora fecha |
 | Abas (`.abas`) e botão fixo (`.cta-fixo`) | Unidade | abas Trilha, Aula e Frases; o botão fica acima da barra de baixo |
+
+## Som dos exercícios
+
+Quem decide é `politicaSom(ex)` em `js/exercises.js` (testada em `test/exercises.test.js` e no app em `test/lembrete-no-app.test.js`). `audioEntrega(ex)` diz se o áudio do exercício contém a resposta, por palavras inteiras.
+
+| Tipo de exercício | Botão Ouvir antes | Ao tocar numa opção | Depois de Verificar |
+| --- | --- | --- | --- |
+| Ouça e escolha / ouça e escreva | sim (é o enunciado; toca sozinho ao abrir) | não | toca a frase e mostra Ouvir |
+| Escolha com opções em francês (forma verbal, som mudo, vogal nasal, "Complete…", tu ou vous) | não | lê a opção tocada, certa ou errada | não toca e não mostra Ouvir |
+| Escolha com enunciado em francês e opções em português | sim | não | toca a frase e mostra Ouvir |
+| Escrever o que está oculto e montar a frase | não | n/a | toca a frase certa (acerto ou erro) e mostra Ouvir |
+| Diga em voz alta | sim (modelo) | n/a | só o botão Ouvir |
+| Associar pares | n/a | n/a | n/a |
+
+A leitura das opções usa a voz do aparelho quando ela é francesa (`speak(texto, { rapido: true })`): instantânea e sem gastar o limite da voz online.
 
 ## Navegação
 

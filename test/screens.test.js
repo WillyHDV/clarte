@@ -557,10 +557,10 @@ test('Praticar: Reforço em destaque, contador na barra e os outros treinos numa
 
 test('Perfil: dados, atalhos para Evolução e Ajustes, e troca de avatar que aparece na Trilha', async () => {
   S.setSetting('avatar', 'initial'); await goto('#/perfil');
-  assert.match($('.perfil-topo').textContent, /Willy/); assert.equal($$('[data-av]').length, 9); assert.equal($('[data-av].on').dataset.av, 'initial');
+  assert.match($('.perfil-topo').textContent, /Willy/); assert.equal($$('[data-av]').length, 0, 'a escolha de avatar fica escondida'); assert.equal($('.scsheet'), null); $('#trocar-avatar').click(); assert.equal($$('[data-av]').length, 9); assert.equal($('[data-av].on').dataset.av, 'initial'); $('#av-fechar').click(); assert.equal($('.scsheet'), null, 'Fechar esconde de novo'); $('#trocar-avatar').click();
   assert.match($('.stats3').textContent, new RegExp(`${S.get().xp}`)); assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/history', '#/settings', '#/settings/dados']);
   $('[data-av="leaf"]').click(); await tick();
-  assert.equal(S.get().settings.avatar, 'leaf'); assert.equal($('[data-av].on').dataset.av, 'leaf'); assert.ok($('.perfil-topo .avatar svg.i'), 'o desenho aparece no perfil');
+  assert.equal(S.get().settings.avatar, 'leaf'); assert.equal($('.scsheet'), null, 'escolher fecha a folha'); $('#trocar-avatar').click(); assert.equal($('[data-av].on').dataset.av, 'leaf'); assert.ok($('.perfil-topo .avatar svg.i'), 'o desenho aparece no perfil');
   await goto('#/'); assert.ok($('.apphead .avatar-btn .avatar svg.i'), 'e no cabeçalho da Trilha'); assert.match($('.apphead .hello').textContent, /Salut, Willy/);
   $('.apphead .avatar-btn').click(); await tick(); assert.equal(w.location.hash, '#/perfil', 'o avatar abre o perfil');
   $('#pvoltar').click(); await tick(); assert.equal(w.location.hash, '#/'); S.setSetting('avatar', 'initial');
@@ -579,7 +579,7 @@ test('Trilha: o botão Continuar leva ao próximo degrau da unidade atual e o ca
   assert.deepEqual(estados, ['feita', 'feita', 'atual', 'depois', 'depois', 'depois', 'depois', 'depois']);
   assert.ok($('.passo.feita .selo.ok svg.i'), 'concluída tem o selo de check'); assert.ok($('.passo.depois .selo svg.i'), 'as próximas têm cadeado');
   assert.equal($$('.passo.depois[data-lock]').length, 5, 'tocar numa unidade adiantada pergunta antes');
-  assert.match($('.passo.atual').textContent, /você está aqui/); assert.match($('#ctitulo').textContent, /Se présenter/);
+  assert.match($('.passo.atual').textContent, /você está aqui/); assert.ok($('.passo.atual .mini i'), 'barra fina de domínio'); assert.ok($('.passo.feita .etq.ok svg.i'), 'concluída ganha etiqueta com check'); assert.match($('.chip-prova').textContent, /\d de 8 concluídas/); assert.match($('.meta-ring').getAttribute('aria-label'), /Meta de hoje: \d+ de \d+ exercícios/); assert.match($('#ctitulo').textContent, /Se présenter/);
   S.get().path = Object.fromEntries(UNITS.map((u) => [u.id, { learned: true, test: { done: true, best: 95 } }])); await goto('#/settings'); await goto('#/');
   assert.match($('#ctitulo').textContent, /Tudo concluído/); assert.equal($('#continuar').dataset.go, '#/practice/mix'); assert.equal($$('.passo.feita').length, 8);
   S.resetAll(); noBroken('trilha');

@@ -1,4 +1,4 @@
-// Perfil: nome, números do estudo, Evolução, Ajustes, Backup e a escolha do avatar.
+// Perfil: nome, números do estudo, Evolução, Ajustes, Backup. A escolha do avatar fica escondida até você tocar na foto.
 import * as S from '../store.js';
 import { $app } from '../core.js';
 import { I, esc, linha, avatarHtml, AVATARS } from '../ui.js';
@@ -10,8 +10,8 @@ export function perfilPage() {
   $app.innerHTML = `
     <button class="voltar" data-go="#/" id="pvoltar">${I('chevron-left')} Trilha</button>
     <section class="perfil-topo" style="display:flex;align-items:center;gap:16px;margin:4px 0 16px">
-      ${avatarHtml(atual, nome, 72)}
-      <div style="display:grid;line-height:1.25"><b style="font-size:var(--fs-xl)">${esc(nome)}</b><small>Français basique 1</small></div>
+      <button class="perfil-avatar" id="trocar-avatar" aria-label="Trocar avatar">${avatarHtml(atual, nome, 72)}<span class="edit" aria-hidden="true">${I('pencil')}</span></button>
+      <div style="display:grid;line-height:1.25"><b style="font-size:var(--fs-xl)">${esc(nome)}</b><small>Français basique 1</small><small>Toque na foto para trocar o avatar</small></div>
     </section>
     <div class="stats3">
       <div><b>${s.streak}</b><small>${s.streak === 1 ? 'dia seguido' : 'dias seguidos'}</small></div>
@@ -23,9 +23,15 @@ export function perfilPage() {
       ${linha({ icone: 'adjustments', titulo: 'Ajustes', resumo: 'Clara, voz, estudo e dados', go: '#/settings' })}
       ${linha({ icone: 'shield-check', titulo: 'Backup e dados', resumo: backup, go: '#/settings/dados' })}
     </div>
-    <h3>Avatar</h3>
-    <div class="avatares" role="radiogroup" aria-label="Avatar">
-      ${AVATARS.map((a) => `<button type="button" role="radio" aria-checked="${a.id === atual}" aria-label="${esc(a.nome)}" data-av="${a.id}" class="${a.id === atual ? 'on' : ''}">${avatarHtml(a.id, nome, 40)}<span>${esc(a.nome)}</span></button>`).join('')}
-    </div>`;
-  document.querySelectorAll('[data-av]').forEach((b) => { b.onclick = () => { S.setSetting('avatar', b.dataset.av); perfilPage(); }; });
+    <div id="av-folha"></div>`;
+  const folha = document.getElementById('av-folha');
+  // a grade de avatares abre numa folha que sobe; escolher um fecha e atualiza a foto
+  document.getElementById('trocar-avatar').onclick = () => {
+    folha.innerHTML = `<div class="scsheet" role="dialog" aria-modal="true" aria-label="Escolher avatar"><div class="box"><span class="grab" aria-hidden="true"></span><h3>Escolha seu avatar</h3>
+      <div class="avatares" role="radiogroup" aria-label="Avatar">${AVATARS.map((a) => `<button type="button" role="radio" aria-checked="${a.id === atual}" aria-label="${esc(a.nome)}" data-av="${a.id}" class="${a.id === atual ? 'on' : ''}">${avatarHtml(a.id, nome, 40)}<span>${esc(a.nome)}</span></button>`).join('')}</div>
+      <div class="sc-acoes"><button class="btn" id="av-fechar">Fechar</button></div></div></div>`;
+    folha.querySelectorAll('[data-av]').forEach((b) => { b.onclick = () => { S.setSetting('avatar', b.dataset.av); perfilPage(); }; });
+    folha.querySelector('#av-fechar').onclick = () => { folha.innerHTML = ''; };
+    folha.querySelector('.scsheet').onclick = (e) => { if (e.target.classList.contains('scsheet')) folha.innerHTML = ''; };
+  };
 }

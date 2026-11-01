@@ -242,11 +242,13 @@ export function prefetch(text) {
   geminiAudio(t).catch(() => {});
 }
 
-export async function speak(text, { rate = 0.9 } = {}) {
+// rapido: toque curto (ler uma opção ao selecioná-la) usa a voz do aparelho quando ela é francesa, sem esperar a voz natural online nem gastar o limite dela
+export async function speak(text, { rate = 0.9, rapido = false } = {}) {
   const t = clean(text); if (!t) return;
   await voicesReady();
   voiceNote = '';
   const ei = engineInfo();
+  if (rapido && ei.hasFr) return browserSpeak(t, rate);
   if (ei.engine === 'gemini') {
     try { return await geminiSpeak(t, rate); } catch (e) {
       if (e.name === 'AbortError') return;

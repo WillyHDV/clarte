@@ -90,3 +90,43 @@ test('Ajustes → Voz: sem voz francesa, orienta a instalar; com o limite do Gem
   const t = $('#vstatus').textContent;
   assert.match(t, /em pausa/); assert.ok(t.includes('limite 10 (gemini-3.8-flash-tts)')); assert.match(t, /meia-noite do horário do Pacífico/); V.limparPausa();
 });
+
+// ---- som dos exercícios no app (voz do Android): as opções falam, a resposta não vaza ----
+const responder = async () => {
+  const ok = $('#ok'); if (ok.textContent.trim() === 'Continuar') return;
+  if ($('#match')) { for (const b of document.querySelectorAll('#mleft [data-l]')) { const n = b.dataset.l; $(`[data-l="${n}"]`).click(); $(`[data-r="${n}"]`).click(); } return; }
+  if ($('.opt')) $('.opt').click(); else if ($('#inp')) { $('#inp').value = 'x'; $('#inp').dispatchEvent(new w.Event('input')); } else if ($('#bank [data-b]')) $('#bank [data-b]').click();
+  $('#ok').click();
+};
+// anda pelos treinos das unidades até aparecer um exercício cujo enunciado combine com o padrão (os exercícios são sorteados)
+async function acharNoTreino(unidades, padrao) {
+  for (let rodada = 0; rodada < 40; rodada++) {
+    await goto('#/'); await goto(`#/practice/${unidades[rodada % unidades.length]}`);
+    for (let n = 0; n < 14 && !$('.end') && $('#ok'); n++) {
+      if ($('.q') && padrao.test($('.q').textContent)) return true;
+      await responder(); if ($('#ok') && $('#ok').textContent.trim() === 'Continuar') $('#ok').click(); await tick(20);
+    }
+  }
+  return false;
+}
+
+test('treino no app: opções em francês falam ao tocar (certa ou errada), sem botão que entregue a resposta e sem som depois de verificar', async () => {
+  const V = await import('../js/speech.js'); novo(); await V.recheckNativeVoice();
+  assert.ok(await acharNoTreino(['alphabet', 'verbes', 'metiers', 'questions', 'saluer'], /Escolha a forma certa|última letra é pronunciada|vogal nasal|Complete:|Qual pergunta é/), 'achou um exercício de escolha com opções em francês');
+  assert.equal($('#play'), null, 'sem botão de áudio antes de responder'); assert.equal($('[data-slow]'), null);
+  await tick(400); // deixa terminar o som do exercício anterior (verificar toca a frase certa)
+  const opcoes = [...document.querySelectorAll('.opt')]; const antes = cap.falas.length;
+  opcoes[0].click(); await tick(30); opcoes[1].click(); await tick(30);
+  assert.deepEqual(cap.falas.slice(antes).map((x) => x.text), [opcoes[0].textContent.trim(), opcoes[1].textContent.trim()], 'as duas opções tocadas foram lidas, qualquer que seja a certa');
+  const total = cap.falas.length; $('#ok').click(); await tick(60);
+  assert.equal(cap.falas.length, total, 'verificar não fala nada nas escolhas com opções em francês'); assert.equal($('#fb [data-say]'), null, 'e não há botão Ouvir para a resposta certa');
+});
+
+test('treino no app: escrever e montar não têm som antes, e a frase certa toca sozinha ao verificar (com botão Ouvir)', async () => {
+  const V = await import('../js/speech.js'); novo(); await V.recheckNativeVoice();
+  assert.ok(await acharNoTreino(['metiers', 'verbes', 'questions', 'presenter'], /Passe para o|Conjugue|Transforme com|Monte a/), 'achou um exercício de escrever ou montar');
+  assert.equal($('#play'), null, 'sem botão de áudio antes de responder');
+  await tick(400); const antes = cap.falas.length; await responder(); await tick(60);
+  assert.equal(cap.falas.length, antes + 1, 'verificar tocou a frase certa uma vez'); const botao = $('#fb [data-say]');
+  assert.ok(botao, 'botão Ouvir no painel de resposta'); assert.equal(cap.falas.at(-1).text, botao.dataset.say.replace(/\s+/g, ' ').trim());
+});

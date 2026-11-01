@@ -1,7 +1,7 @@
 // Treino: sessão de exercícios (escolha, digitação, peças, fala) com correção e resultado.
 import { UNITS } from '../data.js';
-import { buildSession, check, shuffle, skillsFor } from '../exercises.js';
-import { listen, dictate, browserRec, canTalk, canRecord, prefetch } from '../speech.js';
+import { buildSession, check, shuffle, skillsFor, politicaSom } from '../exercises.js';
+import { listen, dictate, browserRec, canTalk, canRecord, prefetch, stopSpeaking } from '../speech.js';
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
 import { $app, st, rate, speak, setCleanup, haptico } from '../core.js';
@@ -29,7 +29,7 @@ export function practice(id, stepId) {
   const voltarTxt = cfg || !(review || id === 'mix' || speakDrill) ? 'Voltar à unidade' : 'Voltar a Praticar';
   if (!list.length) { $app.innerHTML = `<header class="apphead"><button class="back" data-go="#/praticar" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Reforço</b><small>Nada fraco agora</small></div></header><div class="card center"><div class="medalha ok">${I('trophy')}</div><p>Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary wide" data-go="#/practice/mix">${I('bolt')} Treino inteligente</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; const wrongList = [];
-  let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false;
+  let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false; let auto = null; // auto: o toque automático do áudio dos exercícios de ouvir
   // associar pares: seleção atual, pares já feitos, pares em que errou e a ordem embaralhada das colunas
   let mSelL = null; let mSelR = null; let mDone = new Set(); let mMiss = new Set(); let mOrderL = []; let mOrderR = []; let mLock = false;
 
@@ -77,12 +77,12 @@ export function practice(id, stepId) {
 
   function render() {
     if (i >= list.length) return showEnd();
-    ex = list[i]; sel = null; heard = ''; answered = false; rec = null; document.body.classList.remove('com-fb');
-    const k = ex.kind; const listen = k.startsWith('listen');
+    ex = list[i]; sel = null; heard = ''; answered = false; rec = null; document.body.classList.remove('com-fb'); clearTimeout(auto); stopSpeaking(); // a fala do exercício anterior não invade o próximo
+    const k = ex.kind; const listen = k.startsWith('listen'); const som = politicaSom(ex);
     placed = []; bank = k === 'tiles' ? ex.tiles.map((t, n) => ({ t, n })) : [];
     if (k === 'match') { mSelL = null; mSelR = null; mDone = new Set(); mMiss = new Set(); mLock = false; const idx = ex.pairs.map((_, n) => n); mOrderL = shuffle(idx); mOrderR = shuffle(idx); }
     let body = '';
-    const audioBtn = ex.audio ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}" id="play" aria-label="Ouvir">${I('volume')}</button><button class="say" data-slow="1">${I('clock')} Devagar</button></div>` : '';
+    const audioBtn = ex.audio && som.antes ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}" id="play" aria-label="Ouvir">${I('volume')}</button><button class="say" data-slow="1">${I('clock')} Devagar</button></div>` : '';
     if (k === 'choice' || k === 'listen-choice') {
       body = `<div class="opts">${ex.options.map((o, n) => `<button class="opt" data-o="${n}">${esc(o)}</button>`).join('')}</div>`;
     } else if (k === 'type' || k === 'listen-type') {
@@ -103,7 +103,7 @@ export function practice(id, stepId) {
       </div>
       <div class="dock" id="dock"><div class="fb" id="fb" role="status" aria-live="polite"></div><button class="btn primary wide" id="ok" ${k === 'speak' && !canTalk() ? '' : 'disabled'}>${k === 'speak' && !canTalk() ? 'Pular' : 'Verificar'}</button></div>`;
     wire();
-    if (listen && ex.audio && st().settings.voice !== false) setTimeout(() => speak(ex.audio, { rate: rate() }), 250);
+    if (listen && ex.audio && st().settings.voice !== false) auto = setTimeout(() => speak(ex.audio, { rate: rate() }), 250);
     if (k === 'tiles') drawTiles();
     if (k === 'match') drawMatch();
     if (k === 'type' || k === 'listen-type') document.getElementById('inp').focus();
@@ -137,7 +137,8 @@ export function practice(id, stepId) {
   function wire() {
     const ok = document.getElementById('ok');
     document.querySelectorAll('[data-slow]').forEach((b) => { b.onclick = () => speak(ex.audio, { rate: 0.6 }); });
-    document.querySelectorAll('.opt').forEach((b) => { b.onclick = () => { if (answered) return; sel = ex.options[+b.dataset.o]; document.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === b)); ok.disabled = false; if (ex.kind === 'choice' && ex.audio === sel) speak(sel, { rate: rate() }); }; });
+    const som = politicaSom(ex); // certa ou errada, a opção tocada é lida (nos exercícios em que as opções são o que se ouve); nunca só a certa
+    document.querySelectorAll('.opt').forEach((b) => { b.onclick = () => { if (answered) return; sel = ex.options[+b.dataset.o]; document.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === b)); ok.disabled = false; if (som.aoSelecionar && st().settings.voice !== false) speak(sel, { rate: rate(), rapido: true }); }; });
     const inp = document.getElementById('inp');
     if (inp) {
       inp.oninput = () => { ok.disabled = !inp.value.trim(); };
@@ -198,15 +199,17 @@ export function practice(id, stepId) {
     const estado = skip ? 'neutral' : r.ok && !r.almost ? 'good' : r.ok ? 'almost' : 'bad';
     haptico(estado);
     fb.className = `fb show ${estado}`; document.getElementById('dock').className = `dock ${estado}`; document.body.classList.add('com-fb');
-    fb.innerHTML = `<div class="fbt"><span class="fbi">${I(estado === 'good' ? 'check' : estado === 'bad' ? 'x' : estado === 'almost' ? 'alert-circle' : 'player-skip-forward')}</span><b>${title}</b></div>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio ? `<button class="say" data-say="${esc(ex.audio)}">${I('volume')} Ouvir</button>` : ''}`;
+    fb.innerHTML = `<div class="fbt"><span class="fbi">${I(estado === 'good' ? 'check' : estado === 'bad' ? 'x' : estado === 'almost' ? 'alert-circle' : 'player-skip-forward')}</span><b>${title}</b></div>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio && politicaSom(ex).botaoFinal ? `<button class="say" data-say="${esc(ex.audio)}">${I('volume')} Ouvir</button>` : ''}`;
     ok.disabled = false; ok.textContent = 'Continuar'; ok.classList.toggle('bad', !r.ok && !skip);
     if (document.getElementById('inp')) document.getElementById('inp').disabled = true;
+    // depois de Verificar, a frase certa toca sozinha (acerto ou erro), menos onde o som já veio das opções
+    if (!skip && ex.audio && politicaSom(ex).aoVerificar && st().settings.voice !== false) speak(ex.audio, { rate: rate() });
   }
 
   function next() { i++; render(); }
 
   const onKey = (e) => { if (e.key === 'Enter') { const ok = document.getElementById('ok'); if (ok && !ok.disabled && document.activeElement?.tagName !== 'BUTTON') { e.preventDefault(); ok.click(); } } };
   document.addEventListener('keydown', onKey);
-  setCleanup(() => { document.removeEventListener('keydown', onKey); if (rec) rec.stop(); });
+  setCleanup(() => { document.removeEventListener('keydown', onKey); clearTimeout(auto); if (rec) rec.stop(); });
   render();
 }

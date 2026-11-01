@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## v27 — 01/11/2026
+
+Som dos exercícios, avatar escondido e Trilha com acabamento mais refinado.
+
+- **Som dos exercícios refeito.** Antes, em 42% dos exercícios o botão de áudio grande tocava a própria resposta antes de você responder (todos os de montar frase, quase todos os de escrever e a maioria dos de escolha), e ao tocar numa opção o app só falava se ela fosse a certa. Agora, nos exercícios de adivinhar não há botão de áudio antes de responder. Nos de escolha com opções em francês (forma verbal certa, palavra com som mudo no final, vogal nasal, "Complete…", tu ou vous), **cada opção tocada é lida em voz alta, certa ou errada**, e depois de verificar não toca nada nem há botão para ouvir a resposta certa. Nos de escrever e montar frase, a frase certa toca sozinha depois de Verificar (acerto ou erro) e o botão Ouvir fica no painel. Os de "Ouça…" e "Diga em voz alta" continuam como eram. A regra fica em `politicaSom()` (js/exercises.js) e está documentada no DESIGN.md.
+- **Fluidez**: a leitura das opções usa a voz francesa do aparelho (instantânea e sem gastar o limite da voz online); a fala do exercício anterior para ao abrir o próximo, e um toque automático atrasado não invade mais a questão seguinte; a questão nova aparece com um esmaecer rápido e as opções afundam ao toque.
+- **Perfil**: a grade de avatares não fica mais à mostra. Tocar na foto (com um lápis no canto) abre uma folha com as opções; escolher uma fecha a folha.
+- **Trilha, acabamento**: cada unidade ganhou o nome "UNIDADE N" em cima, o título, uma barra fina de domínio e uma etiqueta ("você está aqui" ou "concluída" com check); o caminho tem pontinhos redondos, o nó atual pulsa de leve e os nós aparecem em sequência. O cartão Continuar trocou a barra pelo **anel da meta de hoje**, e o título da trilha mostra "N de 8 concluídas".
+- **Testes**: 300 → 304 (regras de som por tipo de exercício, nenhum botão que entregue a resposta, opções lidas na ordem em que são tocadas, som depois de verificar), mais os testes de avatar escondido e de acabamento da Trilha; as quatro regras de som foram conferidas com testes de mutação.
+
 ## v26 — 31/10/2026
 
 **App novo (visual v2)**: reforma completa do visual, só para celular, feita em cinco fases e publicada de uma vez. Plano e regras em `DESIGN.md`. Para voltar ao visual anterior existe a etiqueta `v25`. Fase 1 (base):

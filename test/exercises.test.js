@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UNITS } from '../js/data.js';
-import { buildSession, check, speakScore, skillsFor, unitItems, itemLabel, norm, stripAcc } from '../js/exercises.js';
+import { buildSession, check, speakScore, skillsFor, unitItems, itemLabel, norm, stripAcc, politicaSom, audioEntrega } from '../js/exercises.js';
 
 const KINDS = new Set(['choice', 'listen-choice', 'type', 'listen-type', 'tiles', 'speak', 'match']);
 const unitIds = UNITS.map((u) => u.id);
@@ -194,4 +194,30 @@ test('as perguntas de tradução não terminam com pontuação dobrada (".?" ou 
   const ruins = new Set();
   for (let n = 0; n < 400; n++) for (const ex of buildSession('mix', 12, () => 0.5)) { const t = String(ex.q).replace(/<[^>]+>/g, ''); if (/[.!?…]\?|\?\?/.test(t)) ruins.add(t); }
   assert.deepEqual([...ruins], []);
+});
+
+test('som dos exercícios: nunca há botão de áudio que entregue a resposta, e a opção tocada é lida (certa ou errada)', () => {
+  let opcoes = 0; let escritos = 0;
+  for (const ex of all) {
+    const p = politicaSom(ex); const entrega = audioEntrega(ex);
+    if (p.antes) assert.ok(!entrega, `botão de áudio entregaria a resposta em ${ex.key}`);
+    if (p.aoSelecionar) { assert.equal(ex.kind, 'choice'); assert.ok(!p.aoVerificar && !p.botaoFinal && !p.antes, `escolha com opções em francês: som só nas opções (${ex.key})`); opcoes++; }
+    if (entrega && ex.kind === 'choice') assert.ok(p.aoSelecionar, `as opções precisam falar quando o áudio entregaria a resposta (${ex.key})`);
+    if (entrega && (ex.kind === 'type' || ex.kind === 'tiles')) { assert.deepEqual([p.antes, p.aoVerificar, p.botaoFinal], [false, true, true], `escrever e montar: sem som antes, com som depois (${ex.key})`); escritos++; }
+    if (ex.kind.startsWith('listen')) assert.deepEqual([p.antes, p.aoVerificar, p.botaoFinal], [true, true, true], `ouvir: o áudio é o enunciado (${ex.key})`);
+    if (ex.kind === 'speak') assert.deepEqual([p.antes, p.aoVerificar], [true, false]);
+    if (!ex.audio && !ex.falaOpcoes) assert.deepEqual(p, { antes: false, aoSelecionar: false, aoVerificar: false, botaoFinal: false });
+  }
+  assert.ok(opcoes > 20 && escritos > 40, `a amostra precisa ter os dois casos (opções ${opcoes}, escritos ${escritos})`);
+});
+
+test('som dos exercícios: casos conhecidos (som mudo no final, vogal nasal, forma verbal, enunciado em francês com opções em português)', () => {
+  const por = (re) => all.find((ex) => re.test(ex.q));
+  const mudo = all.find((ex) => (ex.items || []).includes('pron:final')); const nasal = all.find((ex) => (ex.items || []).includes('pron:nasal'));
+  for (const ex of [mudo, nasal]) { assert.ok(ex, 'exercício de pronúncia gerado'); assert.deepEqual(politicaSom(ex), { antes: false, aoSelecionar: true, aoVerificar: false, botaoFinal: false }); }
+  const forma = por(/Escolha a forma certa/); assert.ok(forma && forma.falaOpcoes); assert.equal(politicaSom(forma).aoSelecionar, true, 'as formas verbais são lidas ao tocar, mesmo sem áudio no enunciado');
+  const significa = por(/O que significa/); assert.ok(significa); assert.deepEqual(politicaSom(significa), { antes: true, aoSelecionar: false, aoVerificar: true, botaoFinal: true }, 'o enunciado em francês pode ser ouvido; as opções em português não são lidas');
+  assert.equal(audioEntrega({ kind: 'type', answer: 'habite', audio: "J'habite à Maceió." }), true, "j'habite contém habite");
+  assert.equal(audioEntrega({ kind: 'type', answer: 'e', audio: 'Elle est avocate' }), false, 'só palavras inteiras contam');
+  assert.equal(audioEntrega({ kind: 'listen-type', answer: 'Bonjour', audio: 'Bonjour' }), false, 'nos de ouvir o áudio é o enunciado');
 });
