@@ -10,7 +10,7 @@ export const ABAS = [
   { id: 'praticar', rotulo: 'Praticar', icone: 'barbell', href: '#/praticar' },
 ];
 // em qual aba cada rota cai; as demais (perfil, ajustes, evolução…) não marcam nenhuma
-export const AREA = { '': 'home', home: 'home', unit: 'home', step: 'home', tutor: 'tutor', praticar: 'praticar', practice: 'praticar' };
+export const AREA = { '': 'home', home: 'home', unit: 'home', step: 'home', tutor: 'tutor', leitura: 'tutor', praticar: 'praticar', practice: 'praticar' };
 
 // itens que pedem reforço (o que está fraco e os erros que vencem hoje)
 export const reforcoPendentes = () => readiness().weakCount + S.dueMistakes().length;

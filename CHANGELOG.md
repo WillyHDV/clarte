@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## v28 — 15/11/2026
+
+Leitura do livro: fotografe uma página de um livro bilíngue e a Clara mostra como o francês se pronuncia.
+
+- **Linha "Leitura do livro"** na central da Clara. Ali você tira (ou escolhe da galeria) a foto de uma página. A Clara lê a foto com o Gemini (grátis; exige a chave do Gemini), separa o francês do português, alinha as frases e devolve cada uma já preparada. A foto não é guardada: só o texto fica no aparelho, e entra no backup.
+- **Cada frase** aparece com as **letras mudas em cinza** (o t de petit, o nt de parlent) e as **ligações sublinhadas** (o s de ils ont, que soa como z), um quadro **"Como se lê"** em sílabas ao jeito do português (il-zõ ã pe-ti chá), a tradução, os botões **Ouvir** e **Devagar** (voz francesa do aparelho) e etiquetas com as regras de som que aparecem nela. Frases com tempos além do básico (passé simple, imparfait…) ganham a etiqueta "mais avançado".
+- **Toque numa palavra** para ouvi-la e ver o significado e como se usa (a IA traz de 1 a 5 palavras úteis por frase; nas demais, só o som).
+- **Cuidados**: a resposta da IA é validada antes de aparecer: se as marcas de som mudarem o texto da frase, a frase fica sem marcas (o texto do livro nunca é alterado); resposta incompleta, foto sem francês e chave recusada mostram o motivo e um botão "Tentar de novo". O guia "como se lê" e as marcas são aproximações da IA e o aviso na tela diz que o áudio é a referência. Sair da tela no meio da leitura cancela o pedido e não guarda nada.
+- Fica para a próxima fase: **ler em voz alta e gravar** (palavras que escaparam ficam marcadas e as frases difíceis vão para o Reforço) e o resumo das regras de som que você já viu.
+- **Testes**: 304 → 317 (validação da resposta, marcas, palavras, tela de leitura com foto, erro, cancelar, sair no meio, apagar e backup), com testes de mutação.
+
 ## v27 — 01/11/2026
 
 Som dos exercícios, avatar escondido e Trilha com acabamento mais refinado.

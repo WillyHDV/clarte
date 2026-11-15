@@ -16,10 +16,11 @@ export function aboutPage() {
       </ul>
       <small><b>Desinstalar o app ou limpar os dados do navegador apaga o seu progresso</b>: guarde um backup (Ajustes → Seus dados → Compartilhar). Para levar o progresso a outro aparelho, use esse mesmo backup. Para apagar tudo, use “Zerar progresso” nos Ajustes e, se quiser, limpe os dados do site no navegador.</small>
     </section>
-    <section class="card about"><h3>O que sai do aparelho (só quando você usa a Clara ou a voz natural)</h3>
+    <section class="card about"><h3>O que sai do aparelho (só quando você usa a Clara, a voz natural ou a Leitura do livro)</h3>
       <ul>
         <li><b>Texto das conversas</b> vai ao provedor escolhido: Google Gemini, Groq ou Mistral.</li>
         <li><b>Áudio das suas falas</b> (quando você grava e toca em enviar) vai ao Gemini ou ao Groq para virar texto.</li>
+        <li><b>Fotos das páginas</b> da Leitura do livro vão ao Gemini, que devolve o texto preparado. A foto não fica guardada no app, só o texto.</li>
         <li><b>Frases da voz natural</b> vão ao Gemini, que devolve o áudio. Depois ficam guardadas no aparelho.</li>
         <li>O reconhecimento de voz do próprio navegador (Chrome) pode enviar o áudio ao Google, conforme as regras do navegador.</li>
         <li>A hospedagem do app (GitHub Pages) registra acessos como qualquer site, mas não recebe nada do que você estuda ou fala.</li>

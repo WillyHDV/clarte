@@ -309,6 +309,33 @@ export async function transcribe({ provider, apiKey, model, blob, signal: outer 
   return cleanTranscript(r.text);
 }
 
+// ---------- leitura do livro: foto de uma página → frases com marcas de som ----------
+const LEITURA_PROMPT = `Você ajuda um brasileiro iniciante (nível A1, curso "Français basique 1") a estudar francês lendo um livro bilíngue. A imagem é a foto de uma página: texto em francês e, em geral, a tradução em português (em colunas, em páginas espelhadas ou em blocos alternados).
+Leia o texto em francês, divida em frases e responda SOMENTE com JSON neste formato:
+{"frases":[{"fr":"...","pt":"...","marcada":"...","leitura":"...","regras":["..."],"palavras":[{"fr":"...","pt":"...","uso":"..."}],"avancado":false}]}
+Regras:
+- "fr": a frase em francês com a grafia e a pontuação da página (junte quebras de linha e hifenização de fim de linha). Não invente nem pule frases; ignore números de página e legendas de desenho. No máximo 25 frases (as primeiras).
+- "pt": a tradução em português que aparece na página para essa frase, se houver; se a foto não trouxer a tradução, uma tradução sua, curta e natural.
+- "marcada": o MESMO texto de "fr", letra por letra, só com marcas de som. Entre chaves { } vão as letras que NÃO são pronunciadas (on{t}, peti{t}, cha{t}, parle{nt}, vou{s}). Entre < > vai a consoante final que SOA por ligação com a palavra seguinte (Il<s> ont = o s soa como z; vou<s> avez). Não marque letras que soam normalmente. Nunca mude, tire ou acrescente letras, espaços ou pontuação fora das marcas.
+- "leitura": como se lê, aproximado, com a grafia do português do Brasil, sílabas separadas por hífen, til nas vogais nasais e acento na sílaba final. Exemplo: "Ils ont un petit chat." → "il-zõ ã pe-ti chá". Não use alfabeto fonético.
+- "regras": até 3 regras de som que aparecem na frase, curtas, em português (ex.: "ligação: ils‿ont, o s soa como z", "t final mudo", "an e en soam ã").
+- "palavras": de 1 a 5 palavras ou expressões mais úteis para um iniciante (não repita le, la, et, de). "pt" é o significado e "uso" mostra como se usa, em uma frase curta em português.
+- "avancado": true se a frase usa tempos ou estruturas além do básico (passé simple, imparfait, subjonctif, inversões literárias).
+- Se não houver texto em francês legível, responda {"frases":[]}.`;
+export async function lerPagina({ apiKey, model, image, signal: outer }) {
+  const p = PROVIDERS.gemini;
+  const r = await withFallback('gemini', model || p.model, outer, (m, ms) => timed(outer, ms + 45000, async (signal) => {
+    const res = await fetch(`${p.base}/models/${encodeURIComponent(m)}:generateContent`, {
+      method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: LEITURA_PROMPT }, { inlineData: { mimeType: image.mimeType, data: image.data } }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 8192, responseMimeType: 'application/json' } }),
+    });
+    await ensureOk(res); const j = await res.json();
+    return { text: ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('') };
+  }));
+  lerPagina.lastModel = r.model;
+  return r.text;
+}
+
 // executa fn(signal) com limite de tempo (vira erro 408) e cancelamento externo
 async function timed(outer, ms, fn) {
   const ctl = new AbortController(); let timedOut = false;

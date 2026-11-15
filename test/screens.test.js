@@ -124,7 +124,7 @@ test('Clara sem chave pede a chave; o link de configuração salva e abre a cent
   assert.equal(S.get().settings.keys.gemini, 'AIzaTESTE');
   assert.match(w.location.hash, /^#\/tutor/, 'a chave some da barra de endereço');
   assert.ok($('#callcard'), 'a central da Clara abre');
-  assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/tutor/cenarios', '#/tutor/exam', '#/tutor/free', '#/tutor/duvidas']);
+  assert.deepEqual($$('.grupo .linha').map((b) => b.dataset.go), ['#/tutor/cenarios', '#/tutor/exam', '#/tutor/free', '#/tutor/duvidas', '#/leitura']);
   await goto('#/tutor/free');
   assert.ok($('#tin'), 'campo de mensagem');
   assert.equal($('.apphead .back').dataset.go, '#/tutor', 'o chat volta para a central');

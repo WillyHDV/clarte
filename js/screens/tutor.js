@@ -465,6 +465,7 @@ async function tutorPage() {
         ${linha({ icone: 'trophy', titulo: 'Prova oral', resumo: prova, go: '#/tutor/exam' })}
         ${linha({ icone: 'message-circle', titulo: 'Conversa por texto', resumo: 'Escreva em francês, com acentos à mão', go: '#/tutor/free' })}
         ${linha({ icone: 'help-circle', titulo: 'Dúvidas em português', resumo: 'Pergunte sobre gramática e vocabulário', go: '#/tutor/duvidas' })}
+        ${linha({ icone: 'book', titulo: 'Leitura do livro', resumo: S.bookPages().length ? `${S.bookPages().length === 1 ? '1 página lida' : `${S.bookPages().length} páginas lidas`} por foto` : 'Fotografe uma página e veja como se lê', go: '#/leitura' })}
       </div>`;
     const cb = document.getElementById('callbtn'); if (cb) cb.onclick = () => { tutorMode = 'free'; ensureOpening(); startCall(); };
   }

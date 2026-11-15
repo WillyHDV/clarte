@@ -9,6 +9,7 @@ const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial', haptics: true },
   scenarios: {},
+  book: { pages: [] }, // leitura do livro: páginas lidas por foto (só o texto, nunca a imagem)
 });
 // ---------- versões do formato ----------
 // MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
@@ -28,6 +29,7 @@ export function normalize(raw) {
   for (const k of Object.keys(base)) if (kind(out[k]) !== kind(base[k])) out[k] = base[k];
   for (const k of ['today', 'plan', 'voiceToday']) out[k] = { ...base[k], ...out[k] };
   if (!isObj(out.plan.done)) out.plan.done = {};
+  out.book = { pages: Array.isArray(out.book.pages) ? out.book.pages.filter((p) => isObj(p) && typeof p.id === 'string' && Array.isArray(p.frases)).slice(-200) : [] };
   // histórico diário: só registros com data real, números válidos e em ordem (os demais são descartados)
   out.history = out.history.filter((h) => isObj(h) && /^\d{4}-\d{2}-\d{2}$/.test(h.d))
     .map((h) => ({ d: h.d, n: Math.max(0, +h.n || 0), ok: Math.max(0, +h.ok || 0), r: Number.isFinite(h.r) ? h.r : null }))
@@ -182,6 +184,13 @@ export function recordScenario(id, { nivel, done, total }) {
   if (done >= total) s.levelDone = Math.max(s.levelDone, nivel);
   state.xp += done * 5 + (done >= total ? 20 : 0); save(); return s;
 }
+// Leitura do livro: cada página lida vira { id, criada, frases } (frases já validadas por js/leitura.js)
+export const bookPages = () => state.book.pages;
+export function addBookPage(frases) {
+  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  state.book.pages.push({ id, criada: new Date().toISOString(), frases }); state.book.pages = state.book.pages.slice(-200); save(); return id;
+}
+export function deleteBookPage(id) { state.book.pages = state.book.pages.filter((p) => p.id !== id); save(); }
 // nome do aluno (Perfil); sem nome salvo, "Willy"
 export const studentName = () => { const n = state.settings.name; return typeof n === 'string' && n.trim() ? n.trim().slice(0, 24) : 'Willy'; };
 export function markBackup() { state.lastBackup = new Date().toISOString(); save(); }

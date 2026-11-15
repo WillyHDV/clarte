@@ -12,6 +12,7 @@ import { unitPage } from './screens/lesson.js';
 import { practice } from './screens/practice.js';
 import { openTutor } from './screens/tutor.js';
 import { settingsPage } from './screens/settings.js';
+import { leituraPage } from './screens/leitura.js';
 import { praticar } from './screens/praticar.js';
 import { perfilPage } from './screens/perfil.js';
 import { montarBarra, marcarAba } from './nav.js';
@@ -40,6 +41,7 @@ async function route() {
   if (page === 'step') return practice(arg, arg2);
   if (page === 'tutor') return openTutor(arg);
   if (page === 'settings') return settingsPage(arg);
+  if (page === 'leitura') return leituraPage(arg);
   if (page === 'praticar') return praticar();
   if (page === 'perfil') return perfilPage();
   if (page === 'history') return historyPage();
