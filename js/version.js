@@ -1,3 +1,3 @@
 ﻿// Versão do app. Aumente a cada publicação: o app compara este arquivo com o que está no ar e avisa quando há versão nova.
-export const VERSION = '30';
+export const VERSION = '31';
 export const BUILD_DATE = '2026-11-15';

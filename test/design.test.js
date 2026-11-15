@@ -91,3 +91,12 @@ test('linha de lista: botão com ícone, título, resumo e seta; sem destino vir
   assert.match(l, /^<button class="linha" data-go="#\/practice\/mix"/); assert.match(l, /Treino &lt;inteligente&gt;/); assert.match(l, /<small>Mistura<\/small>/); assert.match(l, /chevron|<svg/);
   assert.match(linha({ titulo: 'Só texto', valor: '19:00' }), /^<div class="linha"/); assert.doesNotMatch(linha({ titulo: 'x' }), /<svg/);
 });
+
+test('Leitura: o deslizador mostra uma frase por vez, sem um pedaço da vizinha na borda, e a frase não fica com linhas altas demais', () => {
+  const pager = /\.pager \{[^}]*\}/.exec(css); const cartao = /\.pager > \.cd-frase \{[^}]*\}/.exec(css); const frase = /\.frase \{[^}]*\}/.exec(css);
+  assert.ok(pager && cartao && frase, 'regras do deslizador e da frase');
+  assert.match(cartao[0], /flex: 0 0 100%/, 'cartão com a largura toda');
+  const espaco = +/gap: (\d+)px/.exec(pager[0])[1]; const lateral = +/padding: \d+px (\d+)px/.exec(pager[0])[1];
+  assert.ok(espaco > lateral, `o espaço entre cartões (${espaco}px) precisa passar do respiro lateral (${lateral}px), senão um pedaço da vizinha aparece na borda`);
+  assert.match(pager[0], /scroll-snap-type: x mandatory/); assert.ok(+/line-height: ([\d.]+)/.exec(frase[0])[1] <= 1.6, 'linhas da frase compactas');
+});

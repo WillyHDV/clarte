@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## v31 — 15/11/2026
+
+Ajuste da Leitura depois de usar no celular.
+
+- **Uma frase por vez**: o deslize entre as frases não mostra mais um pedaço da frase vizinha na borda. Cada cartão ocupa a largura toda e a seguinte só entra na tela quando você arrasta (o espaço entre cartões passa do respiro das laterais, que existe só para a sombra do cartão aparecer inteira). Um teste de estilo impede que a vizinha volte a aparecer.
+- **Frase mais compacta**: as linhas da frase em francês ficaram bem mais juntas (a frase longa do começo do Pequeno Príncipe cabia em seis linhas altas e agora cabe em quatro), e o quadro "Como se lê", a tradução e os botões cabem na primeira tela.
+- **"Como se lê" com espaço entre as palavras**: o pedido à IA agora exige uma palavra de leitura para cada palavra da frase, separadas por espaço, com hífen só entre sílabas (antes ela devolvia a frase inteira numa fieira de sílabas). As páginas que você já leu mantêm o guia antigo; as novas saem no formato certo.
+- **Testes**: 329 → 330.
+
 ## v30 — 15/11/2026
 
 Leitura com dicionário, deslize entre as frases e biblioteca de livros.

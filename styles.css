@@ -489,8 +489,8 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .spc { height: var(--s4); }
 .cd-frase { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: var(--s4); margin-bottom: var(--s3); }
 .cd-frase.falando { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent), var(--shadow); }
-.frase { margin: 0 0 var(--s3); font-size: 1.3rem; line-height: 1.8; font-weight: 600; }
-.pal { display: inline; padding: 5px 2px; margin: 0; border: 0; background: none; font: inherit; color: inherit; border-radius: 8px; }
+.frase { margin: 0 0 var(--s3); font-size: 1.25rem; line-height: 1.55; font-weight: 600; }
+.pal { display: inline; padding: 2px 1px; margin: 0; border: 0; background: none; font: inherit; color: inherit; border-radius: 8px; }
 .pal.on { background: color-mix(in srgb, var(--brand) 16%, transparent); }
 .pal .mu { color: var(--muted); font-weight: 400; }
 .pal .lg { color: var(--brand-text); border-bottom: 3px solid var(--brand); }
@@ -504,9 +504,11 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .pager-nav { display: flex; align-items: center; justify-content: center; gap: var(--s4); margin-bottom: var(--s3); }
 .pager-nav span { min-width: 84px; text-align: center; font-weight: 700; }
 .pager-nav .icon:disabled { opacity: 1; background: var(--disabled-bg); color: var(--disabled-ink); box-shadow: none; }
-.pager { display: flex; align-items: flex-start; gap: var(--s3); overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--s4); margin: 0 calc(var(--s4) * -1) var(--s3); padding: 0 var(--s4) var(--s2); scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* uma frase por vez: cada cartão ocupa a largura toda e a vizinha só entra na tela quando você arrasta */
+/* o respiro de 12px nas laterais deixa a sombra do cartão aparecer; o espaço de 24px entre cartões é maior que ele, então a vizinha continua escondida */
+.pager { display: flex; align-items: flex-start; gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 12px; margin: -8px -12px 0; padding: 8px 12px 20px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .pager::-webkit-scrollbar { display: none; }
-.pager > .cd-frase { flex: 0 0 88%; margin: 0; box-sizing: border-box; scroll-snap-align: start; }
+.pager > .cd-frase { flex: 0 0 100%; margin: 0; box-sizing: border-box; scroll-snap-align: start; }
 .dic-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
 .dic-topo > div { display: grid; gap: 2px; min-width: 0; } .dic-topo h3 { margin: 0; font-size: var(--fs-2xl); overflow-wrap: anywhere; }
 .dic-topo small { font-size: var(--fs-sm); }
