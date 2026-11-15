@@ -20,7 +20,8 @@ export function aboutPage() {
       <ul>
         <li><b>Texto das conversas</b> vai ao provedor escolhido: Google Gemini, Groq ou Mistral.</li>
         <li><b>Áudio das suas falas</b> (quando você grava e toca em enviar) vai ao Gemini ou ao Groq para virar texto.</li>
-        <li><b>Fotos das páginas</b> da Leitura do livro vão ao Gemini, que devolve o texto preparado. A foto não fica guardada no app, só o texto.</li>
+        <li><b>Fotos das páginas</b> da Leitura vão ao Gemini, que devolve o texto preparado. A foto não fica guardada no app, só o texto.</li>
+        <li><b>Palavras que você toca</b> na Leitura (a palavra e a frase em que ela está) vão ao Gemini, que devolve o verbete do dicionário. O verbete fica guardado no aparelho.</li>
         <li><b>Frases da voz natural</b> vão ao Gemini, que devolve o áudio. Depois ficam guardadas no aparelho.</li>
         <li>O reconhecimento de voz do próprio navegador (Chrome) pode enviar o áudio ao Google, conforme as regras do navegador.</li>
         <li>A hospedagem do app (GitHub Pages) registra acessos como qualquer site, mas não recebe nada do que você estuda ou fala.</li>

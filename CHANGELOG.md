@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## v30 — 15/11/2026
+
+Leitura com dicionário, deslize entre as frases e biblioteca de livros.
+
+- **Dicionário**: tocar numa palavra da frase abre uma folha que sobe de baixo (no lugar do balão com "Sem detalhes desta palavra"). A Clara consulta a palavra no contexto da frase e mostra: a forma de dicionário e a classe (verbo, adjetivo…), o nível, como se lê, o **significado nesta frase**, os significados mais comuns com notas, a explicação da forma (por exemplo, "3ª pessoa do plural do presente de avoir"), **exemplos em outros contextos** e **expressões** com botão de ouvir em cada uma, e dicas de uso (ligação, falsos amigos, formal ou informal). Enquanto a consulta carrega, aparece o que a página já trazia da palavra. O verbete fica guardado no aparelho (até 400, à parte do progresso): a mesma palavra na mesma frase abre na hora, sem gastar a IA. Fechar a folha cancela uma consulta em andamento. Sem a chave do Gemini, a folha avisa e mostra só o que a página trazia.
+- **Deslize entre as frases**: a página mostra uma frase por vez, como as páginas de um livro. As seguintes ficam logo ao lado, aparecendo um pedaço na borda, e aparecem ao arrastar o dedo. Há também as setas no topo, o contador "2 de 8" e as setas do teclado. O app lembra em qual frase você parou em cada página.
+- **Biblioteca**: a Leitura agora tem **livros**. Crie o livro (por exemplo, O Pequeno Príncipe), abra-o e adicione as páginas informando o **número da página** (o app sugere o próximo). Dentro do livro as páginas ficam em ordem de número. Na página, o lápis muda o livro ou o número; o lápis do livro renomeia e a lixeira apaga o livro com as páginas dele. As páginas que você já tinha lido vão para um livro chamado "Meu livro", com os números em ordem; é só renomear.
+- **Testes**: 319 → 329 (biblioteca e migração das páginas antigas, deslize, dicionário com cache, erro e cancelamento, verbete vazio recusado), com testes de mutação.
+
 ## v29 — 15/11/2026
 
 Foto direto pelo app na Leitura do livro e Devagar de verdade.

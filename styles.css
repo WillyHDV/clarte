@@ -501,8 +501,19 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .rgrs { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
 .rgr { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 99px; background: color-mix(in srgb, var(--brand) 12%, var(--card)); color: var(--brand-text); font-size: var(--fs-xs); font-weight: 600; }
 .rgr.av { background: var(--warn-bg); color: var(--warn); } .rgr svg.i { width: 14px; height: 14px; }
-.pop { margin-top: var(--s3); padding: var(--s3); border-radius: var(--r-sm); background: var(--ink); color: var(--bg); line-height: 1.35; }
-.pop small { display: block; color: var(--bg); font-size: var(--fs-sm); }
+.pager-nav { display: flex; align-items: center; justify-content: center; gap: var(--s4); margin-bottom: var(--s3); }
+.pager-nav span { min-width: 84px; text-align: center; font-weight: 700; }
+.pager-nav .icon:disabled { opacity: 1; background: var(--disabled-bg); color: var(--disabled-ink); box-shadow: none; }
+.pager { display: flex; align-items: flex-start; gap: var(--s3); overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--s4); margin: 0 calc(var(--s4) * -1) var(--s3); padding: 0 var(--s4) var(--s2); scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.pager::-webkit-scrollbar { display: none; }
+.pager > .cd-frase { flex: 0 0 88%; margin: 0; box-sizing: border-box; scroll-snap-align: start; }
+.dic-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.dic-topo > div { display: grid; gap: 2px; min-width: 0; } .dic-topo h3 { margin: 0; font-size: var(--fs-2xl); overflow-wrap: anywhere; }
+.dic-topo small { font-size: var(--fs-sm); }
+.dic-sec { margin-top: var(--s4); } .dic-sec h4 { margin: 0 0 var(--s2); font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dic-lista { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.dic-p { margin: 0; display: grid; line-height: 1.35; } .dic-p small { font-size: var(--fs-sm); }
+.dic-ex { display: flex; align-items: flex-start; gap: var(--s2); } .dic-ex > div { flex: 1; display: grid; line-height: 1.35; min-width: 0; } .dic-ex small { font-size: var(--fs-sm); }
 .voltar { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); padding: 0; background: none; border: 0; color: var(--brand-text); font-weight: 700; }
 
 /* ====== Trilha (caminho) e Unidade (abas, aula em cartões, frases) ====== */

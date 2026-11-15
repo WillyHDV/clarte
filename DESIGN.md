@@ -44,7 +44,9 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Cartão do Reforço (`.reforco`) | Praticar | anel com o contador e botão branco dentro |
 | Cartão Continuar (`.continuar`) | Trilha | unidade e degrau certos, contagem da avaliação e o anel da meta de hoje (`.meta-ring`) |
 | Caminho (`.caminho`, `.passo`) | Trilha | nós em zigue-zague (`ONDA`), anel de domínio, selo de check ou cadeado; cada unidade tem "UNIDADE N", título, barra fina de domínio (`.mini`) e etiqueta de estado (`.etq`); a linha é desenhada por `ligarNos` e o nó atual pulsa |
-| Cartão de frase (`.cd-frase`) | Leitura do livro | frase com palavras tocáveis (`.pal`), letras mudas (`.mu`, cinza) e ligações (`.lg`, sublinhadas), quadro "Como se lê", tradução, Ouvir e Devagar, etiquetas de regra (`.rgr`) e balão da palavra (`.pop`) |
+| Cartão de frase (`.cd-frase`) | Leitura | frase com palavras tocáveis (`.pal`), letras mudas (`.mu`, cinza) e ligações (`.lg`, sublinhadas), quadro "Como se lê", tradução, Ouvir e Devagar e etiquetas de regra (`.rgr`) |
+| Deslizador (`.pager`) | página da Leitura | uma frase por vez, `scroll-snap` horizontal; o cartão ocupa 88% da largura e deixa a próxima aparecer na borda; contador e setas em `.pager-nav` |
+| Verbete (`.dic-*`) | folha do dicionário na Leitura | palavra, classe, como se lê, sentido na frase, significados, exemplos e expressões com Ouvir, dicas; cache em `js/dicionario.js` |
 | Folha que sobe (`.scsheet`) | ficha da missão (Cenários) e escolha de avatar (Perfil) | alça, conteúdo e botões largos; tocar fora fecha |
 | Abas (`.abas`) e botão fixo (`.cta-fixo`) | Unidade | abas Trilha, Aula e Frases; o botão fica acima da barra de baixo |
 

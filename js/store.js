@@ -9,7 +9,7 @@ const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial', haptics: true },
   scenarios: {},
-  book: { pages: [] }, // leitura do livro: páginas lidas por foto (só o texto, nunca a imagem)
+  book: { livros: [], pages: [] }, // leitura: biblioteca de livros e as páginas lidas por foto (só o texto, nunca a imagem)
 });
 // ---------- versões do formato ----------
 // MIGRATIONS[n] converte o estado da versão n para a n+1. Ao mudar o formato: aumente SCHEMA e acrescente a migração aqui.
@@ -21,6 +21,28 @@ const kind = (x) => (Array.isArray(x) ? 'array' : x === null ? 'null' : typeof x
 const isObj = (x) => kind(x) === 'object';
 // Aceita qualquer coisa que veio do disco ou de um backup e devolve um estado válido na versão atual:
 // migra versões antigas, completa campos que faltam e descarta campos com tipo errado (ex.: mastery: null).
+// Biblioteca da Leitura: livros { id, titulo, criado } e páginas { id, livro, numero, criada, frases, pos }.
+// Páginas da primeira versão (sem livro) vão para "Meu livro"; número que falta segue a ordem dentro do livro.
+function normBook(b) {
+  const bruto = isObj(b) ? b : {};
+  const livros = (Array.isArray(bruto.livros) ? bruto.livros : []).filter((l) => isObj(l) && typeof l.id === 'string' && typeof l.titulo === 'string' && l.titulo.trim())
+    .map((l) => ({ id: l.id, titulo: l.titulo.trim().slice(0, 80), criado: typeof l.criado === 'string' ? l.criado : '' })).slice(-50);
+  const ids = new Set(livros.map((l) => l.id));
+  const pages = (Array.isArray(bruto.pages) ? bruto.pages : []).filter((p) => isObj(p) && typeof p.id === 'string' && Array.isArray(p.frases)).slice(-200).map((p) => ({ ...p }));
+  for (const p of pages) {
+    if (!ids.has(p.livro)) {
+      if (!ids.has('meu-livro')) { livros.push({ id: 'meu-livro', titulo: 'Meu livro', criado: typeof p.criada === 'string' ? p.criada : '' }); ids.add('meu-livro'); }
+      p.livro = 'meu-livro';
+    }
+  }
+  const maior = {};
+  for (const p of pages) if (Number.isInteger(p.numero) && p.numero > 0) maior[p.livro] = Math.max(maior[p.livro] || 0, p.numero);
+  for (const p of pages) {
+    if (!(Number.isInteger(p.numero) && p.numero > 0)) { maior[p.livro] = (maior[p.livro] || 0) + 1; p.numero = maior[p.livro]; }
+    p.pos = Number.isInteger(p.pos) && p.pos > 0 ? Math.min(p.pos, Math.max(0, p.frases.length - 1)) : 0;
+  }
+  return { livros, pages };
+}
 export function normalize(raw) {
   let s = isObj(raw) ? { ...raw } : {};
   let v = Number.isInteger(s.v) && s.v >= 1 ? s.v : 1;
@@ -29,7 +51,7 @@ export function normalize(raw) {
   for (const k of Object.keys(base)) if (kind(out[k]) !== kind(base[k])) out[k] = base[k];
   for (const k of ['today', 'plan', 'voiceToday']) out[k] = { ...base[k], ...out[k] };
   if (!isObj(out.plan.done)) out.plan.done = {};
-  out.book = { pages: Array.isArray(out.book.pages) ? out.book.pages.filter((p) => isObj(p) && typeof p.id === 'string' && Array.isArray(p.frases)).slice(-200) : [] };
+  out.book = normBook(out.book);
   // histórico diário: só registros com data real, números válidos e em ordem (os demais são descartados)
   out.history = out.history.filter((h) => isObj(h) && /^\d{4}-\d{2}-\d{2}$/.test(h.d))
     .map((h) => ({ d: h.d, n: Math.max(0, +h.n || 0), ok: Math.max(0, +h.ok || 0), r: Number.isFinite(h.r) ? h.r : null }))
@@ -184,12 +206,35 @@ export function recordScenario(id, { nivel, done, total }) {
   if (done >= total) s.levelDone = Math.max(s.levelDone, nivel);
   state.xp += done * 5 + (done >= total ? 20 : 0); save(); return s;
 }
-// Leitura do livro: cada página lida vira { id, criada, frases } (frases já validadas por js/leitura.js)
-export const bookPages = () => state.book.pages;
-export function addBookPage(frases) {
-  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  state.book.pages.push({ id, criada: new Date().toISOString(), frases }); state.book.pages = state.book.pages.slice(-200); save(); return id;
+// Leitura: biblioteca de livros e páginas lidas (as frases já vêm validadas por js/leitura.js)
+const novoId = (pref) => pref + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+export const bookLivros = () => state.book.livros;
+export const bookPages = (livro) => (livro ? state.book.pages.filter((p) => p.livro === livro) : state.book.pages);
+export const proximoNumero = (livro) => Math.max(0, ...bookPages(livro).map((p) => p.numero)) + 1;
+export function addLivro(titulo) {
+  const t = String(titulo || '').replace(/\s+/g, ' ').trim().slice(0, 80); if (!t) return '';
+  const id = novoId('l'); state.book.livros.push({ id, titulo: t, criado: new Date().toISOString() }); state.book.livros = state.book.livros.slice(-50); save(); return id;
 }
+export function renameLivro(id, titulo) {
+  const l = state.book.livros.find((x) => x.id === id); const t = String(titulo || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!l || !t) return false; l.titulo = t; save(); return true;
+}
+export function deleteLivro(id) { state.book.livros = state.book.livros.filter((l) => l.id !== id); state.book.pages = state.book.pages.filter((p) => p.livro !== id); save(); }
+// livro/numero opcionais: sem livro vale o primeiro da biblioteca (ou "Meu livro", criado na hora); sem número, o próximo do livro
+export function addBookPage(frases, { livro, numero } = {}) {
+  let alvo = livro && state.book.livros.some((l) => l.id === livro) ? livro : state.book.livros.length ? state.book.livros[0].id : '';
+  if (!alvo) { alvo = 'meu-livro'; state.book.livros.push({ id: 'meu-livro', titulo: 'Meu livro', criado: new Date().toISOString() }); }
+  const id = novoId('p'); const n = Number.isInteger(numero) && numero > 0 ? numero : proximoNumero(alvo);
+  state.book.pages.push({ id, livro: alvo, numero: n, criada: new Date().toISOString(), frases, pos: 0 }); state.book.pages = state.book.pages.slice(-200); save(); return id;
+}
+// muda a página de livro e/ou o número (ignora o que for inválido)
+export function updateBookPage(id, { livro, numero }) {
+  const p = state.book.pages.find((x) => x.id === id); if (!p) return false;
+  if (livro && state.book.livros.some((l) => l.id === livro)) p.livro = livro;
+  if (Number.isInteger(numero) && numero > 0) p.numero = numero;
+  save(); return true;
+}
+export function setBookPos(id, pos) { const p = state.book.pages.find((x) => x.id === id); if (p && Number.isInteger(pos) && pos >= 0 && p.pos !== pos) { p.pos = pos; save(); } }
 export function deleteBookPage(id) { state.book.pages = state.book.pages.filter((p) => p.id !== id); save(); }
 // nome do aluno (Perfil); sem nome salvo, "Willy"
 export const studentName = () => { const n = state.settings.name; return typeof n === 'string' && n.trim() ? n.trim().slice(0, 24) : 'Willy'; };

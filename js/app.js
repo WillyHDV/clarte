@@ -41,7 +41,7 @@ async function route() {
   if (page === 'step') return practice(arg, arg2);
   if (page === 'tutor') return openTutor(arg);
   if (page === 'settings') return settingsPage(arg);
-  if (page === 'leitura') return leituraPage(arg);
+  if (page === 'leitura') return leituraPage(arg, arg2);
   if (page === 'praticar') return praticar();
   if (page === 'perfil') return perfilPage();
   if (page === 'history') return historyPage();

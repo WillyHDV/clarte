@@ -287,3 +287,31 @@ test('nome do aluno: usa o salvo, limpa os espaços e volta para "Willy" se esti
   for (const ruim of ['', '   ', 123, null, {}]) { S.setSetting('name', ruim); assert.equal(S.studentName(), 'Willy', String(ruim)); }
   assert.equal(S.get().settings.avatar, 'initial', 'avatar padrão');
 });
+
+test('biblioteca da Leitura: páginas da primeira versão vão para "Meu livro" e ganham número; dado quebrado some', () => {
+  const s = S.normalize({ book: { pages: [
+    { id: 'p1', criada: '2026-11-10T10:00:00.000Z', frases: [{ fr: 'a' }] }, { id: 'p2', frases: [{ fr: 'b' }], numero: 7 }, { id: 'p3', frases: [{ fr: 'c' }], pos: 9 },
+    { id: 5, frases: [] }, { id: 'p4' }, null, { id: 'p5', livro: 'outro', livro2: 1, frases: [{ fr: 'd' }], numero: 2 },
+  ] } });
+  assert.deepEqual(s.book.livros.map((l) => [l.id, l.titulo]), [['meu-livro', 'Meu livro']]);
+  assert.deepEqual(s.book.pages.map((p) => [p.id, p.livro, p.numero]), [['p1', 'meu-livro', 8], ['p2', 'meu-livro', 7], ['p3', 'meu-livro', 9], ['p5', 'meu-livro', 2]], 'número que falta segue o maior do livro');
+  assert.equal(s.book.pages[2].pos, 0, 'posição fora das frases volta para 0');
+  const boa = S.normalize({ book: { livros: [{ id: 'l1', titulo: '  O Pequeno Príncipe  ' }, { id: 'l2', titulo: '  ' }, { id: 3, titulo: 'x' }], pages: [{ id: 'p1', livro: 'l1', numero: 12, frases: [{ fr: 'a' }, { fr: 'b' }], pos: 1 }] } });
+  assert.deepEqual(boa.book.livros.map((l) => l.titulo), ['O Pequeno Príncipe']); assert.deepEqual([boa.book.pages[0].livro, boa.book.pages[0].numero, boa.book.pages[0].pos], ['l1', 12, 1]);
+  assert.deepEqual(S.normalize({ book: 'x' }).book, { livros: [], pages: [] }); assert.deepEqual(S.normalize({}).book, { livros: [], pages: [] });
+});
+
+test('biblioteca da Leitura: criar, renomear e apagar livro; página com número, mudar de livro e apagar levam as páginas junto', () => {
+  S.resetAll(); const a = S.addLivro('  Livro   A '); const b = S.addLivro('Livro B');
+  assert.equal(S.addLivro('   '), ''); assert.equal(S.bookLivros()[0].titulo, 'Livro A'); assert.equal(S.proximoNumero(a), 1);
+  const p1 = S.addBookPage([{ fr: 'a' }], { livro: a }); const p2 = S.addBookPage([{ fr: 'b' }], { livro: a, numero: 10 }); const p3 = S.addBookPage([{ fr: 'c' }], { livro: b });
+  assert.deepEqual(S.bookPages(a).map((p) => p.numero), [1, 10]); assert.equal(S.proximoNumero(a), 11); assert.equal(S.bookPages(b)[0].numero, 1);
+  assert.equal(S.addBookPage([{ fr: 'd' }], { livro: 'nao-existe' }) !== '', true); assert.equal(S.bookPages(a).length, 3, 'livro desconhecido cai no primeiro da biblioteca');
+  assert.equal(S.renameLivro(a, '  Le Petit Prince '), true); assert.equal(S.renameLivro(a, ' '), false); assert.equal(S.renameLivro('x', 'y'), false); assert.equal(S.bookLivros()[0].titulo, 'Le Petit Prince');
+  assert.equal(S.updateBookPage(p1, { livro: b, numero: 4 }), true); assert.deepEqual([S.bookPages().find((p) => p.id === p1).livro, S.bookPages().find((p) => p.id === p1).numero], [b, 4]);
+  S.updateBookPage(p1, { livro: 'x', numero: -2 }); assert.deepEqual([S.bookPages().find((p) => p.id === p1).livro, S.bookPages().find((p) => p.id === p1).numero], [b, 4], 'valores inválidos são ignorados');
+  S.setBookPos(p2, 3); assert.equal(S.bookPages().find((p) => p.id === p2).pos, 3);
+  S.deleteBookPage(p3); assert.equal(S.bookPages().some((p) => p.id === p3), false);
+  S.deleteLivro(b); assert.deepEqual(S.bookLivros().map((l) => l.titulo), ['Le Petit Prince']); assert.equal(S.bookPages().some((p) => p.id === p1), false, 'apagar o livro leva as páginas dele'); assert.ok(S.bookPages().some((p) => p.id === p2));
+  S.resetAll(); const so = S.addBookPage([{ fr: 'x' }]); assert.equal(S.bookLivros()[0].titulo, 'Meu livro', 'sem livro nenhum, a página cria "Meu livro"'); assert.ok(so); S.resetAll();
+});

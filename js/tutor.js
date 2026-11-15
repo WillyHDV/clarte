@@ -336,6 +336,31 @@ export async function lerPagina({ apiKey, model, image, signal: outer }) {
   return r.text;
 }
 
+// ---------- dicionário da Leitura: uma palavra tocada na frase → verbete ----------
+export async function consultarPalavra({ apiKey, model, palavra, frase, signal: outer }) {
+  const p = PROVIDERS.gemini;
+  const pedido = `Você é um dicionário francês–português para um brasileiro iniciante (nível A1). A palavra tocada foi «${palavra}» na frase «${frase}».
+Responda SOMENTE com JSON neste formato:
+{"palavra":"","lema":"","classe":"","leitura":"","nivel":"A1","significados":[{"pt":"","nota":""}],"neste_contexto":"","forma":"","exemplos":[{"fr":"","pt":""}],"expressoes":[{"fr":"","pt":""}],"notas":""}
+Regras:
+- "lema": a forma de dicionário (infinitivo do verbo; masculino singular do adjetivo ou substantivo). "classe": ex. "verbo", "substantivo masculino", "adjetivo", "preposição".
+- "leitura": como se lê, em sílabas separadas por hífen, com a grafia do português do Brasil.
+- "significados": de 1 a 4 traduções em português, da mais comum para a menos comum; "nota" só quando ajudar (registro, gênero, falso amigo).
+- "neste_contexto": o que a palavra quer dizer NESTA frase, em uma linha.
+- "forma": se a palavra for uma forma conjugada ou flexionada, explique em uma linha (ex.: "3ª pessoa do plural do presente de avoir"); senão, deixe vazio.
+- "exemplos": 3 frases curtas e simples em francês, de contextos diferentes, com tradução em português. "expressoes": até 3 expressões comuns com a palavra, com tradução.
+- "notas": até 2 linhas com dicas de uso (pronúncia difícil, ligação, formal ou informal, erro comum de brasileiro). Seja breve e correto.`;
+  const r = await withFallback('gemini', model || p.model, outer, (m, ms) => timed(outer, ms + 15000, async (signal) => {
+    const res = await fetch(`${p.base}/models/${encodeURIComponent(m)}:generateContent`, {
+      method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: pedido }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 2000, responseMimeType: 'application/json' } }),
+    });
+    await ensureOk(res); const j = await res.json();
+    return { text: ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter((x) => !x.thought).map((x) => x.text || '').join('') };
+  }));
+  return r.text;
+}
+
 // executa fn(signal) com limite de tempo (vira erro 408) e cancelamento externo
 async function timed(outer, ms, fn) {
   const ctl = new AbortController(); let timedOut = false;

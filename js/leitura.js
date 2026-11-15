@@ -11,12 +11,12 @@ const MARCAS_OK = /^[^{}<>]*(?:(?:\{[^{}<>\s]*\}|<[^{}<>\s]*>)[^{}<>]*)*$/;
 export const semMarcas = (s) => String(s).replace(/[{}<>]/g, '');
 
 // a IA pode responder com cerca de código ou texto em volta; devolve o objeto ou lança um erro em português
-export function lerJson(texto) {
+export function lerJson(texto, erro = 'A resposta da Clara veio incompleta. Tente de novo (uma página só, com boa luz, costuma resolver).') {
   const t = String(texto || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try { return JSON.parse(t); } catch (e) { /* tenta recortar */ }
   const a = t.indexOf('{'); const b = t.lastIndexOf('}');
   if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { /* cai no erro */ } }
-  throw new Error('A resposta da Clara veio incompleta. Tente de novo (uma página só, com boa luz, costuma resolver).');
+  throw new Error(erro);
 }
 
 // Valida e limpa a resposta. Se as marcas alterarem o texto da frase, a frase fica sem marcas (o texto nunca muda).
