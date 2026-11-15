@@ -130,3 +130,14 @@ test('treino no app: escrever e montar não têm som antes, e a frase certa toca
   assert.equal(cap.falas.length, antes + 1, 'verificar tocou a frase certa uma vez'); const botao = $('#fb [data-say]');
   assert.ok(botao, 'botão Ouvir no painel de resposta'); assert.equal(cap.falas.at(-1).text, botao.dataset.say.replace(/\s+/g, ' ').trim());
 });
+
+test('Leitura do livro: Devagar fala bem mais devagar que Ouvir (voz do Android)', async () => {
+  const V = await import('../js/speech.js'); novo(); await V.recheckNativeVoice();
+  const id = S.addBookPage([{ fr: 'Ils ont un petit chat.', pt: '', marcada: 'Ils ont un petit chat.', leitura: '', regras: [], palavras: [], avancado: false }]);
+  await goto('#/'); await goto(`#/leitura/${id}`); await tick(40);
+  const antes = cap.falas.length; $('[data-ouvir="0"]').click(); await tick(60); $('[data-devagar="0"]').click(); await tick(60);
+  const [normal, devagar] = cap.falas.slice(antes);
+  assert.equal(normal.text, 'Ils ont un petit chat.'); assert.equal(devagar.text, 'Ils ont un petit chat.');
+  assert.equal(normal.rate, 0.9); assert.ok(devagar.rate <= 0.5 && normal.rate - devagar.rate >= 0.4, `Devagar precisa ser bem mais lento (normal ${normal.rate}, devagar ${devagar.rate})`);
+  S.deleteBookPage(id);
+});

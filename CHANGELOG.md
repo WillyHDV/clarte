@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## v29 — 15/11/2026
+
+Foto direto pelo app na Leitura do livro e Devagar de verdade.
+
+- **Tirar foto pelo app**: a Leitura ganhou dois botões, **Tirar foto** (abre a câmera do aparelho e a foto volta direto para o app) e **Da galeria**. Antes só havia o seletor de arquivos, e a câmera só dava para usar fora do app. A foto da câmera segue o mesmo caminho da galeria (reduzida e enviada à Clara). **No app Android isso exige reinstalar o APK**: a casca ganhou a declaração (`queries`) que o Android 11 ou mais novo pede para o app enxergar a câmera. Sem reinstalar, o botão cai na galeria. Não pede a permissão CAMERA: quem tira a foto é a câmera do próprio aparelho, com todos os recursos dela.
+- **Devagar**: o botão fala bem mais devagar (velocidade 0,45; antes 0,6, que mal se notava na voz do Android e no áudio do Gemini). Vale para a Leitura, para os exercícios e para "Ouvir devagar" na ligação com a Clara.
+- **Testes**: 317 → 319 (câmera e galeria, velocidade do Devagar e a declaração no Android), com testes de mutação. O teste do exercício de pares ficou mais robusto: ele procura o exercício sorteado em mais treinos.
+
 ## v28 — 15/11/2026
 
 Leitura do livro: fotografe uma página de um livro bilíngue e a Clara mostra como o francês se pronuncia.

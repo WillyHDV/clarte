@@ -5,7 +5,7 @@ import { stopSpeaking, listen, dictate, browserRec, canTalk, canRecord } from '.
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast, linha } from '../ui.js';
-import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats, go, haptico } from '../core.js';
+import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats, go, haptico, rateDevagar } from '../core.js';
 import { readiness, CRITERIA, planDone } from '../progress.js';
 import { ACC } from './practice.js';
 import * as SC from '../scenarios.js';
@@ -233,7 +233,7 @@ async function tutorPage() {
       const n = $('cnote'); n.hidden = !note; n.innerHTML = note ? md(note) : '';
       const tg = $('ctarget'); tg.hidden = !tgt;
       tg.innerHTML = tgt ? `<small>Repita em voz alta</small><b>${esc(tgt)}</b><span><button class="pill" data-say="${esc(tgt)}">${I('volume')} Ouvir</button><button class="pill" id="ctslow">${I('clock')} Devagar</button></span>` : '';
-      const ts = tg.querySelector('#ctslow'); if (ts) ts.onclick = () => { stopRec(); speaker && speaker.stop(); speak(tgt, { rate: 0.6 }).then(() => { if (alive && !paused && phase === 'listen') listenTurn(); }); };
+      const ts = tg.querySelector('#ctslow'); if (ts) ts.onclick = () => { stopRec(); speaker && speaker.stop(); speak(tgt, { rate: rateDevagar() }).then(() => { if (alive && !paused && phase === 'listen') listenTurn(); }); };
     };
     const fail = (msg, retry, alt) => {
       setPhase('error', msg); const er = $('cerr'); er.hidden = false;

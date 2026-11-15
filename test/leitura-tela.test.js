@@ -35,14 +35,14 @@ const PAGINA = { frases: [
   { fr: "Il se leva à l'aube.", pt: 'Ele se levantou ao amanhecer.', marcada: "Il se leva à l'aube.", leitura: 'il sê lê-va a lôb', regras: [], palavras: [], avancado: true },
 ] };
 const resposta = (obj) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: typeof obj === 'string' ? obj : JSON.stringify(obj) }] } }] }), { status: 200 });
-const mandarFoto = async () => {
-  const entrada = $('#lfile'); const arquivo = new w.File([new Uint8Array(3000)], 'pagina.jpg', { type: 'image/jpeg' });
+const mandarFoto = async (id = 'lfile') => {
+  const entrada = $(`#${id}`); const arquivo = new w.File([new Uint8Array(3000)], 'pagina.jpg', { type: 'image/jpeg' });
   Object.defineProperty(entrada, 'files', { configurable: true, value: [arquivo] }); entrada.dispatchEvent(new w.Event('change')); await tick(120);
 };
 
 test('sem chave do Gemini a tela avisa e o botão de foto fica desligado', async () => {
   S.resetAll(); await goto('#/'); await goto('#/leitura');
-  assert.match($('#app').textContent, /Falta a chave do Gemini/); assert.equal($('#ladd').disabled, true); assert.equal($('[data-go="#/settings/ia"]').tagName, 'BUTTON');
+  assert.match($('#app').textContent, /Falta a chave do Gemini/); assert.equal($('#ladd').disabled, true); assert.equal($('#lcam').disabled, true); assert.equal($('[data-go="#/settings/ia"]').tagName, 'BUTTON');
   assert.equal($('.apphead .back').dataset.go, '#/tutor', 'volta para a central da Clara'); assert.equal($$('nav.tabbar .tab.on')[0].dataset.p, 'tutor', 'a aba da Clara fica marcada');
 });
 
@@ -117,4 +117,16 @@ test('apagar uma página e página que não existe voltam para a lista; o backup
   await goto('#/'); await goto('#/leitura/nao-existe'); assert.equal(w.location.hash, '#/leitura');
   S.importData({ ...obj, state: { ...obj.state, book: { pages: [obj.state.book.pages[0], { id: 5 }, null] } } }); assert.equal(S.bookPages().length, 1, 'importar descarta páginas quebradas e mantém as boas');
   S.resetAll();
+});
+
+test('Tirar foto: o botão abre a câmera (campo com capture), a galeria abre o seletor e a foto da câmera segue o mesmo caminho', async () => {
+  S.resetAll(); S.setKey('gemini', 'chave-de-teste'); const real = globalThis.fetch; let pedidos = 0;
+  globalThis.fetch = async () => { pedidos++; return resposta(PAGINA); };
+  try {
+    await goto('#/'); await goto('#/leitura');
+    assert.equal($('#lcamera').getAttribute('capture'), 'environment', 'câmera traseira'); assert.equal($('#lcamera').getAttribute('accept'), 'image/*'); assert.equal($('#lfile').hasAttribute('capture'), false, 'a galeria não força a câmera');
+    let abriu = ''; $('#lcamera').click = () => { abriu += 'camera '; }; $('#lfile').click = () => { abriu += 'galeria'; };
+    $('#lcam').click(); $('#ladd').click(); assert.equal(abriu, 'camera galeria'); assert.match($('#lcam').textContent, /Tirar foto/);
+    await mandarFoto('lcamera'); assert.equal(pedidos, 1); assert.match(w.location.hash, /^#\/leitura\/p/); assert.equal(S.bookPages().length, 1);
+  } finally { globalThis.fetch = real; }
 });

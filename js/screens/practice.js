@@ -4,7 +4,7 @@ import { buildSession, check, shuffle, skillsFor, politicaSom } from '../exercis
 import { listen, dictate, browserRec, canTalk, canRecord, prefetch, stopSpeaking } from '../speech.js';
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
-import { $app, st, rate, speak, setCleanup, haptico } from '../core.js';
+import { $app, st, rate, rateDevagar, speak, setCleanup, haptico } from '../core.js';
 import { strengthOf, readiness, unitMastery, STEPS, nextStep, planDone, markFocus } from '../progress.js';
 
 // ---------- prática ----------
@@ -136,7 +136,7 @@ export function practice(id, stepId) {
 
   function wire() {
     const ok = document.getElementById('ok');
-    document.querySelectorAll('[data-slow]').forEach((b) => { b.onclick = () => speak(ex.audio, { rate: 0.6 }); });
+    document.querySelectorAll('[data-slow]').forEach((b) => { b.onclick = () => speak(ex.audio, { rate: rateDevagar() }); });
     const som = politicaSom(ex); // certa ou errada, a opção tocada é lida (nos exercícios em que as opções são o que se ouve); nunca só a certa
     document.querySelectorAll('.opt').forEach((b) => { b.onclick = () => { if (answered) return; sel = ex.options[+b.dataset.o]; document.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === b)); ok.disabled = false; if (som.aoSelecionar && st().settings.voice !== false) speak(sel, { rate: rate(), rapido: true }); }; });
     const inp = document.getElementById('inp');

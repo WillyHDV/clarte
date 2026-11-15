@@ -44,4 +44,10 @@
     <!-- vibração curta ao acertar ou errar um exercício (Ajustes → Estudo desliga) -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- Leitura do livro: o botão "Tirar foto" abre a câmera do aparelho; no Android 11 ou mais novo o app só enxerga o app de câmera se declarar isto -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 </manifest>

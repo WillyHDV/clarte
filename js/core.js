@@ -7,6 +7,8 @@ import { toast } from './ui.js';
 export const $app = document.getElementById('app');
 export const st = () => S.get();
 export const rate = () => (st().settings.slow ? 0.7 : 0.9);
+// botão Devagar: bem mais lento que o normal (0,6 mal se notava na voz do Android e no áudio do Gemini)
+export const rateDevagar = () => 0.45;
 export async function speak(text, opts) { await V.speak(text, opts); if (V.voiceNote) toast(V.voiceNote); }
 // função chamada ao sair da tela atual; cada tela registra a sua com setCleanup()
 let cleanup = null;

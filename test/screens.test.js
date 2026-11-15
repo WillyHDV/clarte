@@ -315,7 +315,7 @@ test('o Perfil leva à Evolução (com a prontidão e os critérios) e a Evoluç
 // ---- associar pares na tela ----
 // navega por treinos até aparecer um exercício de pares (20% dos exercícios das unidades com pares)
 async function irAtePares(unidade) {
-  for (let tentativa = 0; tentativa < 12; tentativa++) {
+  for (let tentativa = 0; tentativa < 30; tentativa++) {
     await goto('#/settings'); await goto(`#/practice/${unidade}`);
     for (let n = 0; n < 40 && !$('.end'); n++) {
       if ($('#match')) return;

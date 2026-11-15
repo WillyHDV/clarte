@@ -143,6 +143,8 @@ test('app Android: configuração do Capacitor aponta para o site publicado e te
   const man = read('native/android/app/src/main/AndroidManifest.xml');
   for (const p of ['INTERNET', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS', 'VIBRATE']) assert.match(man, new RegExp(`android.permission.${p}`), p);
   assert.match(man, /microphone" android:required="false"/);
+  assert.match(man, /<queries>[\s\S]*android.media.action.IMAGE_CAPTURE[\s\S]*<\/queries>/, 'sem isto o botão Tirar foto cai na galeria no Android 11 ou mais novo');
+  assert.doesNotMatch(man, /android.permission.CAMERA/, 'a câmera do aparelho tira a foto; declarar CAMERA obrigaria a pedir permissão a cada foto');
 });
 
 test('app Android: versões do Capacitor iguais e plugins esperados', () => {
