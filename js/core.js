@@ -19,6 +19,17 @@ export function runCleanup() { if (cleanup) { try { cleanup(); } catch (e) { /* 
 const VIBRA = { toque: 10, good: 18, almost: [20, 40, 20], bad: [40, 50, 40], fim: [30, 50, 30, 50, 70] };
 export function haptico(tipo) { try { const v = VIBRA[tipo]; if (v && st().settings.haptics !== false && navigator.vibrate) navigator.vibrate(v); } catch (e) { /* sem vibração */ } }
 
+// folha que sobe de baixo (ficha das missões, avatar, dicionário, cartas); fechar() esconde e chama aoFechar uma vez
+export function abrirFolha(conteudo, aoFechar) {
+  let box = document.getElementById('folha');
+  if (!box) { box = document.createElement('div'); box.id = 'folha'; $app.appendChild(box); }
+  box.innerHTML = `<div class="scsheet" role="dialog" aria-modal="true"><div class="box"><span class="grab" aria-hidden="true"></span>${conteudo}</div></div>`;
+  let fechada = false;
+  const fechar = () => { if (fechada) return; fechada = true; box.innerHTML = ''; if (aoFechar) aoFechar(); };
+  box.querySelector('.scsheet').onclick = (e) => { if (e.target.classList.contains('scsheet')) fechar(); };
+  return { box, fechar };
+}
+
 // baixa um arquivo gerado no aparelho (backup do progresso, lembretes de calendário)
 export function download(name, content, type) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name;

@@ -2,7 +2,7 @@
 import * as S from '../store.js';
 import * as T from '../tutor.js';
 import { esc, I, toast, linha, estado } from '../ui.js';
-import { $app, st, rate, rateDevagar, speak, setCleanup, go } from '../core.js';
+import { $app, st, rate, rateDevagar, speak, setCleanup, go, abrirFolha } from '../core.js';
 import { prepararImagem, validarPagina, lerJson, palavrasMarcadas, textoDaPalavra, acharPalavra } from '../leitura.js';
 import { validarVerbete, chaveVerbete, verbeteSalvo, guardarVerbete } from '../dicionario.js';
 
@@ -15,17 +15,6 @@ const apertar = (t) => t.replace(/^[«“"(]+|[.,;:!?»”")…]+$/g, '');
 const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 const temChave = () => !!((st().settings.keys || {}).gemini);
 const avisoSemChave = () => (temChave() ? '' : `${estado('aviso', 'key', 'Falta a chave do Gemini', 'A leitura por foto e o dicionário usam o Gemini, que é grátis. Coloque a chave em Ajustes, na Professora Clara.')}<button class="btn wide" data-go="#/settings/ia">Abrir Ajustes</button><div class="spc"></div>`);
-
-// folha que sobe de baixo (a mesma peça da ficha das missões); fechar() esconde e chama aoFechar uma vez
-function abrirFolha(conteudo, aoFechar) {
-  let box = document.getElementById('folha');
-  if (!box) { box = document.createElement('div'); box.id = 'folha'; $app.appendChild(box); }
-  box.innerHTML = `<div class="scsheet" role="dialog" aria-modal="true"><div class="box"><span class="grab" aria-hidden="true"></span>${conteudo}</div></div>`;
-  let fechada = false;
-  const fechar = () => { if (fechada) return; fechada = true; box.innerHTML = ''; if (aoFechar) aoFechar(); };
-  box.querySelector('.scsheet').onclick = (e) => { if (e.target.classList.contains('scsheet')) fechar(); };
-  return { box, fechar };
-}
 
 // ---------- biblioteca ----------
 function biblioteca() {
@@ -114,7 +103,7 @@ function livroTela(id) {
 }
 
 // ---------- verbete do dicionário (HTML da folha) ----------
-function verbeteHtml({ texto, achada, v, aviso }) {
+function verbeteHtml({ texto, achada, v, aviso, jaTem }) {
   const lema = v && v.lema && v.lema.toLowerCase() !== texto.toLowerCase() ? `<small>forma de <b>${esc(v.lema)}</b></small>` : '';
   const meta = v ? [v.classe, v.nivel].filter(Boolean).join(' · ') : '';
   const secao = (titulo, corpo) => `<section class="dic-sec"><h4>${titulo}</h4>${corpo}</section>`;
@@ -127,6 +116,8 @@ function verbeteHtml({ texto, achada, v, aviso }) {
     v.exemplos.length ? secao('Em outros contextos', exemplos(v.exemplos)) : '',
     v.expressoes.length ? secao('Expressões', exemplos(v.expressoes)) : '',
     v.notas ? secao('Dicas de uso', `<p class="dic-p">${esc(v.notas)}</p>`) : '',
+    secao('Minhas cartas', jaTem ? `<p class="dic-p">${I('circle-check')} Esta palavra já está nas suas cartas.</p>`
+      : `<label>Uma frase sua com «${esc(texto)}»<input id="dic-frase" class="inp" maxlength="160" autocomplete="off" placeholder="Uma frase da sua vida (opcional)"></label><small>Sem frase sua, a carta usa a frase do livro. No treino a palavra some da frase e você escreve.</small><button class="btn primary wide" id="dic-guardar">${I('bulb')} Guardar nas minhas cartas</button>`),
   ].join('') : '';
   return `<div class="dic-topo"><div><h3>${esc(texto)}</h3>${lema}${meta ? `<small>${esc(meta)}</small>` : ''}</div><button class="say circ" id="dic-ouvir" aria-label="Ouvir a palavra">${I('volume')}</button></div>
     ${v && v.leitura ? `<div class="como"><small>Como se lê</small><span>${esc(v.leitura)}</span></div>` : ''}
@@ -198,11 +189,17 @@ function paginaDeLeitura(id) {
       const { box, fechar } = abrirFolha('<div id="dic"></div>', () => { ctl.abort(); botao.classList.remove('on'); });
       const alvo = box.querySelector('#dic');
       const pinta = (v, aviso) => {
-        alvo.innerHTML = verbeteHtml({ texto, achada, v, aviso });
+        alvo.innerHTML = verbeteHtml({ texto, achada, v, aviso, jaTem: !!v && S.temPalavra(texto) });
         alvo.querySelector('#dic-ouvir').onclick = () => speak(texto, { rate: rate(), rapido: true });
         alvo.querySelectorAll('[data-dex]').forEach((b) => { b.onclick = () => speak(b.dataset.dex, { rate: rate() }); });
         alvo.querySelector('#dic-fechar').onclick = fechar;
         const tentar = alvo.querySelector('#dtentar'); if (tentar) tentar.onclick = consultar;
+        const guardar = alvo.querySelector('#dic-guardar');
+        if (guardar) guardar.onclick = () => {
+          const propria = alvo.querySelector('#dic-frase').value.trim(); const pt = (v.significados[0] && v.significados[0].pt) || v.contexto;
+          S.addCarta({ fr: texto, pt, frase: propria || frase, origem: 'leitura' }); toast('Carta guardada. Ela entra no Reforço.');
+          guardar.disabled = true; guardar.innerHTML = `${I('circle-check')} Guardada nas minhas cartas`;
+        };
       };
       async function consultar() {
         pinta(null, estado('info', 'sparkles', 'Consultando o dicionário…'));

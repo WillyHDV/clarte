@@ -1,6 +1,6 @@
 // Treino: sessão de exercícios (escolha, digitação, peças, fala) com correção e resultado.
 import { UNITS } from '../data.js';
-import { buildSession, check, shuffle, skillsFor, politicaSom } from '../exercises.js';
+import { buildSession, buildCartas, check, shuffle, skillsFor, politicaSom } from '../exercises.js';
 import { listen, dictate, browserRec, canTalk, canRecord, prefetch, stopSpeaking } from '../speech.js';
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
@@ -10,23 +10,26 @@ import { strengthOf, readiness, unitMastery, STEPS, nextStep, planDone, markFocu
 // ---------- prática ----------
 export const ACC = ['é', 'è', 'ê', 'ë', 'à', 'â', 'î', 'ï', 'ô', 'û', 'ù', 'ç', 'œ', '’'];
 export function practice(id, stepId) {
-  const review = id === 'review'; const speakDrill = id === 'speakdrill'; const cfg = stepId ? STEPS.find((s) => s.id === stepId) : null;
+  const review = id === 'review'; const speakDrill = id === 'speakdrill'; const cartasModo = id === 'cartas'; const cfg = stepId ? STEPS.find((s) => s.id === stepId) : null;
   // treino adaptativo: escolhe os exercícios cujos itens estão mais fracos (ou ainda não vistos)
-  const scope = (review || id === 'mix' || speakDrill) ? UNITS.map((u) => u.id) : [id];
+  const scope = (review || id === 'mix' || speakDrill || cartasModo) ? UNITS.map((u) => u.id) : [id];
   const avgPct = () => Math.round(scope.reduce((a, u) => a + unitMastery(u).pct, 0) / scope.length);
   const before = avgPct();
   let list;
   if (review) {
-    // revisão = frases mal repetidas + itens já vistos que estão enfraquecendo
-    const mis = shuffle(S.dueMistakes()).slice(0, 4);
+    // revisão = frases mal repetidas + itens já vistos perto de esquecer (força abaixo de 0,85, os mais próximos do ponto de esquecer primeiro) + cartas pessoais
+    const mis = shuffle(S.dueMistakes()).slice(0, 4); const minhas = buildCartas(S.cartas(), 3, strengthOf);
     const weakSeen = (iid) => { const s = S.strength(iid); return s === null ? 1 : s; };
-    const adapt = buildSession('mix', 24, weakSeen).filter((ex) => ex.items.some((iid) => { const s = S.strength(iid); return s !== null && s < 0.7; })).slice(0, 10 - mis.length);
-    list = [...mis, ...adapt];
-  } else if (speakDrill) list = buildSession('mix', 5, strengthOf, { kinds: ['speak'] });
+    const adapt = buildSession('mix', 24, weakSeen).filter((ex) => ex.items.some((iid) => { const s = S.strength(iid); return s !== null && s < 0.85; })).slice(0, 10 - mis.length - minhas.length);
+    list = shuffle([...mis, ...adapt, ...minhas]);
+  } else if (cartasModo) list = buildCartas(S.cartas(), 10, strengthOf);
+  else if (speakDrill) list = buildSession('mix', 5, strengthOf, { kinds: ['speak'] });
   else if (cfg) list = buildSession(id, cfg.n, strengthOf, cfg.kinds ? { kinds: cfg.kinds } : {});
   else list = buildSession(id, 10, strengthOf);
-  const sair = cfg || !(review || id === 'mix' || speakDrill) ? `#/unit/${id}` : '#/praticar'; // para onde o X e o "voltar" levam
-  const voltarTxt = cfg || !(review || id === 'mix' || speakDrill) ? 'Voltar à unidade' : 'Voltar a Praticar';
+  const daUnidade = cfg || !(review || id === 'mix' || speakDrill || cartasModo);
+  const sair = cartasModo ? '#/cartas' : daUnidade ? `#/unit/${id}` : '#/praticar'; // para onde o X e o "voltar" levam
+  const voltarTxt = cartasModo ? 'Voltar às cartas' : daUnidade ? 'Voltar à unidade' : 'Voltar a Praticar';
+  if (cartasModo && !list.length) { $app.innerHTML = `<header class="apphead"><button class="back" data-go="#/cartas" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Minhas cartas</b><small>Nada para treinar</small></div></header><div class="card center"><p>Você ainda não tem cartas. Guarde palavras tocando nelas na Leitura.</p><button class="btn primary wide" data-go="#/leitura">Abrir a Leitura</button></div>`; return; }
   if (!list.length) { $app.innerHTML = `<header class="apphead"><button class="back" data-go="#/praticar" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Reforço</b><small>Nada fraco agora</small></div></header><div class="card center"><div class="medalha ok">${I('trophy')}</div><p>Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary wide" data-go="#/practice/mix">${I('bolt')} Treino inteligente</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; const wrongList = [];
   let ex; let sel; let placed; let bank; let heard = ''; let rec = null; let answered = false; let auto = null; // auto: o toque automático do áudio dos exercícios de ouvir

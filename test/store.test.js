@@ -51,8 +51,8 @@ test('revisão espaçada: errar agenda, acertar na revisão avança, ao fim sai 
   S.noteResult(ex, true, true);
   assert.equal(S.get().mistakes[0].box, 1);
   assert.equal(S.dueMistakes().length, 0, 'agora só volta depois do intervalo');
-  for (let i = 0; i < 4; i++) S.noteResult(ex, true, true);
-  assert.equal(S.get().mistakes.length, 0, 'depois de todas as caixas, sai da revisão');
+  for (let i = 0; i < 6; i++) S.noteResult(ex, true, true);
+  assert.equal(S.get().mistakes.length, 0, 'depois de todas as caixas (até 60 dias), sai da revisão');
   S.noteResult(ex, true, true); assert.equal(S.get().mistakes.length, 0, 'acertar algo que não está na lista não cria nada');
 });
 
@@ -314,4 +314,32 @@ test('biblioteca da Leitura: criar, renomear e apagar livro; página com número
   S.deleteBookPage(p3); assert.equal(S.bookPages().some((p) => p.id === p3), false);
   S.deleteLivro(b); assert.deepEqual(S.bookLivros().map((l) => l.titulo), ['Le Petit Prince']); assert.equal(S.bookPages().some((p) => p.id === p1), false, 'apagar o livro leva as páginas dele'); assert.ok(S.bookPages().some((p) => p.id === p2));
   S.resetAll(); const so = S.addBookPage([{ fr: 'x' }]); assert.equal(S.bookLivros()[0].titulo, 'Meu livro', 'sem livro nenhum, a página cria "Meu livro"'); assert.ok(so); S.resetAll();
+});
+
+test('cartas pessoais: guardar com frase, não duplicar, editar, apagar leva a força junto; dado quebrado some', () => {
+  S.resetAll(); assert.deepEqual(S.cartas(), []);
+  assert.equal(S.addCarta({ fr: '   ' }), '', 'palavra vazia não vira carta');
+  const a = S.addCarta({ fr: '  petit ', pt: 'pequeno', frase: ' Ils ont   un petit chat. ', origem: 'leitura' });
+  assert.deepEqual(S.cartas().map((c) => [c.fr, c.pt, c.frase, c.origem]), [['petit', 'pequeno', 'Ils ont un petit chat.', 'leitura']], 'espaços sobrando saem');
+  assert.equal(S.temCarta('Petit', 'Ils ont un petit chat.'), true, 'mesma palavra e mesma frase, sem diferenciar maiúscula');
+  assert.equal(S.temPalavra('PETIT'), true); assert.equal(S.temPalavra('grand'), false); assert.equal(S.temCarta('petit', 'Outra frase.'), false); assert.equal(S.temCarta('grand', 'Ils ont un petit chat.'), false);
+  assert.equal(S.addCarta({ fr: 'PETIT', frase: 'Ils ont un petit chat.' }), a, 'repetida devolve a carta que já existe'); assert.equal(S.cartas().length, 1);
+  const b = S.addCarta({ fr: 'petit', pt: 'pequeno', frase: 'Mon petit frère dort.' }); assert.notEqual(a, b, 'a mesma palavra em outra frase é outra carta (cada frase é um contexto)'); assert.equal(S.cartas().length, 2);
+  const semPt = S.addCarta({ fr: 'chat', frase: 'Le chat dort.' }); S.addCarta({ fr: 'chat', pt: 'gato', frase: 'Le chat dort.' }); assert.equal(S.cartas().find((c) => c.id === semPt).pt, 'gato', 'repetir com significado completa a carta sem significado');
+  assert.equal(S.updateCarta(a, { pt: '  pequeno, baixo ', frase: 'Elle est   petite.' }), true); assert.deepEqual([S.cartas()[0].pt, S.cartas()[0].frase], ['pequeno, baixo', 'Elle est petite.']);
+  assert.equal(S.updateCarta('nao-existe', { pt: 'x' }), false);
+  S.recordItems([`card:${a}`], true, 'type'); assert.ok(S.strength(`card:${a}`) > 0);
+  S.deleteCarta(a); assert.equal(S.cartas().some((c) => c.id === a), false); assert.equal(S.strength(`card:${a}`), null, 'a força da carta apagada some junto');
+  const bom = S.normalize({ cartas: [{ id: 'c1', fr: ' petit ', pt: 7, frase: 'x'.repeat(300) }, { id: 'c2', fr: '  ' }, { id: 3, fr: 'a' }, null, 'x', { id: 'c4', fr: 'chat', pt: 'gato', frase: 'Le chat.', origem: 'leitura', criada: '2026-11-15T10:00:00.000Z' }] });
+  assert.deepEqual(bom.cartas.map((c) => c.id), ['c1', 'c4']); assert.deepEqual([bom.cartas[0].fr, bom.cartas[0].pt, bom.cartas[0].frase.length], ['petit', '', 160], 'campos fora do formato são limpos e cortados');
+  S.resetAll(); for (let i = 0; i < 503; i++) S.addCarta({ fr: 'p' + i }); assert.equal(S.cartas().length, 500, 'guardar a 501ª descarta a mais antiga'); assert.equal(S.cartas()[0].fr, 'p3');
+  assert.deepEqual(S.normalize({ cartas: 'x' }).cartas, []); assert.deepEqual(S.normalize({}).cartas, []);
+  assert.equal(S.normalize({ cartas: Array.from({ length: 520 }, (_, i) => ({ id: `c${i}`, fr: `p${i}` })) }).cartas.length, 500, 'guarda as 500 mais recentes');
+});
+
+test('revisão de erros chega a 30 e 60 dias antes de sair da lista', () => {
+  const ex = { key: 'kl', kind: 'type' }; S.noteResult(ex, false);
+  const dias = []; for (let i = 0; i < 7; i++) { S.noteResult(ex, true, true); const m = S.get().mistakes[0]; if (m) dias.push(Math.round((m.due - Date.now()) / DAY)); }
+  assert.deepEqual(dias, [1, 3, 7, 14, 30, 60], 'cada acerto adia mais; o sétimo acerto tira o erro da lista');
+  assert.equal(S.get().mistakes.length, 0);
 });

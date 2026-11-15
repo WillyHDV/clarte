@@ -1,21 +1,21 @@
 # Linha de progressão do Clarté
 
-Escrita em 15/11/2026, a partir de sete livros que o Willy anexou e do estado real do app (v31). Serve para decidir **o que fazer, em que ordem e por quê**. Os livros são só referência: nada deles foi copiado para o projeto (o repositório é público); o que está aqui é síntese com palavras próprias e a indicação do capítulo.
+Escrita em 15/11/2026, a partir de sete livros que o Willy anexou e do estado real do app (v31); atualizada no mesmo dia com a v32 e a direção decidida com o Willy (seção 3). Serve para decidir **o que fazer, em que ordem e por quê**. Os livros são só referência: nada deles foi copiado para o projeto (o repositório é público); o que está aqui é síntese com palavras próprias e a indicação do capítulo.
 
 ## 1. Onde o app está e o que os livros dizem
 
 | O que os livros pedem | Como está no app hoje | Lacuna |
 | --- | --- | --- |
 | Pronúncia primeiro, com treino de ouvido (pares mínimos com resposta imediata) e ligação entre grafia e som | Leitura mostra letras mudas e ligações; exercícios de ouvir; unidade do alfabeto | Não há treino de ouvido com pares mínimos (u/ou, an/on/in, é/è, s/z…) nem regras de som ensinadas em sequência |
-| Recuperar da memória, não reler; revisar **perto de esquecer**, não o que já esqueceu | Todo exercício é recuperação; força por item que decai com o tempo (modelo de meia-vida); erros voltam em 0, 1, 3, 7 e 14 dias | A prioridade vai ao item **mais fraco**, não ao que está **no ponto de esquecer**; intervalos param em 14 dias |
-| Corrigir na hora, e transformar cada correção em cartão | Painel de feedback imediato nos exercícios; frases fracas da ligação vão ao Reforço | Correções da Clara no chat e palavras do dicionário não viram cartões |
-| Conexão pessoal e imagens para a palavra grudar (elaboração) | Nenhuma | O app só apresenta; você não "constrói" o cartão |
+| Recuperar da memória, não reler; revisar **perto de esquecer**, não o que já esqueceu | Todo exercício é recuperação; força por item que decai com o tempo (modelo de meia-vida); erros voltam em 0, 1, 3, 7 e 14 dias | ~~A prioridade ia ao item **mais fraco**, não ao que está **no ponto de esquecer**; intervalos paravam em 14 dias~~ Resolvido na v32 |
+| Corrigir na hora, e transformar cada correção em cartão | Painel de feedback imediato nos exercícios; frases fracas da ligação vão ao Reforço | Palavras do dicionário já viram cartas (v32); as correções da Clara no chat ainda não |
+| Conexão pessoal e imagens para a palavra grudar (elaboração) | Minhas cartas (v32): você escolhe a palavra e escreve uma frase sua | Falta imagem/cena; ver decisão em aberto 2 |
 | Misturar tipos de exercício (intercalar) e variar contextos | Treino inteligente mistura unidades; tipos sorteados | Dentro de uma unidade, a mistura é só aleatória |
 | Calibrar: saber o que você realmente sabe | Prontidão por unidade e gráficos | A prontidão mistura reconhecer e produzir; não pergunta o quanto você acha que sabe |
 | Escrever e falar (saída) com correção | Cenários e prova oral com a Clara; texto livre | Falta guardar o que errou e voltar a isso |
 | Entrada rica (ler e ouvir o que importa para você) | Leitura de livro com dicionário e biblioteca | Falta ler em voz alta e levar frases e palavras para o Reforço |
 | Funcionar bem com rede ruim; offline como estado normal | Cache do site pelo service worker; backup local | A política é "rede primeiro"; não há teste real offline no celular |
-| Poucas idas à rede no celular (cada pedido custa latência e bateria) | O app consulta a versão nova a cada 15 minutos e ao voltar à tela | Dá para reduzir |
+| Poucas idas à rede no celular (cada pedido custa latência e bateria) | O app consulta a versão nova a cada 15 minutos e ao voltar à tela | ~~Dá para reduzir~~ Agora no máximo a cada 30 minutos (v32) |
 | Módulos profundos, pouca duplicação, funções curtas | Testes fortes (330), sem dependências; telas simples | `tutor.js` tem uma função de quase 500 linhas; adicionar um tipo de exercício exige mexer em vários arquivos; CSS em camadas históricas |
 | Avaliar a IA com critérios e um conjunto fixo de exemplos | Respostas da IA são validadas no formato | Ninguém mede se as marcas de som e os verbetes estão **certos** |
 
@@ -32,18 +32,26 @@ Escrita em 15/11/2026, a partir de sete livros que o Willy anexou e do estado re
 9. **Offline e rede ruim são estados normais** (Building Progressive Web Apps cap. 5; High Performance Browser Networking cap. 8).
 10. **Avaliar a IA como qualquer outra parte do produto** (AI Engineering cap. 4): critérios claros, exemplos de referência, medida repetível.
 
-## 3. A linha de progressão
+## 3. Direção decidida com o Willy (15/11/2026)
 
-As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar no celular.
+1. **Livros primeiro**: o que os livros trouxeram para melhorar o app vem antes. O conteúdo da Évaluation 2 (oral em 02/12; reposição em 09/12) fica para depois, quando o material chegar.
+2. **Um app para levar além do curso**: o Clarté não deve acabar com o Français basique 1. Para isso o app passa a ter duas camadas:
+   - **Pacote do curso** (hoje o *fb1*): unidades, frases, missões e prova oral. Outro curso (fb2, ou um livro novo) entra como pacote de dados, sem mexer nas telas.
+   - **Camada pessoal**: o que é do Willy e não depende de curso nenhum: as **cartas** (v32), os **livros da Leitura**, os sons treinados e a memória de cada item (força e erros). Entra no backup e continua depois que o curso acabar.
+3. Consequência prática para as próximas entregas: tudo o que for novo e pessoal (Sons do francês, Minhas frases, ler em voz alta) fica na camada pessoal; conteúdo de aula entra como pacote. A separação em pacotes é a entrega 3.6, quando o segundo pacote existir.
+
+## 4. A linha de progressão
+
+As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar no celular. **Já feito na v32:** 0.2, a parte das palavras do dicionário em 0.3 e a consulta de versão em 0.4.
 
 ### Onda 0: até 02/12 (Évaluation 2): o que serve à prova
 
 | # | Entrega | Por quê | Depende de |
 | --- | --- | --- | --- |
-| 0.1 | **Conteúdo da Évaluation 2**: unidades novas, frases, missões e simulação da prova oral | Hoje o app cobre só o conteúdo da avaliação 1 | Material do curso (programa, slides, vocabulário, critérios da prova oral) |
-| 0.2 | **Revisão no ponto certo**: o Reforço passa a priorizar os itens com força entre 0,45 e 0,8 e deixa o que está muito fraco para o treino dirigido; intervalos de erro estendidos (30 e 60 dias) | Mais retenção por minuto; é pequeno e já está apoiado no modelo existente | nada |
-| 0.3 | **Corrigir vira cartão**: botão "guardar" nas correções da Clara e nas palavras do dicionário, com o campo "uma frase sua com essa palavra" | Fecha o ciclo: errar, corrigir, voltar a ver | nada |
-| 0.4 | **Teste real offline** no celular (modo avião) e consulta de versão menos frequente | Confirma o que o app faz sem rede e economiza bateria | seu celular |
+| 0.2 | **Revisão no ponto certo** ✔ v32: a prioridade do treino tem o pico perto do ponto de esquecer (força ~0,6), não no mais fraco; o Reforço passa a pegar tudo abaixo de 0,85; erros voltam até 30 e 60 dias | Mais retenção por minuto; é pequeno e já está apoiado no modelo existente | nada |
+| 0.3 | **Corrigir vira cartão**. ✔ v32: palavras do dicionário viram cartas, com o campo "uma frase sua com essa palavra". **Falta:** o botão "guardar" nas correções da Clara no chat | Fecha o ciclo: errar, corrigir, voltar a ver | nada |
+| 0.4 | **Teste real offline** no celular (modo avião). ✔ v32: consulta de versão menos frequente (no máximo a cada 30 minutos). **Falta:** o teste no celular | Confirma o que o app faz sem rede e economiza bateria | seu celular |
+| 0.1 | **Conteúdo da Évaluation 2**: unidades novas, frases, missões e simulação da prova oral. *Adiado a pedido do Willy; fica para depois dos livros.* | Hoje o app cobre só o conteúdo da avaliação 1 | Material do curso (programa, slides, vocabulário, critérios da prova oral) |
 
 ### Onda 1: dezembro: sons e saída
 
@@ -72,22 +80,23 @@ As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar 
 | 3.3 | **Livros e dicionário em armazenamento próprio** (chave separada ou IndexedDB) | O progresso inteiro é gravado de uma vez; livros crescem e podem pesar |
 | 3.4 | **Cache primeiro** para os arquivos do app, com atualização na próxima abertura; empacotamento opcional | Abertura mais rápida e uso offline previsível |
 | 3.5 | Consolidar o CSS por camadas (base, peças, telas) | O arquivo cresceu por acréscimo |
+| 3.6 | **Pacotes de curso**: separar do código as unidades, frases e missões do fb1 (dados) da camada pessoal, para entrar outro curso sem mexer nas telas | O app deve acompanhar o Willy além do curso (seção 3) |
 
-## 4. Como saber se está funcionando
+## 5. Como saber se está funcionando
 
 - **Aprendizagem:** acerto no segundo contato com cada item (7 e 30 dias depois); itens "no ponto de esquecer" resolvidos por dia; nota das simulações da prova oral.
 - **Hábito:** dias seguidos, minutos por dia, e quanto do tempo é recuperação (não leitura).
 - **Técnica:** tempo até a Trilha aparecer no celular; peso do que é baixado a cada abertura; número de testes; zero erros no registro do app.
 - **IA:** taxa de acerto das marcas de som no conjunto fixo (meta inicial: 90% das letras mudas e ligações certas); proporção de "marcação errada" avisada por você.
 
-## 5. Decisões em aberto
+## 6. Decisões em aberto
 
 1. **Material da Évaluation 2** (bloqueia a onda 0.1).
 2. **Imagens nos cartões**: o método do livro usa fotos escolhidas por quem aprende. O app não tem como buscar imagens grátis sem custo; alternativa: uma frase sua e um ícone. A decidir com o Willy.
 3. **Alfabeto fonético (IPA)**: o livro recomenda; o app mostra "como se lê" em português. Mostrar também o IPA em Ajustes avançados? Decidido adiar até a unidade de sons.
 4. **Ordem das ondas 1 e 2** depende de como a Leitura e o Reforço forem usados nas próximas semanas.
 
-## 6. O que foi lido
+## 7. O que foi lido
 
 Foram lidos, em texto, trechos escolhidos; **não** os sete livros inteiros (cerca de 3.000 páginas).
 

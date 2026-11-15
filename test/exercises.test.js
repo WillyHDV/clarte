@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UNITS } from '../js/data.js';
-import { buildSession, check, speakScore, skillsFor, unitItems, itemLabel, norm, stripAcc, politicaSom, audioEntrega } from '../js/exercises.js';
+import { buildSession, buildCartas, cartaExercicios, lacuna, urgencia, check, speakScore, skillsFor, unitItems, itemLabel, norm, stripAcc, politicaSom, audioEntrega } from '../js/exercises.js';
 
 const KINDS = new Set(['choice', 'listen-choice', 'type', 'listen-type', 'tiles', 'speak', 'match']);
 const unitIds = UNITS.map((u) => u.id);
@@ -220,4 +220,58 @@ test('som dos exercícios: casos conhecidos (som mudo no final, vogal nasal, for
   assert.equal(audioEntrega({ kind: 'type', answer: 'habite', audio: "J'habite à Maceió." }), true, "j'habite contém habite");
   assert.equal(audioEntrega({ kind: 'type', answer: 'e', audio: 'Elle est avocate' }), false, 'só palavras inteiras contam');
   assert.equal(audioEntrega({ kind: 'listen-type', answer: 'Bonjour', audio: 'Bonjour' }), false, 'nos de ouvir o áudio é o enunciado');
+});
+
+test('urgência da revisão: o ponto mais útil é perto de esquecer; o que já foi esquecido ainda vale, o que está firme quase não', () => {
+  assert.equal(urgencia(0.6), 1, 'no ponto de esquecer vale o máximo');
+  assert.ok(urgencia(0.3) > urgencia(0.9) && urgencia(0.1) > urgencia(0.95), 'esquecido vale mais que firme');
+  assert.ok(urgencia(0.6) > urgencia(0.1), 'perto de esquecer vale mais que já esquecido');
+  assert.equal(urgencia(1), 0); assert.equal(urgencia(0), 0.55);
+  for (let s = 0; s < 1; s += 0.05) assert.ok(urgencia(s + 0.0001) >= 0 && urgencia(s) <= 1, `dentro de 0 a 1 em ${s.toFixed(2)}`);
+  for (let s = 0.6; s < 0.99; s += 0.05) assert.ok(urgencia(s) > urgencia(s + 0.04), 'depois do ponto, quanto mais firme, menos urgente');
+  for (let s = 0; s < 0.55; s += 0.05) assert.ok(urgencia(s) < urgencia(s + 0.04), 'antes do ponto, quanto mais perto de esquecer, mais urgente');
+});
+
+test('a sessão adaptativa prefere itens perto de esquecer (força ~0,6) a itens já esquecidos (~0,1) e a firmes (~0,97)', () => {
+  const ids = [...new Set(unitIds.flatMap((u) => unitItems(u)))]; const grupo = new Map(ids.map((id, i) => [id, i % 3])); // 0 esquecido, 1 no ponto, 2 firme
+  const forca = (id) => [0.1, 0.6, 0.97][grupo.get(id) ?? 1];
+  const conta = [0, 0, 0];
+  for (let n = 0; n < 30; n++) for (const ex of buildSession('mix', 10, forca)) { const g = new Set((ex.items || []).filter((i) => grupo.has(i)).map((i) => grupo.get(i))); if (g.size === 1) conta[[...g][0]]++; } // só exercícios com itens de um único grupo
+  assert.ok(conta[1] > 2 * (conta[0] + conta[2]), `no ponto de esquecer deve vencer com folga: esquecidos ${conta[0]}, no ponto ${conta[1]}, firmes ${conta[2]}`);
+});
+
+test('lacuna: troca a palavra inteira (com acento, sem diferenciar maiúscula) e nunca um pedaço de outra palavra', () => {
+  assert.equal(lacuna('Je mange une pomme.', 'pomme'), 'Je mange une ____.');
+  assert.equal(lacuna('Pomme, pomme, pomme.', 'pomme'), '____, pomme, pomme.', 'só a primeira some');
+  assert.equal(lacuna('Il fait de la lune.', 'une'), '', 'une dentro de lune não conta');
+  assert.equal(lacuna('Je mange des pommes.', 'pomme'), '', 'plural é outra forma');
+  assert.equal(lacuna("J'ai été ici.", 'été'), "J'ai ____ ici.", 'acento conta como letra');
+  assert.equal(lacuna("Il y a des étés chauds.", 'été'), '');
+  assert.equal(lacuna("C'est aujourd'hui.", "aujourd'hui"), "C'est ____.");
+  assert.equal(lacuna('Elle (petite) dort.', '(petite)'), 'Elle ____ dort.', 'caracteres de regex na palavra não quebram');
+  assert.equal(lacuna('', 'a'), ''); assert.equal(lacuna('abc', ''), ''); assert.equal(lacuna('Le chat dort.', 'chien'), '');
+});
+
+test('cartas viram exercícios de escrever: completar a frase e dizer a palavra; texto do usuário não vira HTML', () => {
+  const c = { id: 'c1', fr: 'petit', pt: 'pequeno', frase: 'Ils ont un petit chat.' };
+  const [completar, dizer, ...resto] = cartaExercicios(c); assert.equal(resto.length, 0);
+  assert.deepEqual([completar.kind, completar.unit, completar.items], ['type', 'cartas', ['card:c1']]);
+  assert.match(completar.q, /Ils ont un ____ chat\./); assert.equal(completar.answer, 'petit'); assert.equal(completar.audio, 'Ils ont un petit chat.', 'a frase inteira é falada só depois de verificar');
+  assert.match(completar.sub, /pequeno/); assert.equal(check(completar, 'Petit').ok, true); assert.equal(check(completar, 'grand').ok, false);
+  assert.match(dizer.q, /Como se diz em francês: <b>pequeno<\/b>/); assert.equal(dizer.answer, 'petit'); assert.doesNotMatch(dizer.q, /petit/, 'o enunciado não entrega a resposta');
+  assert.doesNotMatch(completar.q.replace('____', ''), />petit</, 'a palavra some do enunciado');
+  assert.deepEqual(cartaExercicios({ id: 'c2', fr: 'chat', pt: 'gato', frase: '' }).map((e) => e.q.slice(0, 11)), ['Como se diz'], 'sem frase só tem o "como se diz"');
+  assert.deepEqual(cartaExercicios({ id: 'c3', fr: 'chat', pt: '', frase: 'Le chat dort.' }).length, 1, 'sem significado só tem o completar');
+  assert.deepEqual(cartaExercicios({ id: 'c4', fr: 'chat', pt: '', frase: 'Le chien dort.' }), [], 'sem significado e com a palavra fora da frase não há o que perguntar');
+  const xss = cartaExercicios({ id: 'c5', fr: 'chat', pt: '<img src=x onerror=alert(1)>', frase: 'Le chat <b>dort</b>.' });
+  for (const e of xss) assert.doesNotMatch(e.q + (e.explain || ''), /<img|<b>dort/, 'q e explain são HTML: o texto do usuário sai escapado'); // sub é texto puro, a tela escapa
+});
+
+test('buildCartas: no máximo n, um exercício por carta, e as cartas perto de esquecer vêm primeiro', () => {
+  assert.deepEqual(buildCartas([], 5), []);
+  const cartas = Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, fr: 'petit', pt: `p${i}`, frase: 'Un petit chat.' }));
+  const forca = (id) => (id === 'card:c2' ? 0.6 : 0.97);
+  for (let n = 0; n < 20; n++) { const l = buildCartas(cartas, 1, forca); assert.equal(l.length, 1); assert.deepEqual(l[0].items, ['card:c2'], 'a carta no ponto de esquecer vem antes das firmes'); }
+  const dez = buildCartas(cartas, 10); assert.equal(dez.length, 6, 'uma por carta, mesmo pedindo mais'); assert.equal(new Set(dez.map((e) => e.items[0])).size, 6);
+  assert.equal(buildCartas(cartas, 3).length, 3);
 });

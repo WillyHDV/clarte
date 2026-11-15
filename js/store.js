@@ -3,12 +3,13 @@ const KEY = 'fr_app_v1';
 export const CHAT_KEY = 'fr_chat_v2';
 export const SCHEMA = 3; // versão do formato dos dados (para migrar no futuro sem perder progresso)
 const DAY = 86400000;
-const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY];
+const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 60 * DAY]; // cada acerto na revisão sobe uma caixa; depois da última o erro sai da lista
 
 const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial', haptics: true },
   scenarios: {},
+  cartas: [], // cartas pessoais: { id, fr, pt, frase, origem, criada }
   book: { livros: [], pages: [] }, // leitura: biblioteca de livros e as páginas lidas por foto (só o texto, nunca a imagem)
 });
 // ---------- versões do formato ----------
@@ -52,6 +53,8 @@ export function normalize(raw) {
   for (const k of ['today', 'plan', 'voiceToday']) out[k] = { ...base[k], ...out[k] };
   if (!isObj(out.plan.done)) out.plan.done = {};
   out.book = normBook(out.book);
+  out.cartas = out.cartas.filter((c) => isObj(c) && typeof c.id === 'string' && typeof c.fr === 'string' && c.fr.trim()).slice(-500)
+    .map((c) => ({ id: c.id, fr: c.fr.trim().slice(0, 80), pt: typeof c.pt === 'string' ? c.pt.slice(0, 90) : '', frase: typeof c.frase === 'string' ? c.frase.slice(0, 160) : '', origem: typeof c.origem === 'string' ? c.origem : '', criada: typeof c.criada === 'string' ? c.criada : '' }));
   // histórico diário: só registros com data real, números válidos e em ordem (os demais são descartados)
   out.history = out.history.filter((h) => isObj(h) && /^\d{4}-\d{2}-\d{2}$/.test(h.d))
     .map((h) => ({ d: h.d, n: Math.max(0, +h.n || 0), ok: Math.max(0, +h.ok || 0), r: Number.isFinite(h.r) ? h.r : null }))
@@ -206,6 +209,24 @@ export function recordScenario(id, { nivel, done, total }) {
   if (done >= total) s.levelDone = Math.max(s.levelDone, nivel);
   state.xp += done * 5 + (done >= total ? 20 : 0); save(); return s;
 }
+// Cartas pessoais: palavras guardadas com uma frase (sua ou do livro); o treino esconde a palavra e você escreve
+export const cartas = () => state.cartas;
+export const temCarta = (fr, frase) => state.cartas.some((c) => c.fr.toLowerCase() === String(fr).trim().toLowerCase() && c.frase === String(frase || '').trim());
+export const temPalavra = (fr) => state.cartas.some((c) => c.fr.toLowerCase() === String(fr).trim().toLowerCase());
+export function addCarta({ fr, pt = '', frase = '', origem = '' }) {
+  const palavra = String(fr || '').replace(/\s+/g, ' ').trim().slice(0, 80); if (!palavra) return '';
+  const f = String(frase || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  const ja = state.cartas.find((c) => c.fr.toLowerCase() === palavra.toLowerCase() && c.frase === f);
+  if (ja) { if (pt && !ja.pt) { ja.pt = String(pt).trim().slice(0, 90); save(); } return ja.id; }
+  const id = novoId('c'); state.cartas.push({ id, fr: palavra, pt: String(pt || '').trim().slice(0, 90), frase: f, origem, criada: new Date().toISOString() }); state.cartas = state.cartas.slice(-500); save(); return id;
+}
+export function updateCarta(id, { pt, frase }) {
+  const c = state.cartas.find((x) => x.id === id); if (!c) return false;
+  if (typeof pt === 'string') c.pt = pt.replace(/\s+/g, ' ').trim().slice(0, 90);
+  if (typeof frase === 'string') c.frase = frase.replace(/\s+/g, ' ').trim().slice(0, 160);
+  save(); return true;
+}
+export function deleteCarta(id) { state.cartas = state.cartas.filter((c) => c.id !== id); delete state.mastery[`card:${id}`]; save(); }
 // Leitura: biblioteca de livros e páginas lidas (as frases já vêm validadas por js/leitura.js)
 const novoId = (pref) => pref + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 export const bookLivros = () => state.book.livros;

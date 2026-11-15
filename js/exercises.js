@@ -119,7 +119,7 @@ function genAlphabet() {
   out.push(mk('alphabet', 'choice', { items: [`accent:${ac.c}`], q: `Como se chama o acento de <b>${ac.c}</b>?`, options: shuffle([ac.name, ...sample(ACCENTS.map((x) => x.name), 3, [ac.name])]), answer: ac.name, explain: `${ac.c} = ${ac.name}.` }));
   // o reconhecimento de voz não avalia bem letras soletradas; treinamos as frases de soletrar e o próprio nome
   const nm2 = pick(NAMES); const say = pick(["Comment ça s'écrit ?", "Épelez, s'il vous plaît.", `Je m'appelle ${nm2}.`, `Mon prénom, c'est ${nm2}.`]);
-  out.push(mk('alphabet', 'speak', { items: /appelle|prénom/.test(say) ? lettersOf(nm2) : [], q: 'Diga em voz alta:', answer: say.replace(/[.?]$/, ''), shown: say, audio: say, explain: 'Depois tente soletrar o nome em voz alta, letra por letra.' }));
+  out.push(mk('alphabet', 'speak', { items: /appelle|prénom/.test(say) ? lettersOf(nm2) : [], q: 'Diga em voz alta:', answer: say.replace(/\s*[.?]$/, ''), shown: say, audio: say, explain: 'Depois tente soletrar o nome em voz alta, letra por letra.' }));
   out.push(mk('alphabet', 'tiles', { q: 'Monte a frase: "Como se escreve?"', tiles: shuffle(['Comment', 'ça', "s'écrit", 'bonjour']), answer: "Comment ça s'écrit", audio: "Comment ça s'écrit ?" }));
   // regras de pronúncia (Pierini, p. 5–8): letras finais, vogais nasais e o som do E com acento
   const finals = [['bonjour', 'r'], ['avec', 'c'], ['chef', 'f'], ['animal', 'l']]; const silentW = ['vous', 'salut', 'français', 'étudiant', 'parlent', 'petit'];
@@ -417,12 +417,39 @@ export function itemLabel(id) {
 }
 
 // ---------- seleção adaptativa ----------
-// strengthOf(item) devolve 0..1 (item ainda não visto: ~0.3). Quanto mais fraco o item, maior a prioridade.
+// Quanto vale rever um item agora (0 a 1), dada a força dele (0 a 1). O melhor ponto é perto de esquecer, com força perto de 0,6:
+// lembrar com esforço fixa mais do que lembrar de graça. Item já esquecido ainda vale (volta com resposta na hora); item forte quase não.
+export const urgencia = (s) => (s >= 0.6 ? (1 - s) / 0.4 : 0.55 + 0.45 * (s / 0.6));
+// strengthOf(item) devolve 0..1 (item ainda não visto: ~0.3).
 const priorityOf = (ex, strengthOf) => {
   const its = ex.items || [];
   const s = its.length ? its.reduce((a, i) => a + strengthOf(i), 0) / its.length : 0.5;
-  return (1 - s) + Math.random() * 0.3;
+  return urgencia(s) + Math.random() * 0.3;
 };
+
+// ---------- cartas pessoais ----------
+const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// troca a palavra por uma lacuna, se ela aparece inteira na frase; senão devolve ''
+export function lacuna(frase, palavra) {
+  if (!frase || !palavra) return '';
+  const re = new RegExp(`(?<![\\p{L}])${escRe(palavra)}(?![\\p{L}])`, 'iu');
+  return re.test(frase) ? frase.replace(re, '____') : '';
+}
+// uma carta vira até dois exercícios de escrever: completar a frase (a palavra some) e dizer a palavra a partir do significado
+export function cartaExercicios(c) {
+  const out = []; const it = [`card:${c.id}`]; const buraco = lacuna(c.frase, c.fr);
+  if (buraco) out.push(mk('cartas', 'type', { items: it, q: `Complete com a palavra que falta:<br><i>${escHtml(buraco)}</i>`, sub: c.pt ? `Significado: ${c.pt}` : '', answer: c.fr, audio: c.frase, explain: c.pt ? `${escHtml(c.fr)} = ${escHtml(c.pt)}` : escHtml(c.frase) }));
+  if (c.pt) out.push(mk('cartas', 'type', { items: it, q: `Como se diz em francês: <b>${escHtml(c.pt)}</b>?`, answer: c.fr, audio: c.frase || c.fr, explain: c.frase ? escHtml(c.frase) : '' }));
+  return out;
+}
+// escolhe até n cartas pelo ponto de esquecer, no máximo um exercício por carta
+export function buildCartas(cartas, n, strengthOf = () => 0.3) {
+  const pontuados = cartas.flatMap(cartaExercicios).map((ex) => ({ ex, p: urgencia(strengthOf(ex.items[0])) + Math.random() * 0.3 })).sort((a, b) => b.p - a.p);
+  const out = []; const usados = new Set();
+  for (const { ex } of pontuados) { if (out.length >= n) break; if (usados.has(ex.items[0])) continue; usados.add(ex.items[0]); out.push(ex); }
+  return shuffle(out);
+}
 
 function pickAdaptive(cands, n, strengthOf, perUnit = 99) {
   const scored = cands.map((ex) => ({ ex, p: priorityOf(ex, strengthOf) })).sort((a, b) => b.p - a.p);

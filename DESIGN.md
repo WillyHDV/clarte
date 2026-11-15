@@ -47,7 +47,8 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Cartão de frase (`.cd-frase`) | Leitura | frase com palavras tocáveis (`.pal`), letras mudas (`.mu`, cinza) e ligações (`.lg`, sublinhadas), quadro "Como se lê", tradução, Ouvir e Devagar e etiquetas de regra (`.rgr`) |
 | Deslizador (`.pager`) | página da Leitura | uma frase por vez, `scroll-snap` horizontal; o cartão ocupa a largura toda e a vizinha só entra ao arrastar (o espaço entre cartões passa do respiro lateral); contador e setas em `.pager-nav` |
 | Verbete (`.dic-*`) | folha do dicionário na Leitura | palavra, classe, como se lê, sentido na frase, significados, exemplos e expressões com Ouvir, dicas; cache em `js/dicionario.js` |
-| Folha que sobe (`.scsheet`) | ficha da missão (Cenários) e escolha de avatar (Perfil) | alça, conteúdo e botões largos; tocar fora fecha |
+| Folha que sobe (`.scsheet`) | ficha da missão (Cenários), escolha de avatar (Perfil), dicionário (Leitura) e edição de carta (Minhas cartas) | alça, conteúdo e botões largos; tocar fora fecha; `abrirFolha()` em `js/core.js`; título de carta `.carta-t` |
+| Carta pessoal (linha `.linha`) | Minhas cartas, Praticar | palavra, significado e a frase; "Treinar agora" no topo; a linha de Praticar mostra quantas há e quantas faltam rever |
 | Abas (`.abas`) e botão fixo (`.cta-fixo`) | Unidade | abas Trilha, Aula e Frases; o botão fica acima da barra de baixo |
 
 ## Som dos exercícios

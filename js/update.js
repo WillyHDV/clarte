@@ -13,6 +13,11 @@ function showUpdate(v) {
     location.reload();
   };
 }
+// Chama fn no máximo uma vez a cada ms; devolve true se chamou. Cada consulta de versão é uma ida à rede, que no celular custa latência e bateria.
+export const comIntervaloMinimo = (ms, fn, agora = Date.now) => {
+  let ultima = -Infinity;
+  return () => { const t = agora(); if (t - ultima < ms) return false; ultima = t; fn(); return true; };
+};
 export async function checkUpdate(manual) {
   try {
     const t = await (await fetch('js/version.js', { cache: 'no-store' })).text(); const m = /VERSION\s*=\s*'([^']+)'/.exec(t);

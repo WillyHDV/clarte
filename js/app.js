@@ -4,7 +4,7 @@ import * as S from './store.js';
 import * as T from './tutor.js';
 import { toast } from './ui.js';
 import { $app, rate, speak, go, onRoute, runCleanup } from './core.js';
-import { checkUpdate } from './update.js';
+import { checkUpdate, comIntervaloMinimo } from './update.js';
 import { startAutoBackup } from './autobackup.js';
 import { startReminders } from './reminders.js';
 import { home } from './screens/home.js';
@@ -13,6 +13,7 @@ import { practice } from './screens/practice.js';
 import { openTutor } from './screens/tutor.js';
 import { settingsPage } from './screens/settings.js';
 import { leituraPage } from './screens/leitura.js';
+import { cartasPage } from './screens/cartas.js';
 import { praticar } from './screens/praticar.js';
 import { perfilPage } from './screens/perfil.js';
 import { montarBarra, marcarAba } from './nav.js';
@@ -42,6 +43,7 @@ async function route() {
   if (page === 'tutor') return openTutor(arg);
   if (page === 'settings') return settingsPage(arg);
   if (page === 'leitura') return leituraPage(arg, arg2);
+  if (page === 'cartas') return cartasPage();
   if (page === 'praticar') return praticar();
   if (page === 'perfil') return perfilPage();
   if (page === 'history') return historyPage();
@@ -72,7 +74,11 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.ser
 S.requestPersist();
 startAutoBackup(); // só age dentro do app Android
 startReminders(); // idem, e só com o plugin de notificações instalado
-if (location.protocol !== 'file:') { setTimeout(() => checkUpdate(false), 4000); setInterval(() => checkUpdate(false), 15 * 60 * 1000); document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(false); }); }
+// cada consulta é uma ida à rede (custa latência e bateria no celular): no máximo uma a cada 30 minutos, na abertura e ao voltar ao app
+if (location.protocol !== 'file:') {
+  const consultar = comIntervaloMinimo(30 * 60 * 1000, () => checkUpdate(false));
+  setTimeout(consultar, 4000); setInterval(consultar, 60 * 60 * 1000); document.addEventListener('visibilitychange', () => { if (!document.hidden) consultar(); });
+}
 // registro simples de erros inesperados (aparece no relatório de diagnóstico futuro e evita tela travada sem aviso)
 window.addEventListener('error', (e) => { try { const l = JSON.parse(localStorage.getItem('fr_errlog') || '[]'); l.push({ t: new Date().toISOString(), m: String(e.message).slice(0, 200), f: String(e.filename || '').split('/').pop(), l: e.lineno }); localStorage.setItem('fr_errlog', JSON.stringify(l.slice(-20))); } catch (er) { /* ignore */ } });
 window.addEventListener('unhandledrejection', (e) => { try { const l = JSON.parse(localStorage.getItem('fr_errlog') || '[]'); l.push({ t: new Date().toISOString(), m: String((e.reason && e.reason.message) || e.reason).slice(0, 200), f: 'promise' }); localStorage.setItem('fr_errlog', JSON.stringify(l.slice(-20))); } catch (er) { /* ignore */ } });

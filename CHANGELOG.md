@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## v32 — 15/11/2026
+
+Primeiro bloco tirado dos livros (ROADMAP): revisão no ponto certo e Minhas cartas.
+
+- **Revisão no ponto certo**: o treino deixou de escolher só o item mais fraco. A prioridade agora tem o pico perto do ponto de esquecer (força perto de 0,6): o que está quase esquecido vem primeiro, depois o que já foi esquecido de vez, e o que está firme fica para depois. O Reforço traz agora tudo o que já foi visto e está abaixo de 0,85 de força (antes, abaixo de 0,7). Os erros também voltam por mais tempo: 0, 1, 3, 7, 14, **30 e 60 dias** (antes paravam em 14).
+- **Minhas cartas**: no dicionário da Leitura há uma seção **Minhas cartas** com o campo "Uma frase sua com a palavra" (opcional; sem ela, a carta usa a frase do livro) e o botão **Guardar nas minhas cartas**. Praticar ganhou a linha **Minhas cartas**, com a lista (tocar numa carta edita o significado e a frase ou apaga), "Treinar agora" e a contagem do que falta rever. No treino a palavra some da frase e você escreve o que falta, ou vê o significado e escreve em francês; a frase inteira só soa depois de verificar. O Reforço mistura até 3 cartas com o resto. As cartas entram no backup e valem até 500.
+- **Menos consulta de versão**: o app consulta a versão nova no máximo a cada 30 minutos (antes, a cada 15 e toda vez que você voltava à tela). Cada consulta é uma ida à rede, que no celular custa tempo e bateria.
+- **Correção**: o exercício "Diga em voz alta: Comment ça s'écrit ?" guardava um espaço a mais no fim da resposta esperada.
+- **Por dentro**: a folha que sobe (`abrirFolha`) saiu da Leitura para `js/core.js`, para as outras telas usarem. Testes: 330 → 347, com testes de mutação.
+
 ## v31 — 15/11/2026
 
 Ajuste da Leitura depois de usar no celular.

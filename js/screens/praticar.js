@@ -28,6 +28,7 @@ function resumoSimulacao() {
 
 export function praticar() {
   S.touchDay(); S.save();
+  const minhas = S.cartas(); const cartasRever = minhas.filter((c) => { const s = S.strength(`card:${c.id}`); return s === null || s < 0.85; }).length;
   const fracos = reforcoPendentes(); const erros = S.dueMistakes().length; const nx = nextEvaluation(); const reta = nx && nx.days <= STRETCH_DAYS;
   const reforco = fracos
     ? `<section class="card reforco"><div class="topo"><span class="anel">${fracos}</span><div><b>Reforço</b><small>${fracos} ${fracos > 1 ? 'itens fracos' : 'item fraco'} para rever</small></div></div>
@@ -42,6 +43,7 @@ export function praticar() {
       ${reta ? linha({ icone: 'trophy', titulo: 'Simular a prova oral', resumo: `${nx.ev.title} · ${resumoSimulacao()}`, go: '#/tutor/exam' }) : ''}
       ${linha({ icone: 'bolt', titulo: 'Treino inteligente', resumo: 'Mistura o que está mais fraco', go: '#/practice/mix' })}
       ${canTalk() ? linha({ icone: 'microphone', titulo: 'Treino de fala', resumo: 'Repetir 5 frases em voz alta', go: '#/practice/speakdrill' }) : ''}
+      ${linha({ icone: 'bulb', titulo: 'Minhas cartas', resumo: minhas.length ? `${minhas.length === 1 ? '1 carta' : `${minhas.length} cartas`} · ${cartasRever} para rever` : 'Guarde palavras que você toca na Leitura', go: '#/cartas' })}
       ${linha({ icone: 'rotate-clockwise', titulo: 'Rever erros', resumo: erros ? `${erros} para hoje` : 'Nenhum erro pendente', go: '#/practice/review' })}
       ${nx && nx.ev.sheet ? linha({ icone: 'file-text', titulo: 'Folha de revisão', resumo: esc(nx.ev.title), go: '#/folha' }) : ''}
     </div>`;
