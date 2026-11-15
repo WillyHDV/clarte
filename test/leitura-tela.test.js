@@ -41,6 +41,8 @@ const mandarFoto = async (id = 'lfile') => {
   const entrada = $(`#${id}`); const arquivo = new w.File([new Uint8Array(3000)], 'pagina.jpg', { type: 'image/jpeg' });
   Object.defineProperty(entrada, 'files', { configurable: true, value: [arquivo] }); entrada.dispatchEvent(new w.Event('change')); await tick(120);
 };
+// com a máquina ocupada (todos os testes em paralelo) 120 ms podem não bastar para a página abrir: espera até 2 s
+const esperarPagina = async () => { for (let n = 0; n < 80 && !/#\/leitura\/p/.test(w.location.hash); n++) await tick(25); await tick(60); }; // e dá tempo de a tela da página ser desenhada
 // biblioteca com um livro e a chave do Gemini; devolve o id do livro
 const livroPronto = (titulo = 'O Pequeno Príncipe') => { S.resetAll(); S.setKey('gemini', 'chave-de-teste'); localStorage.removeItem('fr_dict_v1'); return S.addLivro(titulo); };
 const comFetch = async (fn, impl) => { const real = globalThis.fetch; globalThis.fetch = impl; try { await fn(); } finally { globalThis.fetch = real; } };
@@ -66,7 +68,7 @@ test('foto com número de página → a IA recebe imagem e pedido de JSON → a 
   const id = livroPronto(); const pedidos = [];
   await comFetch(async () => {
     await goto('#/'); await goto(`#/leitura/livro/${id}`); assert.match($('#app').textContent, /Nenhuma página lida ainda/);
-    $('#lnum').value = '12'; await mandarFoto();
+    $('#lnum').value = '12'; await mandarFoto(); await esperarPagina();
     assert.equal(pedidos.length, 1); const [{ url, corpo, cabecalho }] = pedidos;
     assert.match(url, /generativelanguage\.googleapis\.com.*:generateContent$/); assert.equal(cabecalho['x-goog-api-key'], 'chave-de-teste'); assert.ok(!/key=/.test(url), 'a chave vai no cabeçalho');
     const partes = corpo.contents[0].parts; assert.match(partes[0].text, /SOMENTE com JSON/); assert.equal(partes[1].inlineData.mimeType, 'image/jpeg'); assert.ok(partes[1].inlineData.data.length > 100);
@@ -155,7 +157,7 @@ test('resposta quebrada mostra o erro em português e "Tentar de novo" reaprovei
   await comFetch(async () => {
     await goto('#/'); await goto(`#/leitura/livro/${id}`); $('#lnum').value = '4'; await mandarFoto();
     assert.match($('#lstatus').textContent, /Não consegui ler a página.*veio incompleta/s); assert.equal(S.bookPages().length, 0); assert.equal($('#ladd').disabled, false);
-    $('#ltentar').click(); await tick(120); assert.equal(n, 2); assert.equal(S.bookPages()[0].numero, 4); assert.match(w.location.hash, /^#\/leitura\/p/);
+    $('#ltentar').click(); await tick(120); await esperarPagina(); assert.equal(n, 2); assert.equal(S.bookPages()[0].numero, 4); assert.match(w.location.hash, /^#\/leitura\/p/);
   }, async () => { n++; return n === 1 ? resposta('{"frases":[{"fr":"Salut') : resposta(PAGINA); });
 });
 
@@ -190,7 +192,7 @@ test('Tirar foto: o botão abre a câmera (campo com capture), a galeria abre o 
     assert.equal($('#lcamera').getAttribute('capture'), 'environment', 'câmera traseira'); assert.equal($('#lcamera').getAttribute('accept'), 'image/*'); assert.equal($('#lfile').hasAttribute('capture'), false, 'a galeria não força a câmera');
     let abriu = ''; $('#lcamera').click = () => { abriu += 'camera '; }; $('#lfile').click = () => { abriu += 'galeria'; };
     $('#lcam').click(); $('#ladd').click(); assert.equal(abriu, 'camera galeria'); assert.match($('#lcam').textContent, /Tirar foto/);
-    await mandarFoto('lcamera'); assert.equal(pedidos, 1); assert.match(w.location.hash, /^#\/leitura\/p/); assert.equal(S.bookPages().length, 1);
+    await mandarFoto('lcamera'); await esperarPagina(); assert.equal(pedidos, 1); assert.match(w.location.hash, /^#\/leitura\/p/); assert.equal(S.bookPages().length, 1);
   }, async () => { pedidos++; return resposta(PAGINA); });
 });
 

@@ -50,6 +50,9 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Folha que sobe (`.scsheet`) | ficha da missão (Cenários), escolha de avatar (Perfil), dicionário (Leitura) e edição de carta (Minhas cartas) | alça, conteúdo e botões largos; tocar fora fecha; `abrirFolha()` em `js/core.js`; título de carta `.carta-t` |
 | Par de sons (`.sompar` / `.sompal`) | lição de um som (Sons do francês) | duas ou três palavras lado a lado, cada uma um botão com ícone de som, palavra, IPA e significado; `.playing` marca a que está tocando; "Devagar" é um `.pill` com `aria-pressed` |
 | Palavras do par (`.somfb` / `.somw`) | painel de resposta dos exercícios de som | uma linha por palavra com botão de ouvir (`data-rapido`: voz do aparelho), a palavra em negrito, o IPA e o significado |
+| Ler em voz alta (`.lervoz`, `.lv-mic`) | cartão de frase da Leitura | microfone redondo de 64 px, o que foi ouvido, as palavras em verde (reconhecida) ou vermelho (não), o resultado e dois botões (Tentar de novo, Guardar difíceis); só um aberto por vez |
+| Link discreto (`.btn-link`) | "Algo errado nesta frase?" (Leitura) e "Algo errado neste verbete?" (dicionário) | texto sublinhado em `--muted`, com ícone; abre uma folha com o tipo do erro e uma explicação opcional |
+| Guardar correção (`.corr-guardar`) | chat da Clara, resumo da ligação, avaliação da prova | pílula com ícone de lâmpada e a frase certa em negrito; vira "Guardada" (desligada) depois de tocada |
 | Carta pessoal (linha `.linha`) | Minhas cartas, Praticar | palavra, significado e a frase; "Treinar agora" no topo; a linha de Praticar mostra quantas há e quantas faltam rever |
 | Abas (`.abas`) e botão fixo (`.cta-fixo`) | Unidade | abas Trilha, Aula e Frases; o botão fica acima da barra de baixo |
 

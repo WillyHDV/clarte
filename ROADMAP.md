@@ -42,14 +42,14 @@ Escrita em 15/11/2026, a partir de sete livros que o Willy anexou e do estado re
 
 ## 4. A linha de progressão
 
-As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar no celular. **Já feito na v32:** 0.2, a parte das palavras do dicionário em 0.3 e a consulta de versão em 0.4. **Na v33:** 1.1 (Sons do francês).
+As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar no celular. **Já feito na v32:** 0.2, a parte das palavras do dicionário em 0.3 e a consulta de versão em 0.4. **Na v33:** 1.1 (Sons do francês). **Na v34:** o resto de 0.3, 1.2, 1.3 e 1.4. Na onda 0 só falta o teste offline no celular e, depois dos livros, o conteúdo da Évaluation 2.
 
 ### Onda 0: até 02/12 (Évaluation 2): o que serve à prova
 
 | # | Entrega | Por quê | Depende de |
 | --- | --- | --- | --- |
 | 0.2 | **Revisão no ponto certo** ✔ v32: a prioridade do treino tem o pico perto do ponto de esquecer (força ~0,6), não no mais fraco; o Reforço passa a pegar tudo abaixo de 0,85; erros voltam até 30 e 60 dias | Mais retenção por minuto; é pequeno e já está apoiado no modelo existente | nada |
-| 0.3 | **Corrigir vira cartão**. ✔ v32: palavras do dicionário viram cartas, com o campo "uma frase sua com essa palavra". **Falta:** o botão "guardar" nas correções da Clara no chat | Fecha o ciclo: errar, corrigir, voltar a ver | nada |
+| 0.3 | **Corrigir vira cartão** ✔ v32 e v34: palavras do dicionário viram cartas (com "uma frase sua"), e as correções da Clara no chat, na ligação e na avaliação viram cartas "Corrija a frase" | Fecha o ciclo: errar, corrigir, voltar a ver | nada |
 | 0.4 | **Teste real offline** no celular (modo avião). ✔ v32: consulta de versão menos frequente (no máximo a cada 30 minutos). **Falta:** o teste no celular | Confirma o que o app faz sem rede e economiza bateria | seu celular |
 | 0.1 | **Conteúdo da Évaluation 2**: unidades novas, frases, missões e simulação da prova oral. *Adiado a pedido do Willy; fica para depois dos livros.* | Hoje o app cobre só o conteúdo da avaliação 1 | Material do curso (programa, slides, vocabulário, critérios da prova oral) |
 
@@ -58,9 +58,9 @@ As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar 
 | # | Entrega | Por quê |
 | --- | --- | --- |
 | 1.1 | **Sons do francês** ✔ v33: ouvido com pares mínimos (rue/roue, vin/vent/vont, dessus/dessous, bon/bonne…) com resposta imediata e uma lição em português para cada som (u × ou, u × i, é × è, nasais, masculino × feminino, s × z, ch × j, r × l). Fica na camada pessoal (`content/sons.js`). *Correção: pain/peint soam igual e não servem de par.* **Falta:** ligação em "ler em voz alta" e mais sons (p × b, f × v, ligações) conforme o uso | É o maior ganho de aprendizagem que os livros apontam e conversa direto com a Leitura |
-| 1.2 | **Ler em voz alta** na Leitura: gravar a frase, marcar as palavras que escaparam, levar as difíceis ao Reforço | Treina a saída e a pronúncia com texto que você escolheu |
-| 1.3 | **Minhas frases**: cartões feitos por você (da Leitura, do dicionário, das correções), com recuperação em forma de lacuna | Elaboração e conexão pessoal |
-| 1.4 | Aviso "marcação errada" na Leitura e no dicionário (guarda o caso para a avaliação da IA) | Começa a coletar o conjunto de exemplos da onda 2 |
+| 1.2 | **Ler em voz alta** ✔ v34: ler a frase do livro, conferir palavra por palavra, levar a frase fraca ao Reforço e as palavras difíceis às cartas. **Falta:** ler a página inteira e comparar com o áudio | Treina a saída e a pronúncia com texto que você escolheu |
+| 1.3 | **Minhas frases** ✔ v34: "Nova carta" (palavra, significado e frase sua), mais as cartas da Leitura, do dicionário, da leitura em voz alta e das correções, com recuperação em forma de lacuna | Elaboração e conexão pessoal |
+| 1.4 | Aviso "marcação errada" ✔ v34, na Leitura e no dicionário (guarda o caso em Ajustes → Seus dados para a avaliação da IA) | Começa a coletar o conjunto de exemplos da onda 2 |
 
 ### Onda 2: janeiro e fevereiro: memória e qualidade
 

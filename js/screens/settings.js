@@ -114,7 +114,7 @@ function estudoHtml() {
 }
 
 function dadosHtml() {
-  const s = st().settings;
+  const s = st().settings; const avisos = S.avisos();
   const topo = s.lastBackup ? estado('ok', 'shield-check', 'Seu progresso tem backup', `<span id="sbk">Último backup: ${esc(quandoBr(s.lastBackup))}</span>`)
     : estado('aviso', 'alert-circle', 'Você ainda não fez backup', '<span id="sbk">Nenhum backup feito ainda.</span>');
   const auto = A.disponivel() ? `<section class="card"><h3>Backup automático</h3>
@@ -128,6 +128,9 @@ function dadosHtml() {
       <div class="row"><button class="btn" id="sexport">${I('download')} Baixar</button><button class="btn" id="simport">${I('upload')} Importar</button></div>
       <input type="file" id="sfile" accept="application/json,.json" hidden></section>
     ${auto}
+    <section class="card"><h3>Avisos da Leitura</h3>
+      <p class="pt">${avisos.length ? `${avisos.length} ${avisos.length > 1 ? 'casos guardados' : 'caso guardado'} em que a IA marcou, leu ou traduziu algo errado.` : 'Quando a IA errar uma marca, um "como se lê", uma tradução ou um verbete, toque em "Algo errado?" na Leitura: o caso fica guardado aqui para conferir a IA depois.'}</p>
+      ${avisos.length ? '<div class="row"><button class="btn sm" id="savdown">Baixar avisos</button><button class="btn sm danger" id="savclear">Apagar avisos</button></div>' : ''}</section>
     ${avancado(`<div class="grupo sem-borda">${opcao({ id: 'sbkkeys', titulo: 'Incluir minha chave de IA no arquivo', resumo: 'Guarde o arquivo com cuidado' })}</div>
       <small>Armazenamento protegido neste aparelho: <span id="spersist">verificando…</span></small>
       <hr><button class="btn danger wide" id="sreset">${I('trash')} Zerar progresso</button>`)}`;
@@ -281,6 +284,8 @@ function wireDados(sub) {
     download(`clarte-progresso-${new Date().toLocaleDateString('sv-SE')}.json`, JSON.stringify(data, null, 1), 'application/json');
     document.getElementById('sbk').textContent = 'Backup salvo agora. Procure o arquivo em Downloads.'; toast('Backup exportado.');
   });
+  on('savdown', 'click', () => { download(`clarte-avisos-${new Date().toLocaleDateString('sv-SE')}.json`, JSON.stringify(S.avisos(), null, 1), 'application/json'); toast('Avisos baixados. Procure o arquivo em Downloads.'); });
+  on('savclear', 'click', () => { if (confirm('Apagar todos os avisos guardados?')) { S.clearAvisos(); settingsPage(sub); } });
   on('simport', 'click', () => document.getElementById('sfile').click());
   on('sfile', 'change', async (e) => {
     const f = e.target.files && e.target.files[0]; if (!f) return;

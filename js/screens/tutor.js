@@ -4,6 +4,7 @@ import * as V from '../speech.js';
 import { stopSpeaking, listen, dictate, browserRec, canTalk, canRecord } from '../speech.js';
 import * as S from '../store.js';
 import * as T from '../tutor.js';
+import { extrairCorrecoes } from '../correcoes.js';
 import { esc, I, toast, linha } from '../ui.js';
 import { $app, st, rate, speak, setCleanup, cur, provOptions, loadChats, saveChats, go, haptico, rateDevagar } from '../core.js';
 import { readiness, CRITERIA, planDone } from '../progress.js';
@@ -61,15 +62,18 @@ async function tutorPage() {
   const md = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
   const speakable = (t) => tutorMode !== 'duvidas' && !/Nota geral/i.test(t);
 
+  // um botão para cada correção que a Clara escreveu ("Você escreveu: … → Melhor: …"): vira carta de "Corrija a frase"
+  const chipsCorrecao = (lista) => (lista.length ? `<div class="corr-acoes">${lista.map((c) => { const ja = S.temCorrecao(c.certa, c.erro); return `<button type="button" class="pill corr-guardar" data-erro="${esc(c.erro)}" data-certa="${esc(c.certa)}" data-expl="${esc(c.explicacao)}" ${ja ? 'disabled' : ''}>${I(ja ? 'circle-check' : 'bulb')}<span>${ja ? 'Guardada' : 'Guardar nas cartas'}: <b>${esc(c.certa)}</b></span></button>`; }).join('')}</div>` : '');
   function drawMsg(m) {
     const [fr, corr] = m.role === 'assistant' ? split(m.content) : [m.content, ''];
-    return `<div class="msg ${m.role}"><div class="bub">${md(fr)}${m.role === 'assistant' && speakable(m.content) ? `<button class="say sm" data-say="${esc(fr)}" aria-label="Ouvir">${I('volume')}</button>` : ''}</div>${corr ? `<div class="corr">${md(corr)}</div>` : ''}</div>`;
+    const lista = m.role === 'assistant' ? extrairCorrecoes(corr || (/Erros para corrigir/i.test(m.content) ? m.content : '')) : [];
+    return `<div class="msg ${m.role}"><div class="bub">${md(fr)}${m.role === 'assistant' && speakable(m.content) ? `<button class="say sm" data-say="${esc(fr)}" aria-label="Ouvir">${I('volume')}</button>` : ''}</div>${corr ? `<div class="corr">${md(corr)}</div>` : ''}${chipsCorrecao(lista)}</div>`;
   }
   function sumCard(msgs) {
     const x = chats.sum; if (!x || x.mode !== tutorMode || x.n !== msgs.length) return '';
     const rep = x.repeats.length ? `<p>Frases que você repetiu: ${x.repeats.map((r) => `<span class="rep ${r.ok ? 'ok' : ''}">${I(r.ok ? 'check' : 'repeat')} ${esc(r.t)}</span>`).join(' · ')}</p>${x.repeats.some((r) => !r.ok) ? '<small>As frases marcadas com a seta circular foram para o Reforço, para você repetir de novo depois.</small>' : ''}` : '';
     const notes = x.notes.length ? `<small>Correções da Clara:</small><ul>${x.notes.map((n) => `<li>${md(n)}</li>`).join('')}</ul>` : '<small>A Clara não precisou corrigir nada. Muito bem!</small>';
-    return `<div class="card sumcard"><h3>Resumo da ligação</h3><p>Você falou <b>${x.turns} ${x.turns > 1 ? 'vezes' : 'vez'}</b>.</p>${rep}${notes}</div>`;
+    return `<div class="card sumcard"><h3>Resumo da ligação</h3><p>Você falou <b>${x.turns} ${x.turns > 1 ? 'vezes' : 'vez'}</b>.</p>${rep}${notes}${chipsCorrecao(x.notes.flatMap(extrairCorrecoes))}</div>`;
   }
   function draw() {
     if (tutorView === 'hub') return drawHub();
@@ -89,6 +93,11 @@ async function tutorPage() {
         <div class="acentos">${ACC.map((a) => `<button type="button" data-ins="${a}">${a}</button>`).join('')}</div>
       </div>`;
     const chat = document.getElementById('chat'); chat.scrollTop = chat.scrollHeight;
+    chat.onclick = (e) => {
+      const b = e.target.closest('.corr-guardar'); if (!b || b.disabled) return;
+      S.addCarta({ fr: b.dataset.certa, erro: b.dataset.erro, pt: b.dataset.expl, frase: b.dataset.certa, origem: 'clara' });
+      b.disabled = true; b.innerHTML = `${I('circle-check')}<span>Guardada: <b>${esc(b.dataset.certa)}</b></span>`; toast('Correção guardada nas suas cartas. Ela entra no Reforço.');
+    };
     document.getElementById('newc').onclick = () => { if (busy) return; if (confirm('Apagar esta conversa?')) { chats[tutorMode] = []; saveChats(chats); ensureOpening(); draw(); } };
     const tin = document.getElementById('tin'); const send = document.getElementById('tsend');
     if (tin) {

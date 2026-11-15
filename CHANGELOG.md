@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## v34 — 15/11/2026
+
+Fim do que o ROADMAP pedia para a Onda 0 e a Onda 1 sem depender da professora: correções da Clara viram cartas, ler em voz alta, Minhas frases e avisos de "algo errado".
+
+- **Correções da Clara viram cartas**: a Clara agora escreve cada correção num formato fixo ("Você escreveu: … → Melhor: …. Explicação."), e o app acha essas correções no chat, no resumo da ligação e na lista "Erros para corrigir" da avaliação da prova oral. Cada uma ganha o botão **Guardar nas cartas**. A carta de correção mostra a frase errada e você escreve a certa, inteira ("Corrija a frase"); a explicação aparece depois de responder. Entra no Reforço como as outras cartas. Se a Clara não seguir o formato, o botão simplesmente não aparece.
+- **Ler em voz alta** (Leitura): cada frase ganhou o botão **Ler em voz alta**. Você lê a frase, o app confere palavra por palavra (verde reconhecida, vermelha não) e mostra quantas acertou. Frase que não saiu bem (menos de 75%) vai para o Reforço como exercício de fala, e a pronúncia entra na sua evolução. **Guardar difíceis** cria uma carta para cada palavra vermelha com 3 letras ou mais, com o significado da página quando ela já trazia. Usa o mesmo microfone dos exercícios de fala.
+- **Minhas frases**: Minhas cartas ganhou **Nova carta** (palavra ou expressão, significado e uma frase sua). Avisa se faltar o que treinar. As cartas de correção se editam (frase certa e explicação).
+- **Algo errado?**: na frase e no verbete do dicionário, um link discreto abre uma folha para dizer o que está errado (letra muda ou ligação, "como se lê", tradução, significado, exemplo) e explicar se quiser. O caso fica guardado no aparelho, com as marcas da IA, e **Ajustes → Seus dados → Avisos da Leitura** conta, baixa e apaga. É o começo do conjunto de exemplos para conferir a IA (ROADMAP 2.3).
+- **Correções pequenas**: o apóstrofo curvo (L’aube) agora casa com o reto (l'aube) nas lacunas das cartas; as cartas e os avisos entram no backup.
+- **Roteiro de teste**: `TESTE-NO-CELULAR.md`, com o que conferir no aparelho, na ordem.
+- **Testes**: 363 → 388, com testes de mutação (32 alterações no código, todas pegas pelos testes). Um teste da Leitura (foto da página) falhava de vez em quando com a máquina ocupada; passou a esperar a tela abrir.
+
 ## v33 — 15/11/2026
 
 Sons do francês: treino de ouvido com pares mínimos (ROADMAP 1.1).

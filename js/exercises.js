@@ -436,12 +436,14 @@ const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // troca a palavra por uma lacuna, se ela aparece inteira na frase; senão devolve ''
 export function lacuna(frase, palavra) {
   if (!frase || !palavra) return '';
-  const re = new RegExp(`(?<![\\p{L}])${escRe(palavra)}(?![\\p{L}])`, 'iu');
+  const re = new RegExp(`(?<![\\p{L}])${escRe(palavra).replace(/['’]/g, "['’]")}(?![\\p{L}])`, 'iu'); // o apóstrofo vale reto ou curvo: l'aube casa com L’aube
   return re.test(frase) ? frase.replace(re, '____') : '';
 }
 // uma carta vira até dois exercícios de escrever: completar a frase (a palavra some) e dizer a palavra a partir do significado
 export function cartaExercicios(c) {
   const out = []; const it = [`card:${c.id}`]; const buraco = lacuna(c.frase, c.fr);
+  // correção da Clara: mostra a frase errada e você escreve a certa, inteira (c.pt é a explicação, só aparece depois de responder)
+  if (c.erro) return [mk('cartas', 'type', { items: it, q: `Corrija a frase:<br><i>${escHtml(c.erro)}</i>`, sub: 'Escreva a frase certa, inteira.', answer: c.fr, audio: c.fr, explain: c.pt ? `${escHtml(c.fr)}<br>${escHtml(c.pt)}` : escHtml(c.fr) })];
   if (buraco) out.push(mk('cartas', 'type', { items: it, q: `Complete com a palavra que falta:<br><i>${escHtml(buraco)}</i>`, sub: c.pt ? `Significado: ${c.pt}` : '', answer: c.fr, audio: c.frase, explain: c.pt ? `${escHtml(c.fr)} = ${escHtml(c.pt)}` : escHtml(c.frase) }));
   if (c.pt) out.push(mk('cartas', 'type', { items: it, q: `Como se diz em francês: <b>${escHtml(c.pt)}</b>?`, answer: c.fr, audio: c.frase || c.fr, explain: c.frase ? escHtml(c.frase) : '' }));
   return out;

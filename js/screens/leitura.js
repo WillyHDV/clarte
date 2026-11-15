@@ -5,6 +5,22 @@ import { esc, I, toast, linha, estado } from '../ui.js';
 import { $app, st, rate, rateDevagar, speak, setCleanup, go, abrirFolha } from '../core.js';
 import { prepararImagem, validarPagina, lerJson, palavrasMarcadas, textoDaPalavra, acharPalavra } from '../leitura.js';
 import { validarVerbete, chaveVerbete, verbeteSalvo, guardarVerbete } from '../dicionario.js';
+import { lerEmVozAlta } from '../lervoz.js';
+
+// "Algo errado?": guarda o caso (frase ou verbete) para conferir a IA depois (Ajustes → Seus dados)
+const TIPOS_AVISO = {
+  frase: [['marcas', 'Letra muda ou ligação marcada errado'], ['leitura', 'O "como se lê" está errado'], ['traducao', 'A tradução está errada'], ['outro', 'Outra coisa']],
+  verbete: [['significado', 'Um significado está errado'], ['leitura', 'O "como se lê" está errado'], ['exemplo', 'Um exemplo está errado'], ['outro', 'Outra coisa']],
+};
+function avisar({ onde, texto, detalhe }) {
+  const { box, fechar } = abrirFolha(`<h3>O que está errado?</h3>
+    <label>Tipo<select id="atipo" class="inp">${TIPOS_AVISO[onde].map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select></label>
+    <label>Quer explicar? (opcional)<input id="anota" class="inp" maxlength="300" autocomplete="off" placeholder="Ex.: o t de petit não é mudo aqui"></label>
+    <small>O aviso fica só neste aparelho (Ajustes → Seus dados) e ajuda a conferir a IA depois.</small>
+    <div class="sc-acoes"><button class="btn primary" id="aenviar">Guardar aviso</button><button class="btn" id="acancelar">Cancelar</button></div>`);
+  box.querySelector('#acancelar').onclick = fechar;
+  box.querySelector('#aenviar').onclick = () => { S.addAviso({ tipo: box.querySelector('#atipo').value, onde, texto, detalhe, nota: box.querySelector('#anota').value }); fechar(); toast('Aviso guardado. Obrigado: ele ajuda a conferir a IA.'); };
+}
 
 export function leituraPage(arg, arg2) {
   if (arg === 'livro') return livroTela(arg2);
@@ -122,6 +138,7 @@ function verbeteHtml({ texto, achada, v, aviso, jaTem }) {
   return `<div class="dic-topo"><div><h3>${esc(texto)}</h3>${lema}${meta ? `<small>${esc(meta)}</small>` : ''}</div><button class="say circ" id="dic-ouvir" aria-label="Ouvir a palavra">${I('volume')}</button></div>
     ${v && v.leitura ? `<div class="como"><small>Como se lê</small><span>${esc(v.leitura)}</span></div>` : ''}
     ${rapido}${aviso || ''}${corpo}
+    ${v ? `<button class="btn-link" id="dic-aviso" type="button">${I('alert-circle')} Algo errado neste verbete?</button>` : ''}
     <div class="sc-acoes"><button class="btn" id="dic-fechar">Fechar</button></div>`;
 }
 
@@ -138,7 +155,10 @@ function paginaDeLeitura(id) {
       ${f.leitura ? `<div class="como"><small>Como se lê</small><span>${esc(f.leitura)}</span></div>` : ''}
       ${f.pt ? `<p class="pt-t">${esc(f.pt)}</p>` : ''}
       <div class="acoes"><button class="btn sm" data-ouvir="${i}">${I('volume')} Ouvir</button><button class="btn sm" data-devagar="${i}">${I('clock')} Devagar</button></div>
+      <div class="acoes lv-linha"><button class="btn sm" data-ler="${i}">${I('microphone')} Ler em voz alta</button></div>
+      <div class="lervoz-box" data-box="${i}"></div>
       ${f.regras.length || f.avancado ? `<div class="rgrs">${f.regras.map((r) => `<span class="rgr">${esc(r)}</span>`).join('')}${f.avancado ? `<span class="rgr av">${I('alert-circle')} mais avançado</span>` : ''}</div>` : ''}
+      <button class="btn-link" type="button" data-aviso="${i}">${I('alert-circle')} Algo errado nesta frase?</button>
     </article>`;
   $app.innerHTML = `
     <header class="apphead"><button class="back" data-go="#/leitura/livro/${pagina.livro}" aria-label="Voltar para o livro">${I('chevron-left')}</button><div class="hello"><b>Página ${pagina.numero}</b><small>${esc(livro ? livro.titulo : '')} · ${plural(frases.length, 'frase', 'frases')}</small></div><button class="icon" id="leditar" aria-label="Mudar de livro ou de número">${I('pencil')}</button><button class="icon" id="lapagar" aria-label="Apagar esta página">${I('trash')}</button></header>
@@ -166,7 +186,8 @@ function paginaDeLeitura(id) {
   }, { passive: true });
   const onKey = (e) => { if (document.getElementById('folha') && document.getElementById('folha').firstChild) return; if (e.key === 'ArrowRight') irPara(pos + 1, true); else if (e.key === 'ArrowLeft') irPara(pos - 1, true); };
   document.addEventListener('keydown', onKey);
-  limparPagina = () => { document.removeEventListener('keydown', onKey); clearTimeout(salvar); clearTimeout(rolando); if (dic.ctl) dic.ctl.abort(); S.setBookPos(id, pos); };
+  const voz = { atual: null }; // leitura em voz alta em andamento (uma por vez)
+  limparPagina = () => { document.removeEventListener('keydown', onKey); clearTimeout(salvar); clearTimeout(rolando); if (dic.ctl) dic.ctl.abort(); if (voz.atual) voz.atual.parar(); S.setBookPos(id, pos); };
   setCleanup(limparPagina);
   irPara(Math.min(pagina.pos || 0, cards.length - 1), false);
 
@@ -177,6 +198,17 @@ function paginaDeLeitura(id) {
   };
   document.querySelectorAll('[data-ouvir]').forEach((b) => { b.onclick = () => tocar(+b.dataset.ouvir, rate()); });
   document.querySelectorAll('[data-devagar]').forEach((b) => { b.onclick = () => tocar(+b.dataset.devagar, rateDevagar()); });
+
+  // ler em voz alta: você lê a frase, o app confere palavra por palavra; "Algo errado?" guarda o caso para conferir a IA
+  document.querySelectorAll('[data-ler]').forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.ler; if (voz.atual) voz.atual.parar(); document.querySelectorAll('.lervoz-box').forEach((x) => { x.innerHTML = ''; });
+      voz.atual = lerEmVozAlta(document.querySelector(`.lervoz-box[data-box="${i}"]`), { frase: frases[i].fr, traduzir: (w) => (acharPalavra(frases[i].palavras, w) || {}).pt || '' });
+    };
+  });
+  document.querySelectorAll('[data-aviso]').forEach((b) => {
+    b.onclick = () => { const f = frases[+b.dataset.aviso]; avisar({ onde: 'frase', texto: f.fr, detalhe: JSON.stringify({ marcada: f.marcada, leitura: f.leitura, pt: f.pt, regras: f.regras }) }); };
+  });
 
   // tocar numa palavra: lê a palavra e abre o verbete (do cache ou consultado na hora)
   document.querySelectorAll('.pal').forEach((botao) => {
@@ -193,6 +225,7 @@ function paginaDeLeitura(id) {
         alvo.querySelector('#dic-ouvir').onclick = () => speak(texto, { rate: rate(), rapido: true });
         alvo.querySelectorAll('[data-dex]').forEach((b) => { b.onclick = () => speak(b.dataset.dex, { rate: rate() }); });
         alvo.querySelector('#dic-fechar').onclick = fechar;
+        const errado = alvo.querySelector('#dic-aviso'); if (errado) errado.onclick = () => { fechar(); avisar({ onde: 'verbete', texto, detalhe: JSON.stringify({ frase, verbete: v }) }); };
         const tentar = alvo.querySelector('#dtentar'); if (tentar) tentar.onclick = consultar;
         const guardar = alvo.querySelector('#dic-guardar');
         if (guardar) guardar.onclick = () => {

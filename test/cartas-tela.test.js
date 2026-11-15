@@ -127,3 +127,61 @@ test('Reforço traz o que já foi visto e está entre 0,7 e 0,85 (perto de esque
   S.resetAll(); for (let n = 0; n < 40 && !(S.strength(ids[0]) >= 0.9); n++) S.recordItems(ids, true, 'type'); assert.ok(S.strength(ids[0]) >= 0.9);
   await goto('#/praticar'); await goto('#/practice/review'); assert.equal($('#ok'), null, 'itens firmes (acima de 0,85) não entram no Reforço'); assert.match(text(), /Nada fraco agora/);
 });
+
+const toasts = () => $$('.toast').map((t) => t.textContent).join(' | ');
+
+test('Nova carta: confere o que falta, aceita palavra com significado e frase e entra na lista', async () => {
+  S.resetAll(); await goto('#/'); await goto('#/cartas'); assert.ok($('#cnova'), 'o botão existe mesmo sem cartas'); assert.equal($('#ctreinar'), null);
+  $('#cnova').click(); assert.ok($('#folha .scsheet')); $('#nsalvar').click(); assert.equal(S.cartas().length, 0); assert.match(toasts(), /Escreva a palavra ou expressão em francês/);
+  $('#nfr').value = 'pomme'; $('#nsalvar').click(); assert.equal(S.cartas().length, 0, 'sem significado e sem frase não há o que treinar'); assert.match(toasts(), /Escreva o significado ou uma frase com a palavra/);
+  $('#nfrase').value = 'Je mange une poire.'; $('#nsalvar').click(); assert.equal(S.cartas().length, 0, 'frase sem a palavra e sem significado'); assert.match(toasts(), /A palavra não aparece na frase/);
+  $('#npt').value = 'maçã'; $('#nsalvar').click(); await tick(20);
+  assert.deepEqual(S.cartas().map((c) => [c.fr, c.pt, c.frase, c.origem]), [['pomme', 'maçã', 'Je mange une poire.', 'minha']]); assert.equal($('#folha .scsheet'), null, 'a folha fecha'); assert.match(toasts(), /A palavra não está na frase: o treino só pergunta o significado/);
+  assert.match($('.grupo').textContent, /pomme.*maçã · Je mange une poire\./s); assert.ok($('#ctreinar'));
+  $('#cnova').click(); $('#nfr').value = 'poire'; $('#nfrase').value = 'Je mange une poire.'; $('#nsalvar').click(); await tick(20);
+  assert.equal(S.cartas().length, 2, 'com a palavra na frase basta a frase'); assert.equal(S.cartas()[1].pt, ''); assert.match(toasts(), /Carta guardada\. Ela entra no Reforço/);
+  $('#cnova').click(); $('#ncancelar').click(); assert.equal($('#folha .scsheet'), null, 'cancelar fecha sem guardar'); assert.equal(S.cartas().length, 2);
+});
+
+const CORRECAO = "Très bien ! Où habites-tu ?\n---\nVocê escreveu: Je suis 20 ans → Melhor: J'ai 20 ans. Em francês, a idade usa avoir.";
+test('conversa com a Clara: cada correção ganha um botão; guardar cria a carta de correção e o treino pede a frase certa', async () => {
+  S.resetAll(); S.setKey('gemini', 'chave-de-teste');
+  localStorage.setItem('fr_chat_v2', JSON.stringify({ free: [{ role: 'assistant', content: 'Bonjour ! Comment tu t’appelles ?' }, { role: 'user', content: 'Je suis 20 ans' }, { role: 'assistant', content: CORRECAO }, { role: 'user', content: 'À Maceió' }, { role: 'assistant', content: 'Très bien. Tu aimes la plage ?' }] }));
+  await goto('#/'); await goto('#/tutor/free');
+  assert.match($('.corr').textContent, /Você escreveu: Je suis 20 ans/); const botoes = $$('.corr-guardar'); assert.equal(botoes.length, 1, 'só a mensagem com correção tem botão');
+  assert.match(botoes[0].textContent, /Guardar nas cartas: J'ai 20 ans\./); assert.equal(botoes[0].disabled, false);
+  botoes[0].click(); assert.deepEqual(S.cartas().map((c) => [c.fr, c.erro, c.pt, c.frase, c.origem]), [["J'ai 20 ans.", 'Je suis 20 ans', 'Em francês, a idade usa avoir.', "J'ai 20 ans.", 'clara']]);
+  assert.equal($('.corr-guardar').disabled, true); assert.match($('.corr-guardar').textContent, /Guardada: J'ai 20 ans\./); assert.match(toasts(), /Correção guardada nas suas cartas/);
+  $('.corr-guardar').click(); assert.equal(S.cartas().length, 1, 'clicar de novo não duplica');
+  await goto('#/praticar'); await goto('#/tutor/free'); assert.equal($('.corr-guardar').disabled, true, 'ao voltar, já aparece como guardada'); assert.match($('.corr-guardar').textContent, /Guardada/);
+  await goto('#/cartas'); assert.match($('.grupo').textContent, /J'ai 20 ans\..*errado: Je suis 20 ans · Em francês, a idade usa avoir\./s); assert.ok($('#carta-' + S.cartas()[0].id + ' svg'), 'ícone de lápis');
+  await goto('#/practice/cartas'); assert.match($('.q').textContent, /Corrija a frase:\s*Je suis 20 ans/); assert.doesNotMatch($('.q').textContent, /J'ai/);
+  $('#inp').value = "j'ai 20 ans"; $('#inp').dispatchEvent(new w.Event('input')); $('#ok').click(); await tick(10); assert.ok($('.fb.good'), 'a frase certa é aceita'); assert.match($('.fb .ex').textContent, /Em francês, a idade usa avoir\./);
+  $('#ok').click(); await tick(10); assert.ok($('.end')); assert.ok(S.strength(`card:${S.cartas()[0].id}`) > 0);
+});
+
+test('a ligação com a Clara: o resumo também oferece guardar cada correção', async () => {
+  S.resetAll(); S.setKey('gemini', 'chave-de-teste');
+  localStorage.setItem('fr_chat_v2', JSON.stringify({ free: [{ role: 'assistant', content: 'Bonjour !' }], sum: { mode: 'free', n: 1, turns: 2, repeats: [], notes: ["Você disse: Je habite à Maceió → Melhor: J'habite à Maceió. Je vira j' antes de vogal.", 'Pronúncia melhor no fim.'] } }));
+  await goto('#/'); await goto('#/tutor/free'); assert.match($('.sumcard').textContent, /Resumo da ligação/); const b = $$('.sumcard .corr-guardar'); assert.equal(b.length, 1, 'só a nota que é uma correção ganha botão');
+  b[0].click(); assert.deepEqual(S.cartas().map((c) => [c.fr, c.erro]), [["J'habite à Maceió.", 'Je habite à Maceió']]);
+});
+
+test('editar uma carta de correção: frase certa e explicação; a frase errada fica só como lembrete; apagar', async () => {
+  S.resetAll(); const id = S.addCarta({ fr: "J'ai 20 ans.", erro: 'Je suis 20 ans', pt: 'avoir', frase: "J'ai 20 ans.", origem: 'clara' });
+  await goto('#/'); await goto('#/cartas'); $(`#carta-${id}`).click(); assert.match($('.carta-t').textContent, /Correção/); assert.equal($('#cfr').value, "J'ai 20 ans."); assert.equal($('#cpt').value, 'avoir'); assert.match($('.scsheet small').textContent, /Frase errada que você escreveu: Je suis 20 ans/);
+  assert.equal($('#cfrase'), null, 'correção não tem campo de frase separado');
+  $('#cfr').value = '   '; $('#csalvar').click(); assert.equal(S.cartas()[0].fr, "J'ai 20 ans.", 'frase vazia não salva'); assert.ok($('#folha .scsheet'), 'a folha continua aberta');
+  $('#cfr').value = "J'ai vingt ans."; $('#cpt').value = 'Idade: avoir.'; $('#csalvar').click(); await tick(20);
+  assert.deepEqual([S.cartas()[0].fr, S.cartas()[0].frase, S.cartas()[0].pt, S.cartas()[0].erro], ["J'ai vingt ans.", "J'ai vingt ans.", 'Idade: avoir.', 'Je suis 20 ans']);
+  $(`#carta-${id}`).click(); $('#capagar').click(); await tick(20); assert.equal(S.cartas().length, 0); assert.match(text(), /Você ainda não guardou nenhuma carta/);
+});
+
+test('avaliação da prova oral: a lista "Erros para corrigir" também ganha um botão para cada erro', async () => {
+  S.resetAll(); S.setKey('gemini', 'chave-de-teste');
+  const avaliacao = ['**Nota geral:** 7/10', 'Compréhension des questions: 4/5', '**Erros para corrigir:**', '- você disse "Je suis 20 ans" → correto: "J\'ai 20 ans" (avoir para idade)', '- você disse "Tu es brésilienne" → "Tu es brésilien" — masculino', '**O que treinar antes da prova:** 3 itens'].join('\n');
+  localStorage.setItem('fr_chat_v2', JSON.stringify({ exam: [{ role: 'assistant', content: 'Bonjour.' }, { role: 'user', content: '[FIN]' }, { role: 'assistant', content: avaliacao }] }));
+  await goto('#/'); await goto('#/tutor/exam'); const b = $$('.corr-guardar'); assert.equal(b.length, 2, 'um botão por erro, e nenhum para as notas');
+  assert.match(b[0].textContent, /J'ai 20 ans/); assert.match(b[1].textContent, /Tu es brésilien/); b[1].click();
+  assert.deepEqual(S.cartas().map((c) => [c.fr, c.erro, c.pt]), [['Tu es brésilien', 'Tu es brésilienne', 'masculino']]);
+});

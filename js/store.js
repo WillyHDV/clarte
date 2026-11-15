@@ -9,7 +9,8 @@ const blank = () => ({
   v: SCHEMA, exams: [], history: [], lastBackup: '', xp: 0, streak: 0, lastDay: '', today: { date: '', n: 0 }, units: {}, mistakes: [], mastery: {}, skills: {}, path: {}, plan: { date: '', done: {}, bonus: false, tasks: null }, voiceToday: { date: '', n: 0 },
   settings: { provider: 'gemini', keys: {}, models: {}, voice: true, voiceEngine: 'auto', slow: false, micMode: 'rec', goal: 20, evalDates: {}, ttsModel: 'auto', autoBackup: true, reminder: false, reminderTime: '19:00', callText: 'm', avatar: 'initial', haptics: true },
   scenarios: {},
-  cartas: [], // cartas pessoais: { id, fr, pt, frase, origem, criada }
+  cartas: [], // cartas pessoais: { id, fr, pt, frase, origem, criada, erro? } (erro = a frase errada que a Clara corrigiu; fr é a frase certa)
+  avisos: [], // "marcação errada": casos que você apontou na Leitura, para conferir a IA depois
   book: { livros: [], pages: [] }, // leitura: biblioteca de livros e as páginas lidas por foto (só o texto, nunca a imagem)
 });
 // ---------- versões do formato ----------
@@ -54,7 +55,9 @@ export function normalize(raw) {
   if (!isObj(out.plan.done)) out.plan.done = {};
   out.book = normBook(out.book);
   out.cartas = out.cartas.filter((c) => isObj(c) && typeof c.id === 'string' && typeof c.fr === 'string' && c.fr.trim()).slice(-500)
-    .map((c) => ({ id: c.id, fr: c.fr.trim().slice(0, 80), pt: typeof c.pt === 'string' ? c.pt.slice(0, 90) : '', frase: typeof c.frase === 'string' ? c.frase.slice(0, 160) : '', origem: typeof c.origem === 'string' ? c.origem : '', criada: typeof c.criada === 'string' ? c.criada : '' }));
+    .map((c) => { const erro = typeof c.erro === 'string' ? c.erro.trim().slice(0, 160) : ''; return { id: c.id, fr: c.fr.trim().slice(0, erro ? 160 : 80), pt: typeof c.pt === 'string' ? c.pt.slice(0, 160) : '', frase: typeof c.frase === 'string' ? c.frase.slice(0, 160) : '', origem: typeof c.origem === 'string' ? c.origem : '', criada: typeof c.criada === 'string' ? c.criada : '', ...(erro ? { erro } : {}) }; });
+  out.avisos = out.avisos.filter((a) => isObj(a) && typeof a.id === 'string' && typeof a.tipo === 'string').slice(-100)
+    .map((a) => ({ id: a.id, tipo: a.tipo.slice(0, 20), onde: typeof a.onde === 'string' ? a.onde.slice(0, 20) : '', texto: typeof a.texto === 'string' ? a.texto.slice(0, 200) : '', detalhe: typeof a.detalhe === 'string' ? a.detalhe.slice(0, 1500) : '', nota: typeof a.nota === 'string' ? a.nota.slice(0, 300) : '', criada: typeof a.criada === 'string' ? a.criada : '' }));
   // histórico diário: só registros com data real, números válidos e em ordem (os demais são descartados)
   out.history = out.history.filter((h) => isObj(h) && /^\d{4}-\d{2}-\d{2}$/.test(h.d))
     .map((h) => ({ d: h.d, n: Math.max(0, +h.n || 0), ok: Math.max(0, +h.ok || 0), r: Number.isFinite(h.r) ? h.r : null }))
@@ -213,20 +216,29 @@ export function recordScenario(id, { nivel, done, total }) {
 export const cartas = () => state.cartas;
 export const temCarta = (fr, frase) => state.cartas.some((c) => c.fr.toLowerCase() === String(fr).trim().toLowerCase() && c.frase === String(frase || '').trim());
 export const temPalavra = (fr) => state.cartas.some((c) => c.fr.toLowerCase() === String(fr).trim().toLowerCase());
-export function addCarta({ fr, pt = '', frase = '', origem = '' }) {
-  const palavra = String(fr || '').replace(/\s+/g, ' ').trim().slice(0, 80); if (!palavra) return '';
-  const f = String(frase || '').replace(/\s+/g, ' ').trim().slice(0, 160);
-  const ja = state.cartas.find((c) => c.fr.toLowerCase() === palavra.toLowerCase() && c.frase === f);
-  if (ja) { if (pt && !ja.pt) { ja.pt = String(pt).trim().slice(0, 90); save(); } return ja.id; }
-  const id = novoId('c'); state.cartas.push({ id, fr: palavra, pt: String(pt || '').trim().slice(0, 90), frase: f, origem, criada: new Date().toISOString() }); state.cartas = state.cartas.slice(-500); save(); return id;
+export function addCarta({ fr, pt = '', frase = '', origem = '', erro = '' }) {
+  const e = String(erro || '').replace(/\s+/g, ' ').trim().slice(0, 160); const palavra = String(fr || '').replace(/\s+/g, ' ').trim().slice(0, e ? 160 : 80); if (!palavra) return '';
+  const f = String(frase || '').replace(/\s+/g, ' ').trim().slice(0, 160); const limite = e ? 160 : 90;
+  const ja = state.cartas.find((c) => c.fr.toLowerCase() === palavra.toLowerCase() && c.frase === f && (c.erro || '').toLowerCase() === e.toLowerCase());
+  if (ja) { if (pt && !ja.pt) { ja.pt = String(pt).trim().slice(0, limite); save(); } return ja.id; }
+  const id = novoId('c'); state.cartas.push({ id, fr: palavra, pt: String(pt || '').trim().slice(0, limite), frase: f, origem, criada: new Date().toISOString(), ...(e ? { erro: e } : {}) }); state.cartas = state.cartas.slice(-500); save(); return id;
 }
-export function updateCarta(id, { pt, frase }) {
+export const temCorrecao = (certa, erro) => state.cartas.some((c) => c.erro && c.fr.toLowerCase() === String(certa).trim().toLowerCase() && c.erro.toLowerCase() === String(erro).trim().toLowerCase());
+export function updateCarta(id, { pt, frase, fr }) {
   const c = state.cartas.find((x) => x.id === id); if (!c) return false;
-  if (typeof pt === 'string') c.pt = pt.replace(/\s+/g, ' ').trim().slice(0, 90);
+  if (typeof pt === 'string') c.pt = pt.replace(/\s+/g, ' ').trim().slice(0, c.erro ? 160 : 90);
   if (typeof frase === 'string') c.frase = frase.replace(/\s+/g, ' ').trim().slice(0, 160);
+  if (typeof fr === 'string' && fr.trim()) c.fr = fr.replace(/\s+/g, ' ').trim().slice(0, c.erro ? 160 : 80);
   save(); return true;
 }
 export function deleteCarta(id) { state.cartas = state.cartas.filter((c) => c.id !== id); delete state.mastery[`card:${id}`]; save(); }
+// Avisos de "marcação errada": o que a IA marcou errado na Leitura (letras mudas, ligações, "como se lê", tradução, verbete). Servem de conjunto de exemplos para avaliar a IA (ROADMAP 2.3).
+export const avisos = () => state.avisos;
+export function addAviso({ tipo, onde = '', texto = '', detalhe = '', nota = '' }) {
+  const cortar = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n); if (!cortar(tipo, 20)) return '';
+  const id = novoId('a'); state.avisos.push({ id, tipo: cortar(tipo, 20), onde: cortar(onde, 20), texto: cortar(texto, 200), detalhe: cortar(detalhe, 1500), nota: cortar(nota, 300), criada: new Date().toISOString() }); state.avisos = state.avisos.slice(-100); save(); return id;
+}
+export function clearAvisos() { state.avisos = []; save(); }
 // Leitura: biblioteca de livros e páginas lidas (as frases já vêm validadas por js/leitura.js)
 const novoId = (pref) => pref + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 export const bookLivros = () => state.book.livros;

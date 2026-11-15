@@ -17,7 +17,7 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
   },
   {
-    files: ['test/screens.test.js', 'test/falar-no-app.test.js', 'test/backup-no-app.test.js', 'test/lembrete-no-app.test.js', 'test/cenarios-no-app.test.js', 'test/leitura-tela.test.js', 'test/cartas-tela.test.js', 'test/sons-tela.test.js'], // roda o app dentro do jsdom: usa os globais do navegador
+    files: ['test/screens.test.js', 'test/falar-no-app.test.js', 'test/backup-no-app.test.js', 'test/lembrete-no-app.test.js', 'test/cenarios-no-app.test.js', 'test/leitura-tela.test.js', 'test/cartas-tela.test.js', 'test/sons-tela.test.js', 'test/leitura-voz-tela.test.js'], // roda o app dentro do jsdom: usa os globais do navegador
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {

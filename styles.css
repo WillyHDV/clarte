@@ -525,6 +525,21 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .sompal span { display: grid; min-width: 0; } .sompal b { font-size: var(--fs-lg); overflow-wrap: anywhere; } .sompal small { color: var(--muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .sompal.playing { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--card)); }
 .somfb { display: grid; gap: 6px; margin-top: var(--s2); } .somw { display: flex; align-items: center; gap: var(--s2); } .somw i { font-style: normal; color: var(--muted); }
+/* Ler em voz alta, avisos "algo errado?" e correções da Clara que viram cartas */
+.btn-link { display: inline-flex; align-items: center; gap: 6px; margin-top: var(--s3); padding: 6px 0; min-height: 36px; border: 0; background: none; color: var(--muted); font: inherit; font-size: var(--fs-sm); text-decoration: underline; cursor: pointer; }
+.btn-link svg.i { width: 18px; height: 18px; flex: none; }
+.lervoz-box:empty { display: none; }
+.lv-linha { margin-top: var(--s2); }
+.lervoz { display: grid; gap: var(--s2); justify-items: center; margin-top: var(--s3); padding: var(--s3); border-radius: var(--r); background: var(--card-2); text-align: center; }
+.lervoz .heard { margin: 0; }
+.lv-mic { width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--grad); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 8px 18px rgba(224, 87, 58, .3); }
+.lv-mic svg.i { width: 30px; height: 30px; } .lv-mic.on { animation: pulse 1s infinite; background: var(--bad); }
+.lervoz .words { font-size: var(--fs-lg); line-height: 1.5; }
+.lv-res { margin: 0; font-size: var(--fs-sm); }
+.lervoz .acoes { width: 100%; }
+.corr-acoes { display: grid; gap: var(--s2); margin-top: var(--s2); }
+.corr-guardar { justify-content: flex-start; text-align: left; border-radius: 16px; }
+.corr-guardar span { display: block; min-width: 0; overflow-wrap: anywhere; }
 .dic-sec { margin-top: var(--s4); } .dic-sec h4 { margin: 0 0 var(--s2); font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .dic-lista { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
 .dic-p { margin: 0; display: grid; line-height: 1.35; } .dic-p small { font-size: var(--fs-sm); }
