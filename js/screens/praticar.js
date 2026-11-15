@@ -1,5 +1,6 @@
 // Praticar: o Reforço em destaque, o plano de hoje e os outros treinos numa lista curta.
 import * as S from '../store.js';
+import { progressoSons, sonsGrupos } from '../sons.js';
 import { $app, st } from '../core.js';
 import { esc, I, linha } from '../ui.js';
 import { canTalk } from '../speech.js';
@@ -28,6 +29,7 @@ function resumoSimulacao() {
 
 export function praticar() {
   S.touchDay(); S.save();
+  const ps = progressoSons(sonsGrupos(), (it) => S.strength(it));
   const minhas = S.cartas(); const cartasRever = minhas.filter((c) => { const s = S.strength(`card:${c.id}`); return s === null || s < 0.85; }).length;
   const fracos = reforcoPendentes(); const erros = S.dueMistakes().length; const nx = nextEvaluation(); const reta = nx && nx.days <= STRETCH_DAYS;
   const reforco = fracos
@@ -43,6 +45,7 @@ export function praticar() {
       ${reta ? linha({ icone: 'trophy', titulo: 'Simular a prova oral', resumo: `${nx.ev.title} · ${resumoSimulacao()}`, go: '#/tutor/exam' }) : ''}
       ${linha({ icone: 'bolt', titulo: 'Treino inteligente', resumo: 'Mistura o que está mais fraco', go: '#/practice/mix' })}
       ${canTalk() ? linha({ icone: 'microphone', titulo: 'Treino de fala', resumo: 'Repetir 5 frases em voz alta', go: '#/practice/speakdrill' }) : ''}
+      ${linha({ icone: 'headphones', titulo: 'Sons do francês', resumo: ps.vistos ? `${ps.pct}% firme · ${ps.rever} para rever` : 'Treino de ouvido: palavras que se confundem', go: '#/sons' })}
       ${linha({ icone: 'bulb', titulo: 'Minhas cartas', resumo: minhas.length ? `${minhas.length === 1 ? '1 carta' : `${minhas.length} cartas`} · ${cartasRever} para rever` : 'Guarde palavras que você toca na Leitura', go: '#/cartas' })}
       ${linha({ icone: 'rotate-clockwise', titulo: 'Rever erros', resumo: erros ? `${erros} para hoje` : 'Nenhum erro pendente', go: '#/practice/review' })}
       ${nx && nx.ev.sheet ? linha({ icone: 'file-text', titulo: 'Folha de revisão', resumo: esc(nx.ev.title), go: '#/folha' }) : ''}

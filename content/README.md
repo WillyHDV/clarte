@@ -20,6 +20,8 @@ Um pacote é **só dados**: módulos JavaScript que exportam listas e objetos, s
 | `questions.js` | frases afirmativas e palavras interrogativas |
 | `scenarios.js` | cenários da Clara (missões de conversa por voz): situação, papel da Clara, objetivos com frase-guia e dica, roteiro e abertura; o formato está comentado no próprio arquivo |
 
+Fora dos pacotes fica `content/sons.js`: os **Sons do francês** (pares mínimos para treino de ouvido). Ele não pertence a um curso, então não está em `fb1/`; o formato está comentado no próprio arquivo e `test/sons.test.js` confere.
+
 `js/data.js` entrega o pacote ativo com os nomes que o app já usa (`UNITS`, `PHRASES`, `VERBS`…). Para trocar de pacote, é só mudar o import dele.
 
 ## Marcadores das aulas

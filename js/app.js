@@ -14,6 +14,7 @@ import { openTutor } from './screens/tutor.js';
 import { settingsPage } from './screens/settings.js';
 import { leituraPage } from './screens/leitura.js';
 import { cartasPage } from './screens/cartas.js';
+import { sonsPage } from './screens/sons.js';
 import { praticar } from './screens/praticar.js';
 import { perfilPage } from './screens/perfil.js';
 import { montarBarra, marcarAba } from './nav.js';
@@ -38,12 +39,13 @@ async function route() {
   $app.scrollTo?.(0, 0); window.scrollTo(0, 0);
   document.body.classList.toggle('focus', page === 'practice' || page === 'step');
   if (page === 'unit') return unitPage(arg);
-  if (page === 'practice') return practice(arg);
+  if (page === 'practice') return practice(arg, arg2);
   if (page === 'step') return practice(arg, arg2);
   if (page === 'tutor') return openTutor(arg);
   if (page === 'settings') return settingsPage(arg);
   if (page === 'leitura') return leituraPage(arg, arg2);
   if (page === 'cartas') return cartasPage();
+  if (page === 'sons') return sonsPage(arg);
   if (page === 'praticar') return praticar();
   if (page === 'perfil') return perfilPage();
   if (page === 'history') return historyPage();
@@ -59,7 +61,7 @@ window.addEventListener('hashchange', route);
 // ---------- delegação: botões de áudio ----------
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-say]');
-  if (b) { b.classList.add('playing'); speak(b.dataset.say, { rate: rate() }).then(() => b.classList.remove('playing')); }
+  if (b) { b.classList.add('playing'); speak(b.dataset.say, { rate: rate(), rapido: b.dataset.rapido === '1' }).then(() => b.classList.remove('playing')); } // rapido: a voz do aparelho, igual nas duas palavras de um par (Sons do francês)
 });
 
 // ---------- delegação: botões de navegação (data-go) ----------

@@ -513,6 +513,18 @@ button.linha:active { background: color-mix(in srgb, var(--ink) 6%, transparent)
 .dic-topo > div { display: grid; gap: 2px; min-width: 0; } .dic-topo h3 { margin: 0; font-size: var(--fs-2xl); overflow-wrap: anywhere; }
 .dic-topo small { font-size: var(--fs-sm); }
 .scsheet .carta-t { margin: 0 0 var(--s2); font-size: var(--fs-2xl); overflow-wrap: anywhere; }
+/* Sons do francês: lição com palavras para ouvir e comparar, e as palavras do par no painel de resposta */
+.som-prog { margin: var(--s2) 0 var(--s3); color: var(--muted); font-size: var(--fs-sm); }
+.som-dica { margin-bottom: var(--s3); } .som-dica h3 { margin: 0 0 var(--s2); font-size: var(--fs-md); } .som-dica p { margin: 0; line-height: 1.5; }
+.som-topo { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin-top: var(--s4); } .som-topo .sec { margin: 0; }
+.som-topo .pill.on { background: var(--navy); color: var(--card); border-color: transparent; }
+.sompares { display: grid; gap: var(--s2); margin-top: var(--s2); }
+.sompar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s2); }
+.sompal { display: flex; align-items: center; gap: var(--s2); text-align: left; padding: 10px 12px; min-height: 56px; border: 1.5px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); font: inherit; cursor: pointer; }
+.sompal svg.i { flex: none; width: 22px; height: 22px; color: var(--navy); }
+.sompal span { display: grid; min-width: 0; } .sompal b { font-size: var(--fs-lg); overflow-wrap: anywhere; } .sompal small { color: var(--muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.sompal.playing { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--card)); }
+.somfb { display: grid; gap: 6px; margin-top: var(--s2); } .somw { display: flex; align-items: center; gap: var(--s2); } .somw i { font-style: normal; color: var(--muted); }
 .dic-sec { margin-top: var(--s4); } .dic-sec h4 { margin: 0 0 var(--s2); font-size: var(--fs-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .dic-lista { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
 .dic-p { margin: 0; display: grid; line-height: 1.35; } .dic-p small { font-size: var(--fs-sm); }

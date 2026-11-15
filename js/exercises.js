@@ -1,6 +1,7 @@
 import {
   LETTERS, ACCENTS, NAMES, PHRASES, SITUATIONS, PRONOUNS, VERBS, NATS, LANGS, CITIES, JOBS, STATEMENTS, QWORDS, TUVOUS, PROFILES, VIDEO_TV,
 } from './data.js';
+import { SONS } from '../content/sons.js';
 
 // ---------- utilitários ----------
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -16,7 +17,7 @@ const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 export const stripAcc = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 export const norm = (s) => s.toLowerCase().replace(/[’‘`]/g, "'").replace(/[.,!?;:«»"“”…]/g, ' ').replace(/\s+/g, ' ').trim();
 
-const mk = (unit, kind, o) => ({ unit, kind, key: `${kind}|${o.q}|${[].concat(o.answer).join('/')}`, items: [], ...o });
+export const mk = (unit, kind, o) => ({ unit, kind, key: `${kind}|${o.q}|${[].concat(o.answer).join('/')}`, items: [], ...o });
 // letras de um nome (sem acento) como itens de domínio
 const lettersOf = (name) => [...new Set(name.toUpperCase().normalize('NFD').replace(/[^A-Z]/g, '').split(''))].map((c) => `letter:${c}`);
 
@@ -39,7 +40,8 @@ export function politicaSom(ex) {
   if (opcoesFr) return { antes: false, aoSelecionar: true, aoVerificar: false, botaoFinal: false };
   if (!ex.audio) return { antes: false, aoSelecionar: false, aoVerificar: false, botaoFinal: false };
   if (k === 'speak') return { antes: true, aoSelecionar: false, aoVerificar: false, botaoFinal: true }; // quem acabou de falar não precisa ouvir o modelo de novo sozinho
-  return { antes: !entrega, aoSelecionar: false, aoVerificar: true, botaoFinal: true };
+  const botaoFinal = !(ex.unit === 'sons' && ex._v !== 'igual'); // nos Sons o painel já traz um botão para cada palavra do par; só "iguais ou diferentes" precisa repetir os dois áudios juntos
+  return { antes: !entrega, aoSelecionar: false, aoVerificar: true, botaoFinal };
 }
 
 export function check(ex, input) {
@@ -393,6 +395,7 @@ export const unitItems = (unit) => UNIVERSE[unit]();
 export function itemLabel(id) {
   const [k, a, b] = id.split(':');
   if (k === 'letter') return `Letra ${a}`;
+  if (k === 'som') { const g = SONS.find((x) => x.id === a); const p = g && g.pares.find((x) => x.id === b); return p ? `Som ${g.titulo}: ${p.palavras.map((w) => w.fr).join(' · ')}` : id; }
   if (k === 'accent') return `Acento ${a}`;
   if (k === 'phrase') return a + (b ? ':' + b : '');
   if (k === 'pres') return { nom: 'Dizer o nome', nat: 'Dizer a nacionalidade', ville: 'Dizer onde mora', langue: 'Dizer os idiomas', metier: 'Dizer a profissão', etude: 'Dizer o que estuda' }[a];

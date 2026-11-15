@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## v33 — 15/11/2026
+
+Sons do francês: treino de ouvido com pares mínimos (ROADMAP 1.1).
+
+- **Praticar → Sons do francês**: 8 sons que costumam confundir quem fala português, cada um com um punhado de pares de palavras que só mudam naquele som: **u × ou** (rue/roue), **u × i** (rue/riz), **é × è** (mes/mais), **an × on × in** (vin/vent/vont), **masculino × feminino** (petit/petite, bon/bonne), **s × z** (poison/poisson), **ch × j** (chou/joue) e **r × l** (roi/loi). São 46 pares.
+- **Lição de cada som**: uma explicação em português de como fazer o som, e todas as palavras para ouvir e comparar, com a pronúncia em IPA e o significado. O botão **Devagar** da lição toca bem devagar (0,45).
+- **Treino de ouvido** com resposta na hora, em três tipos de pergunta: *Qual palavra você ouviu?* (escolher a escrita), *O que a palavra significa?* (ligar o som ao sentido) e *Estas duas palavras soam iguais ou diferentes?* (duas palavras seguidas). Depois de responder, o painel mostra o par inteiro com um botão de ouvir cada palavra. O treino escolhe os pares pelo ponto de esquecer, como o resto do app, e o Reforço mistura até 2 pares de sons já treinados que estejam enfraquecendo. Erros entram na revisão espaçada.
+- **Voz do aparelho nos sons**: as palavras sempre saem pela voz francesa do aparelho, mesmo se você escolheu a voz natural nos Ajustes. Assim as duas palavras de um par soam com a mesma voz, a resposta é imediata e nenhuma palavra gasta o limite diário da voz natural (o app também deixou de pré-carregar o áudio da pergunta seguinte nesses exercícios).
+- **Onde ficam**: os sons não dependem do curso. Os dados estão em `content/sons.js`, fora de `fb1/`, e acompanham você depois que o curso acabar (camada pessoal do ROADMAP). O IPA aparece só nos sons e nas respostas deles.
+- **Correção no ROADMAP**: o exemplo "pain/peint" não vale, porque as duas palavras soam igual em francês. Os pares agora são conferidos por teste: pronúncia e significado diferentes dentro de cada par.
+- **Testes**: 347 → 363, com testes de mutação (a voz do aparelho em cada botão, os limites por par e por tipo, o Reforço, a volta de cada tela).
+
 ## v32 — 15/11/2026
 
 Primeiro bloco tirado dos livros (ROADMAP): revisão no ponto certo e Minhas cartas.

@@ -48,6 +48,8 @@ Regra: texto de marca usa `--brand-text`; fundo de marca usa `--brand` ou `--gra
 | Deslizador (`.pager`) | página da Leitura | uma frase por vez, `scroll-snap` horizontal; o cartão ocupa a largura toda e a vizinha só entra ao arrastar (o espaço entre cartões passa do respiro lateral); contador e setas em `.pager-nav` |
 | Verbete (`.dic-*`) | folha do dicionário na Leitura | palavra, classe, como se lê, sentido na frase, significados, exemplos e expressões com Ouvir, dicas; cache em `js/dicionario.js` |
 | Folha que sobe (`.scsheet`) | ficha da missão (Cenários), escolha de avatar (Perfil), dicionário (Leitura) e edição de carta (Minhas cartas) | alça, conteúdo e botões largos; tocar fora fecha; `abrirFolha()` em `js/core.js`; título de carta `.carta-t` |
+| Par de sons (`.sompar` / `.sompal`) | lição de um som (Sons do francês) | duas ou três palavras lado a lado, cada uma um botão com ícone de som, palavra, IPA e significado; `.playing` marca a que está tocando; "Devagar" é um `.pill` com `aria-pressed` |
+| Palavras do par (`.somfb` / `.somw`) | painel de resposta dos exercícios de som | uma linha por palavra com botão de ouvir (`data-rapido`: voz do aparelho), a palavra em negrito, o IPA e o significado |
 | Carta pessoal (linha `.linha`) | Minhas cartas, Praticar | palavra, significado e a frase; "Treinar agora" no topo; a linha de Praticar mostra quantas há e quantas faltam rever |
 | Abas (`.abas`) e botão fixo (`.cta-fixo`) | Unidade | abas Trilha, Aula e Frases; o botão fica acima da barra de baixo |
 

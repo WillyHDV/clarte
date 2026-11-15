@@ -6,7 +6,7 @@ Escrita em 15/11/2026, a partir de sete livros que o Willy anexou e do estado re
 
 | O que os livros pedem | Como está no app hoje | Lacuna |
 | --- | --- | --- |
-| Pronúncia primeiro, com treino de ouvido (pares mínimos com resposta imediata) e ligação entre grafia e som | Leitura mostra letras mudas e ligações; exercícios de ouvir; unidade do alfabeto | Não há treino de ouvido com pares mínimos (u/ou, an/on/in, é/è, s/z…) nem regras de som ensinadas em sequência |
+| Pronúncia primeiro, com treino de ouvido (pares mínimos com resposta imediata) e ligação entre grafia e som | Leitura mostra letras mudas e ligações; exercícios de ouvir; unidade do alfabeto | ~~Não havia treino de ouvido com pares mínimos~~ Resolvido na v33 (8 sons, 46 pares, com lição e IPA); falta ligar à Leitura (ler em voz alta) |
 | Recuperar da memória, não reler; revisar **perto de esquecer**, não o que já esqueceu | Todo exercício é recuperação; força por item que decai com o tempo (modelo de meia-vida); erros voltam em 0, 1, 3, 7 e 14 dias | ~~A prioridade ia ao item **mais fraco**, não ao que está **no ponto de esquecer**; intervalos paravam em 14 dias~~ Resolvido na v32 |
 | Corrigir na hora, e transformar cada correção em cartão | Painel de feedback imediato nos exercícios; frases fracas da ligação vão ao Reforço | Palavras do dicionário já viram cartas (v32); as correções da Clara no chat ainda não |
 | Conexão pessoal e imagens para a palavra grudar (elaboração) | Minhas cartas (v32): você escolhe a palavra e escreve uma frase sua | Falta imagem/cena; ver decisão em aberto 2 |
@@ -42,7 +42,7 @@ Escrita em 15/11/2026, a partir de sete livros que o Willy anexou e do estado re
 
 ## 4. A linha de progressão
 
-As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar no celular. **Já feito na v32:** 0.2, a parte das palavras do dicionário em 0.3 e a consulta de versão em 0.4.
+As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar no celular. **Já feito na v32:** 0.2, a parte das palavras do dicionário em 0.3 e a consulta de versão em 0.4. **Na v33:** 1.1 (Sons do francês).
 
 ### Onda 0: até 02/12 (Évaluation 2): o que serve à prova
 
@@ -57,7 +57,7 @@ As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar 
 
 | # | Entrega | Por quê |
 | --- | --- | --- |
-| 1.1 | **Sons do francês**: unidade de ouvido com pares mínimos (rue/roue, pain/peint, dessus/dessous, vent/vin, bon/beau…) com resposta imediata, e regras de som em ordem (letras finais mudas, nasais, ligação) | É o maior ganho de aprendizagem que os livros apontam e conversa direto com a Leitura |
+| 1.1 | **Sons do francês** ✔ v33: ouvido com pares mínimos (rue/roue, vin/vent/vont, dessus/dessous, bon/bonne…) com resposta imediata e uma lição em português para cada som (u × ou, u × i, é × è, nasais, masculino × feminino, s × z, ch × j, r × l). Fica na camada pessoal (`content/sons.js`). *Correção: pain/peint soam igual e não servem de par.* **Falta:** ligação em "ler em voz alta" e mais sons (p × b, f × v, ligações) conforme o uso | É o maior ganho de aprendizagem que os livros apontam e conversa direto com a Leitura |
 | 1.2 | **Ler em voz alta** na Leitura: gravar a frase, marcar as palavras que escaparam, levar as difíceis ao Reforço | Treina a saída e a pronúncia com texto que você escolheu |
 | 1.3 | **Minhas frases**: cartões feitos por você (da Leitura, do dicionário, das correções), com recuperação em forma de lacuna | Elaboração e conexão pessoal |
 | 1.4 | Aviso "marcação errada" na Leitura e no dicionário (guarda o caso para a avaliação da IA) | Começa a coletar o conjunto de exemplos da onda 2 |
@@ -93,7 +93,7 @@ As datas são estimativas; o que muda o ritmo é quando o Willy consegue testar 
 
 1. **Material da Évaluation 2** (bloqueia a onda 0.1).
 2. **Imagens nos cartões**: o método do livro usa fotos escolhidas por quem aprende. O app não tem como buscar imagens grátis sem custo; alternativa: uma frase sua e um ícone. A decidir com o Willy.
-3. **Alfabeto fonético (IPA)**: o livro recomenda; o app mostra "como se lê" em português. Mostrar também o IPA em Ajustes avançados? Decidido adiar até a unidade de sons.
+3. ~~Alfabeto fonético (IPA)~~ Decidido na v33: o IPA aparece nas lições e nas respostas dos Sons do francês, em letra miúda ao lado do significado; o "como se lê" em português da Leitura continua como está.
 4. **Ordem das ondas 1 e 2** depende de como a Leitura e o Reforço forem usados nas próximas semanas.
 
 ## 7. O que foi lido

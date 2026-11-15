@@ -5,30 +5,34 @@ import { listen, dictate, browserRec, canTalk, canRecord, prefetch, stopSpeaking
 import * as S from '../store.js';
 import { esc, I } from '../ui.js';
 import { $app, st, rate, rateDevagar, speak, setCleanup, haptico } from '../core.js';
+import { buildSons, grupoPorId, progressoSons, sonsGrupos } from '../sons.js';
 import { strengthOf, readiness, unitMastery, STEPS, nextStep, planDone, markFocus } from '../progress.js';
 
 // ---------- prática ----------
 export const ACC = ['é', 'è', 'ê', 'ë', 'à', 'â', 'î', 'ï', 'ô', 'û', 'ù', 'ç', 'œ', '’'];
 export function practice(id, stepId) {
-  const review = id === 'review'; const speakDrill = id === 'speakdrill'; const cartasModo = id === 'cartas'; const cfg = stepId ? STEPS.find((s) => s.id === stepId) : null;
+  const review = id === 'review'; const speakDrill = id === 'speakdrill'; const cartasModo = id === 'cartas'; const sonsModo = id === 'sons'; const grupoSom = sonsModo && stepId ? grupoPorId(stepId) : null; const cfg = !sonsModo && stepId ? STEPS.find((s) => s.id === stepId) : null;
+  const pctSons = () => progressoSons(grupoSom ? [grupoSom] : sonsGrupos(), (it) => S.strength(it)).pct; const antesSons = pctSons();
   // treino adaptativo: escolhe os exercícios cujos itens estão mais fracos (ou ainda não vistos)
-  const scope = (review || id === 'mix' || speakDrill || cartasModo) ? UNITS.map((u) => u.id) : [id];
+  const scope = (review || id === 'mix' || speakDrill || cartasModo || sonsModo) ? UNITS.map((u) => u.id) : [id];
   const avgPct = () => Math.round(scope.reduce((a, u) => a + unitMastery(u).pct, 0) / scope.length);
   const before = avgPct();
   let list;
   if (review) {
     // revisão = frases mal repetidas + itens já vistos perto de esquecer (força abaixo de 0,85, os mais próximos do ponto de esquecer primeiro) + cartas pessoais
     const mis = shuffle(S.dueMistakes()).slice(0, 4); const minhas = buildCartas(S.cartas(), 3, strengthOf);
+    const somFraco = (it) => { const s = S.strength(it); return s !== null && s < 0.85; }; const sons = buildSons(null, 2, strengthOf, { aceitar: somFraco }); // só pares de sons já treinados e enfraquecendo
     const weakSeen = (iid) => { const s = S.strength(iid); return s === null ? 1 : s; };
-    const adapt = buildSession('mix', 24, weakSeen).filter((ex) => ex.items.some((iid) => { const s = S.strength(iid); return s !== null && s < 0.85; })).slice(0, 10 - mis.length - minhas.length);
-    list = shuffle([...mis, ...adapt, ...minhas]);
+    const adapt = buildSession('mix', 24, weakSeen).filter((ex) => ex.items.some((iid) => { const s = S.strength(iid); return s !== null && s < 0.85; })).slice(0, 10 - mis.length - minhas.length - sons.length);
+    list = shuffle([...mis, ...adapt, ...minhas, ...sons]);
   } else if (cartasModo) list = buildCartas(S.cartas(), 10, strengthOf);
+  else if (sonsModo) list = buildSons(grupoSom ? grupoSom.id : null, 10, strengthOf);
   else if (speakDrill) list = buildSession('mix', 5, strengthOf, { kinds: ['speak'] });
   else if (cfg) list = buildSession(id, cfg.n, strengthOf, cfg.kinds ? { kinds: cfg.kinds } : {});
   else list = buildSession(id, 10, strengthOf);
-  const daUnidade = cfg || !(review || id === 'mix' || speakDrill || cartasModo);
-  const sair = cartasModo ? '#/cartas' : daUnidade ? `#/unit/${id}` : '#/praticar'; // para onde o X e o "voltar" levam
-  const voltarTxt = cartasModo ? 'Voltar às cartas' : daUnidade ? 'Voltar à unidade' : 'Voltar a Praticar';
+  const daUnidade = cfg || !(review || id === 'mix' || speakDrill || cartasModo || sonsModo);
+  const sair = cartasModo ? '#/cartas' : sonsModo ? (grupoSom ? `#/sons/${grupoSom.id}` : '#/sons') : daUnidade ? `#/unit/${id}` : '#/praticar'; // para onde o X e o "voltar" levam
+  const voltarTxt = cartasModo ? 'Voltar às cartas' : sonsModo ? 'Voltar aos sons' : daUnidade ? 'Voltar à unidade' : 'Voltar a Praticar';
   if (cartasModo && !list.length) { $app.innerHTML = `<header class="apphead"><button class="back" data-go="#/cartas" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Minhas cartas</b><small>Nada para treinar</small></div></header><div class="card center"><p>Você ainda não tem cartas. Guarde palavras tocando nelas na Leitura.</p><button class="btn primary wide" data-go="#/leitura">Abrir a Leitura</button></div>`; return; }
   if (!list.length) { $app.innerHTML = `<header class="apphead"><button class="back" data-go="#/praticar" aria-label="Voltar">${I('chevron-left')}</button><div class="hello"><b>Reforço</b><small>Nada fraco agora</small></div></header><div class="card center"><div class="medalha ok">${I('trophy')}</div><p>Nenhum item fraco agora. Faça um treino inteligente para avançar.</p><button class="btn primary wide" data-go="#/practice/mix">${I('bolt')} Treino inteligente</button></div>`; return; }
   const total = list.length; let i = 0; let correct = 0; let attempted = 0; const wrongList = [];
@@ -59,8 +63,10 @@ export function practice(id, stepId) {
         stepMsg = `<div class="passbox no">${I('alert-circle')} <span>Quase! Para concluir <b>${esc(cfg.title)}</b> são ${cfg.pass}% e você fez ${pct}%. Os itens que errou voltam a aparecer.</span></div>`;
       }
     }
-    const again = cfg ? `#/step/${id}/${cfg.id}` : `#/practice/${id}`;
-    const pontos = correct * 10 + (correct === attempted ? 20 : 0); const depois = avgPct();
+    const again = cfg ? `#/step/${id}/${cfg.id}` : `#/practice/${id}${grupoSom ? '/' + grupoSom.id : ''}`;
+    const pontos = correct * 10 + (correct === attempted ? 20 : 0); const depois = avgPct(); const depoisSons = pctSons();
+    // cartas não têm "domínio"; sons mostram quanto do grupo (ou de todos) já está firme
+    const dominio = cartasModo ? '' : sonsModo ? `Sons firmes: ${antesSons}% → ${depoisSons}% ${depoisSons > antesSons ? '▲' : depoisSons < antesSons ? '▼' : ''}` : `Domínio ${scope.length > 1 ? 'geral' : 'da unidade'}: ${before}% → ${depois}% ${depois > before ? '▲' : depois < before ? '▼' : ''}`;
     const medalha = pct >= 80 ? ['trophy', 'ok'] : pct >= 50 ? ['star', 'meio'] : ['flame', 'baixo'];
     haptico(pct >= 80 ? 'fim' : 'toque');
     $app.innerHTML = `
@@ -70,7 +76,7 @@ export function practice(id, stepId) {
         ${stepMsg}
         <div class="grupo resumo">
           <div class="linha"><span class="linha-i">${I('star')}</span><span class="linha-t"><b>+${pontos} pontos</b>${wrongList.length ? `<small>${wrongList.length} ${wrongList.length > 1 ? 'erros voltam' : 'erro volta'} no reforço</small>` : ''}</span></div>
-          <div class="linha"><span class="linha-i">${I('chart-line')}</span><span class="linha-t"><b class="dom">Domínio ${scope.length > 1 ? 'geral' : 'da unidade'}: ${before}% → ${depois}% ${depois > before ? '▲' : depois < before ? '▼' : ''}</b></span></div>
+          ${dominio ? `<div class="linha"><span class="linha-i">${I('chart-line')}</span><span class="linha-t"><b class="dom">${dominio}</b></span></div>` : ''}
         </div>
         <div class="fim-botoes">${nextBtn}<button class="btn ${nextBtn ? '' : 'primary'}" data-go="${again}" id="again">${cfg ? 'Tentar de novo' : 'Novamente'}</button>
           ${S.dueMistakes().length && !cfg ? `<button class="btn warn" data-go="#/practice/review">${I('repeat')} Revisar erros</button>` : ''}
@@ -85,7 +91,7 @@ export function practice(id, stepId) {
     placed = []; bank = k === 'tiles' ? ex.tiles.map((t, n) => ({ t, n })) : [];
     if (k === 'match') { mSelL = null; mSelR = null; mDone = new Set(); mMiss = new Set(); mLock = false; const idx = ex.pairs.map((_, n) => n); mOrderL = shuffle(idx); mOrderR = shuffle(idx); }
     let body = '';
-    const audioBtn = ex.audio && som.antes ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}" id="play" aria-label="Ouvir">${I('volume')}</button><button class="say" data-slow="1">${I('clock')} Devagar</button></div>` : '';
+    const audioBtn = ex.audio && som.antes ? `<div class="audio"><button class="say big" data-say="${esc(ex.audio)}"${ex.rapido ? ' data-rapido="1"' : ''} id="play" aria-label="Ouvir">${I('volume')}</button><button class="say" data-slow="1">${I('clock')} Devagar</button></div>` : '';
     if (k === 'choice' || k === 'listen-choice') {
       body = `<div class="opts">${ex.options.map((o, n) => `<button class="opt" data-o="${n}">${esc(o)}</button>`).join('')}</div>`;
     } else if (k === 'type' || k === 'listen-type') {
@@ -106,11 +112,11 @@ export function practice(id, stepId) {
       </div>
       <div class="dock" id="dock"><div class="fb" id="fb" role="status" aria-live="polite"></div><button class="btn primary wide" id="ok" ${k === 'speak' && !canTalk() ? '' : 'disabled'}>${k === 'speak' && !canTalk() ? 'Pular' : 'Verificar'}</button></div>`;
     wire();
-    if (listen && ex.audio && st().settings.voice !== false) auto = setTimeout(() => speak(ex.audio, { rate: rate() }), 250);
+    if (listen && ex.audio && st().settings.voice !== false) auto = setTimeout(() => speak(ex.audio, { rate: rate(), rapido: !!ex.rapido }), 250);
     if (k === 'tiles') drawTiles();
     if (k === 'match') drawMatch();
     if (k === 'type' || k === 'listen-type') document.getElementById('inp').focus();
-    const nxt = list[i + 1]; if (nxt && nxt.audio) prefetch(nxt.audio);
+    const nxt = list[i + 1]; if (nxt && nxt.audio && !nxt.rapido) prefetch(nxt.audio); // quem fala pela voz do aparelho (Sons) não gasta o limite da voz natural
   }
 
   function drawTiles() {
@@ -139,7 +145,7 @@ export function practice(id, stepId) {
 
   function wire() {
     const ok = document.getElementById('ok');
-    document.querySelectorAll('[data-slow]').forEach((b) => { b.onclick = () => speak(ex.audio, { rate: rateDevagar() }); });
+    document.querySelectorAll('[data-slow]').forEach((b) => { b.onclick = () => speak(ex.audio, { rate: rateDevagar(), rapido: !!ex.rapido }); });
     const som = politicaSom(ex); // certa ou errada, a opção tocada é lida (nos exercícios em que as opções são o que se ouve); nunca só a certa
     document.querySelectorAll('.opt').forEach((b) => { b.onclick = () => { if (answered) return; sel = ex.options[+b.dataset.o]; document.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === b)); ok.disabled = false; if (som.aoSelecionar && st().settings.voice !== false) speak(sel, { rate: rate(), rapido: true }); }; });
     const inp = document.getElementById('inp');
@@ -202,11 +208,11 @@ export function practice(id, stepId) {
     const estado = skip ? 'neutral' : r.ok && !r.almost ? 'good' : r.ok ? 'almost' : 'bad';
     haptico(estado);
     fb.className = `fb show ${estado}`; document.getElementById('dock').className = `dock ${estado}`; document.body.classList.add('com-fb');
-    fb.innerHTML = `<div class="fbt"><span class="fbi">${I(estado === 'good' ? 'check' : estado === 'bad' ? 'x' : estado === 'almost' ? 'alert-circle' : 'player-skip-forward')}</span><b>${title}</b></div>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio && politicaSom(ex).botaoFinal ? `<button class="say" data-say="${esc(ex.audio)}">${I('volume')} Ouvir</button>` : ''}`;
+    fb.innerHTML = `<div class="fbt"><span class="fbi">${I(estado === 'good' ? 'check' : estado === 'bad' ? 'x' : estado === 'almost' ? 'alert-circle' : 'player-skip-forward')}</span><b>${title}</b></div>${answer && (!r.ok || r.almost) ? `<div class="ans">${esc(answer)}</div>` : ''}${extra}${ex.explain ? `<div class="ex">${ex.explain}</div>` : ''}${ex.audio && politicaSom(ex).botaoFinal ? `<button class="say" data-say="${esc(ex.audio)}"${ex.rapido ? ' data-rapido="1"' : ''}>${I('volume')} Ouvir</button>` : ''}`;
     ok.disabled = false; ok.textContent = 'Continuar'; ok.classList.toggle('bad', !r.ok && !skip);
     if (document.getElementById('inp')) document.getElementById('inp').disabled = true;
     // depois de Verificar, a frase certa toca sozinha (acerto ou erro), menos onde o som já veio das opções
-    if (!skip && ex.audio && politicaSom(ex).aoVerificar && st().settings.voice !== false) speak(ex.audio, { rate: rate() });
+    if (!skip && ex.audio && politicaSom(ex).aoVerificar && st().settings.voice !== false) speak(ex.audio, { rate: rate(), rapido: !!ex.rapido });
   }
 
   function next() { i++; render(); }
